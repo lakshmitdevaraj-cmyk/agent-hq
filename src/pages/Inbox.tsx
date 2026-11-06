@@ -18,6 +18,7 @@ type Reply = {
   html: string | null;
   received_at: string;
   handled: boolean;
+  opt_out?: boolean; // reply said no/stop/unsubscribe → lead marked do-not-contact
 };
 
 export default function Inbox() {
@@ -109,6 +110,11 @@ export default function Inbox() {
                 >
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-semibold text-white truncate flex-1">{r.from ?? "Unknown"}</span>
+                    {r.opt_out && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 shrink-0">
+                        Do not contact
+                      </span>
+                    )}
                     <span className="text-[10px] text-white/40 font-mono shrink-0">{timeAgo(r.received_at)}</span>
                   </div>
                   <div className="text-xs text-white/65 mb-1 truncate">{r.subject ?? "(no subject)"}</div>
@@ -128,6 +134,9 @@ export default function Inbox() {
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-white truncate">{selected.from ?? "Unknown"}</div>
                   <div className="text-xs text-white/50 font-mono">{new Date(selected.received_at).toLocaleString()}</div>
+                  {selected.opt_out && (
+                    <div className="text-xs text-red-300 mt-1">This reply asked us to stop — the lead is marked do-not-contact and won't be emailed again.</div>
+                  )}
                 </div>
                 <button
                   onClick={() => convertToTask(selected.id)}

@@ -137,7 +137,7 @@ const ACTIONS: ActionGroup[] = [
         desc: "Scrapes the lead's website homepage + /contact + /contact-us for a contact email. Returns the updated lead with email set (or { enriched: false, reason } if none found). Call in a loop for every lead that has a website but no email — Apify's Google Maps scraper rarely returns emails, and this recovers ~40–70%.",
         params: "{ campaign_id, lead_id }",
       },
-      { action: "outreach.leads.delete", desc: "Remove one lead.", params: "{ campaign_id, lead_id }" },
+      { action: "outreach.leads.delete", desc: "Remove one lead AND its drafted (unsent) emails.", params: "{ campaign_id, lead_id }" },
       {
         action: "outreach.emails.create",
         desc: "Agent-authored draft. You write the subject + body yourself (no Gemini call). Same downstream pipeline as Gemini drafts — link tracking, webhook updates, reply correlation. Dedupes on (lead, step). PREFERRED when the calling agent is already a strong writer.",
@@ -156,13 +156,16 @@ const ACTIONS: ActionGroup[] = [
       { action: "outreach.emails.list", desc: "All drafts/sends for a campaign.", params: "{ campaign_id, limit? }" },
       {
         action: "outreach.emails.update",
-        desc: "Edit a single draft before send.",
+        desc: "Edit a single DRAFT (subject / body) before send. Sent emails can't be edited. If body_text changes without body_html, the html is rebuilt from the text.",
         params: "{ campaign_id, email_id, subject?, body_text?, body_html? }",
       },
+      { action: "outreach.emails.delete", desc: "Delete one DRAFT. Sent emails are kept as history.", params: "{ campaign_id, email_id }" },
+      { action: "outreach.settings.get", desc: "Footer settings. postal_address is blank by default; when set it is appended to the footer of every email.", params: "{}" },
+      { action: "outreach.settings.set", desc: "Set the optional postal address used in the email footer (blank = omit).", params: "{ postal_address }" },
       {
         action: "outreach.emails.send",
-        desc: "Fires drafted emails via AgentMail from the user's own inbox. Rewrites every outbound link through /t/:token for click tracking. Pass sequence_position to send only that step; leads who already replied to an earlier step are auto-skipped. ALWAYS get explicit human approval (GATE 2) before each step — these are real emails to real people.",
-        params: "{ campaign_id, email_ids?, sequence_position? }",
+        desc: "Fires drafted emails via AgentMail from the user's own inbox. Rewrites every outbound link through /t/:token for click tracking. Pass limit to send only that many (oldest drafts first; the rest stay queued) and sequence_position to send only that step; leads who already replied to an earlier step, and leads marked do-not-contact, are skipped. The opt-out line + ShiftForge AI signature footer is appended automatically. Returns { sent, total, queued, errors }. ALWAYS get explicit human approval (GATE 2) before each step — these are real emails to real people.",
+        params: "{ campaign_id, email_ids?, sequence_position?, limit? }",
       },
       { action: "outreach.replies.list", desc: "Inbound replies. Filter by campaign id if provided.", params: "{ campaign_id?, limit? }" },
       { action: "outreach.replies.get", desc: "One reply's full content.", params: "{ id }" },
@@ -553,7 +556,7 @@ THE FLOW:
                               body_text?, body_html? }
 
   outreach.emails.send      { campaign_id, email_ids?,
-                              sequence_position? }
+                              sequence_position?, limit? }
                             [GATE 2 before EACH step]
                             Sends drafts via AgentMail. Rewrites
                             every href through /t/:token for click

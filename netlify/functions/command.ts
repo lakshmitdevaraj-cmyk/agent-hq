@@ -3,6 +3,17 @@ import { connectLambda } from "@netlify/blobs";
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson } from "./lib/blobs";
 import { getOrCreateApiKey, identifyApiKey, createAgentKey } from "./lib/auth";
+import {
+  appendFooter,
+  textToHtml,
+  normalizeDraft,
+  greetingFor,
+  FIXED_OFFER,
+  emptyIndex,
+  addToIndex,
+  matchesIndex,
+  emailKey,
+} from "./lib/outreach";
 
 function slugify(s: string): string {
   return s
@@ -39,6 +50,7 @@ const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 const OUTREACH_LEADS = "agent-hq-outreach-leads"; // key: `<campaign_id>/<lead_id>`
 const OUTREACH_EMAILS = "agent-hq-outreach-emails"; // key: `<campaign_id>/<email_id>`
 const OUTREACH_REPLIES = "agent-hq-outreach-replies"; // inbound replies from AgentMail
+const OUTREACH_SETTINGS = "agent-hq-outreach-settings"; // key: "settings" → { postal_address }
 
 // Service keys we onboard. `gemini` doubles as the voice key — reads through VOICE_CONFIG for back-compat.
 type ServiceKey = "gemini" | "apify" | "agentmail";
@@ -205,10 +217,10 @@ const DRAFT_SYSTEM_PROMPT = `You write short, high-reply-rate cold outreach emai
 - 70–120 words. Short subject (5–8 words, no emoji).
 - One clear observation about the recipient's business from the data provided.
 - One specific value hook tied to the sender's context.
-- One low-friction ask (question or 15-min call).
+- One low-friction ask: the offer is ALWAYS a free 30-minute call. Say "30-minute free call". Never offer a 10/15/20-minute call, a demo, or any other length.
 - No fluff, no "I hope this finds you well", no superlatives, no fake flattery.
 - Conversational and personal, not corporate — but use STANDARD sentence capitalization. Proper nouns (person names, company names, cities, products, brands) are ALWAYS capitalized. Never lowercase "I", never lowercase a person's name or company name. Sentences start with a capital letter.
-- Greeting: if the recipient's first name can be inferred, use "Hi <First Name>,". Otherwise use "Hi there,". Never "Hi team," for a one-to-one email.
+- Greeting: if the user message has a GREETING line, start the email with exactly that greeting followed by a comma. Otherwise, if the recipient's first name can be inferred, use "Hi <First Name>,". Only if no name of any kind is known use "Hi there,". Never "Hi there," when the business or a person is named. Never just "Hi team," for a one-to-one email.
 - Do NOT fabricate statistics, client counts, case studies, or specific numbers that weren't given in the sender context. No "We've helped 50+ clients" unless that exact number was provided.
 - Sign the email with the sender's name and company exactly as provided — keep their original capitalization.
 - Output ONLY JSON: { "subject": "...", "body_text": "...", "body_html": "<p>...</p>" }.
@@ -225,7 +237,7 @@ PAS (Problem → Agitate → Solution):
 AIDA (Attention → Interest → Desire+Action):
   - Step 1 (Attention): open with an unexpected observation, stat, or framing about their category. Short hook. Set up curiosity.
   - Step 2 (Interest): build on step 1. Add one relevant proof point or insight. Paint the better state the sender's offer makes possible.
-  - Step 3 (Desire + Action): reinforce the CTA. Make it very low-friction — a 15-min call on a specific day, or a single yes/no reply.
+  - Step 3 (Desire + Action): reinforce the CTA. Make it very low-friction — a 30-minute free call on a specific day, or a single yes/no reply.
 
 SDR (Direct → Value-add → Breakup):
   - Step 1 (Direct): 2–3 lines. What you do, why them specifically, would they be open to a quick call.
@@ -248,11 +260,13 @@ type SequenceContext = {
 
 async function generateEmailDraft(
   geminiKey: string,
-  lead: { name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string },
+  lead: { name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean },
   senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string },
   sequence: SequenceContext = {},
 ): Promise<EmailDraft> {
+  const greeting = greetingFor(lead);
   const leadSummary = [
+    greeting ? `GREETING: ${greeting}` : null,
     lead.name ? `Business: ${lead.name}` : null,
     lead.company && lead.company !== lead.name ? `Company: ${lead.company}` : null,
     lead.category ? `Category: ${lead.category}` : null,
@@ -266,7 +280,8 @@ async function generateEmailDraft(
   const senderSummary = [
     senderContext.sender_name ? `Sender name: ${senderContext.sender_name}` : null,
     senderContext.sender_company ? `Sender company: ${senderContext.sender_company}` : null,
-    senderContext.sender_offer ? `Offer / value: ${senderContext.sender_offer}` : null,
+    `Call offer (fixed, always use exactly this): ${FIXED_OFFER}`,
+    senderContext.sender_offer ? `What the sender does / value: ${senderContext.sender_offer}` : null,
     senderContext.campaign_query ? `ICP context: ${senderContext.campaign_query}` : null,
   ]
     .filter(Boolean)
@@ -317,11 +332,15 @@ async function generateEmailDraft(
     parsed = JSON.parse(stripped);
   }
   const obj = parsed as Partial<EmailDraft>;
-  return {
-    subject: String(obj.subject ?? "").trim() || "Quick question",
-    body_text: String(obj.body_text ?? "").trim(),
-    body_html: String(obj.body_html ?? "").trim(),
-  };
+  // Enforce the fixed offer + greeting even if the model ignored the prompt.
+  return normalizeDraft(
+    {
+      subject: String(obj.subject ?? "").trim() || "Quick question",
+      body_text: String(obj.body_text ?? "").trim(),
+      body_html: String(obj.body_html ?? "").trim(),
+    },
+    greeting,
+  );
 }
 
 // ── Apify helpers ─────────────────────────────────────────────────────
@@ -1251,12 +1270,45 @@ export const handler: Handler = async (event) => {
               await writeJson(s, id, { ...campaign, status: "failed", error_message: msg, apify_status: runStatus.status, updated_at: new Date().toISOString() });
               return fail(500, msg);
             }
+            // Another poll may already be importing (the UI polls every 4s and an
+            // import can take longer). A short-lived claim stops a double import.
+            const claimedAt = typeof campaign.import_started_at === "string" ? Date.parse(campaign.import_started_at) : 0;
+            if (claimedAt && Date.now() - claimedAt < 90_000) {
+              return ok({ status: "searching", apify_status: runStatus.status, changed: false });
+            }
+            await writeJson(s, id, { ...campaign, import_started_at: new Date().toISOString() });
+
             const structured = campaign.structured_query as StructuredQuery;
             const items = await getApifyDatasetItems(apifyKey, datasetId, structured.maxResults);
             const leadsStore = store(OUTREACH_LEADS);
+
+            // Dedupe: skip any scraped lead whose website domain, email or Google
+            // place id already exists in ANY other campaign (do-not-contact leads
+            // included — they are simply leads with a flag). Leads already saved
+            // in THIS campaign (a retried import) are skipped silently so they are
+            // not counted as "already contacted".
+            const priorIndex = emptyIndex();
+            const ownIndex = emptyIndex();
+            const existingRows = await listJson<{ campaign_id?: string; email?: string | null; website?: string | null; raw?: unknown; is_test?: boolean }>(leadsStore);
+            for (const row of existingRows) {
+              if (row.is_test) continue; // your own test addresses must not block real leads
+              addToIndex(row.campaign_id === id ? ownIndex : priorIndex, row);
+            }
+
             let imported = 0;
+            let skipped = 0;
+            const skippedBy = { place_id: 0, email: 0, website: 0 };
             for (const raw of items) {
               const extracted = extractLeadFromApify(raw);
+              const candidate = { email: extracted.email, website: extracted.website, raw };
+              if (matchesIndex(ownIndex, candidate)) continue; // already imported by an earlier attempt
+              const hit = matchesIndex(priorIndex, candidate);
+              if (hit) {
+                skipped++;
+                skippedBy[hit]++;
+                continue;
+              }
+              addToIndex(priorIndex, candidate); // also catches duplicates inside this one scrape
               const leadId = nanoid(10);
               const createdAt = new Date().toISOString();
               await writeJson(leadsStore, `${id}/${createdAt}-${leadId}`, {
@@ -1275,11 +1327,15 @@ export const handler: Handler = async (event) => {
             // by adding their count to the imported count.
             const existingLeadsBlobs = await leadsStore.list({ prefix: `${id}/` });
             const totalAfter = existingLeadsBlobs.blobs.length;
+            const { import_started_at: _claim, ...campaignRest } = campaign;
+            void _claim;
             const updated = {
-              ...campaign,
+              ...campaignRest,
               status: "ready" as const,
               apify_status: runStatus.status,
               total_leads_found: items.length,
+              leads_skipped_duplicate: skipped,
+              leads_skipped_by: skippedBy,
               leads_imported: totalAfter,
               updated_at: new Date().toISOString(),
             };
@@ -1287,10 +1343,10 @@ export const handler: Handler = async (event) => {
             await logActivity({
               agent_id: identity?.kind === "agent" ? identity.agent_id : null,
               category: "research",
-              summary: `Apify scrape complete: ${imported} leads imported for "${campaign.name}"`,
-              details: { campaign_id: id, imported },
+              summary: `Apify scrape complete for "${campaign.name}": ${items.length} found, ${skipped} skipped as already contacted, ${imported} imported`,
+              details: { campaign_id: id, found: items.length, skipped, imported },
             });
-            return ok({ status: "ready", apify_status: runStatus.status, imported, changed: true });
+            return ok({ status: "ready", apify_status: runStatus.status, found: items.length, skipped, imported, changed: true });
           }
 
           if (["FAILED", "ABORTED", "TIMED-OUT"].includes(runStatus.status)) {
@@ -1389,7 +1445,31 @@ export const handler: Handler = async (event) => {
           const lead = await readJson<{ id: string }>(leadsStore, b.key);
           if (lead?.id === lead_id) {
             await leadsStore.delete(b.key);
-            return ok({ deleted: true });
+            // A deleted lead must not leave drafts behind (they would still be
+            // sent, possibly to a malformed address). Sent/delivered/replied
+            // emails stay as history.
+            const es = store(OUTREACH_EMAILS);
+            let draftsDeleted = 0;
+            const { blobs: emailBlobs } = await es.list({ prefix: `${campaign_id}/` });
+            for (const eb of emailBlobs) {
+              const em = await readJson<{ lead_id?: string; status?: string }>(es, eb.key);
+              if (em?.lead_id === lead_id && em.status === "drafted") {
+                await es.delete(eb.key);
+                draftsDeleted++;
+              }
+            }
+            if (draftsDeleted > 0) {
+              const cs = store(OUTREACH_CAMPAIGNS);
+              const camp = await readJson<Record<string, unknown>>(cs, campaign_id);
+              if (camp) {
+                await writeJson(cs, campaign_id, {
+                  ...camp,
+                  emails_generated: Math.max(0, ((camp.emails_generated as number) ?? 0) - draftsDeleted),
+                  updated_at: new Date().toISOString(),
+                });
+              }
+            }
+            return ok({ deleted: true, drafts_deleted: draftsDeleted });
           }
         }
         return fail(404, "lead not found");
@@ -1483,6 +1563,7 @@ export const handler: Handler = async (event) => {
         }
         if (!lead) return fail(404, "lead not found");
         if (!lead.email) return fail(400, "lead has no email address — cannot draft");
+        if (lead.do_not_contact) return fail(400, "lead is marked do-not-contact — no email will be drafted");
 
         // Check if a draft already exists for this (lead, step) and short-circuit.
         // Previously we dedupe'd on lead alone which broke sequences (step 2 would
@@ -1521,6 +1602,7 @@ export const handler: Handler = async (event) => {
               category: lead.category as string | undefined,
               address: lead.address as string | undefined,
               notes: lead.notes as string | undefined,
+              is_test: lead.is_test === true,
             },
             {
               sender_name: typeof sender_name === "string" ? sender_name : undefined,
@@ -1676,11 +1758,11 @@ export const handler: Handler = async (event) => {
         const cs = store(OUTREACH_CAMPAIGNS);
         const campaign = await readJson<Record<string, unknown>>(cs, campaign_id);
         if (!campaign) return fail(404, "campaign not found");
-        const leads = await listJson<{ id: string; name: string; email: string | null; company?: string; website?: string; category?: string; address?: string; notes?: string }>(
+        const leads = await listJson<{ id: string; name: string; email: string | null; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean; do_not_contact?: boolean }>(
           store(OUTREACH_LEADS),
           `${campaign_id}/`,
         );
-        const sendable = leads.filter((l) => l.email);
+        const sendable = leads.filter((l) => l.email && !l.do_not_contact);
         if (sendable.length === 0) return fail(400, "No leads with email addresses yet");
 
         const es = store(OUTREACH_EMAILS);
@@ -1697,6 +1779,7 @@ export const handler: Handler = async (event) => {
                 category: lead.category,
                 address: lead.address,
                 notes: lead.notes,
+                is_test: lead.is_test === true,
               },
               {
                 sender_name,
@@ -1750,19 +1833,28 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.update": {
-        // Lets the UI tweak a drafted email (subject/body) before send.
+        // Lets the UI tweak a drafted email (subject/body) before send. Only
+        // drafts are editable — a sent email is a record of what went out.
         const { campaign_id, email_id, subject, body_text, body_html } = params as Record<string, string>;
         if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
+        if (subject !== undefined && !String(subject).trim()) return fail(400, "subject cannot be empty");
+        if (body_text !== undefined && !String(body_text).trim()) return fail(400, "body cannot be empty");
         const es = store(OUTREACH_EMAILS);
         const { blobs } = await es.list({ prefix: `${campaign_id}/` });
         for (const b of blobs) {
           const row = await readJson<Record<string, unknown>>(es, b.key);
           if (row?.id === email_id) {
+            if (row.status !== "drafted") return fail(400, `only drafted emails can be edited (this one is ${String(row.status)})`);
+            // If the plain-text body changed and no explicit html came with it,
+            // rebuild the html from the text — send uses html when present, so a
+            // stale html body would silently send the OLD text.
+            const nextHtml = body_html ? body_html : body_text ? textToHtml(body_text) : undefined;
             const updated = {
               ...row,
-              ...(subject ? { subject } : {}),
+              ...(subject ? { subject: String(subject).trim() } : {}),
               ...(body_text ? { body_text } : {}),
-              ...(body_html ? { body_html } : {}),
+              ...(nextHtml ? { body_html: nextHtml } : {}),
+              edited: true,
               updated_at: new Date().toISOString(),
             };
             await writeJson(es, b.key, updated);
@@ -1770,6 +1862,45 @@ export const handler: Handler = async (event) => {
           }
         }
         return fail(404, "email not found");
+      }
+
+      case "outreach.emails.delete": {
+        // Deletes one drafted email. Sent emails are kept as history.
+        const { campaign_id, email_id } = params as Record<string, string>;
+        if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
+        const es = store(OUTREACH_EMAILS);
+        const { blobs } = await es.list({ prefix: `${campaign_id}/` });
+        for (const b of blobs) {
+          const row = await readJson<Record<string, unknown>>(es, b.key);
+          if (row?.id === email_id) {
+            if (row.status !== "drafted") return fail(400, `only drafted emails can be deleted (this one is ${String(row.status)})`);
+            await es.delete(b.key);
+            const cs = store(OUTREACH_CAMPAIGNS);
+            const camp = await readJson<Record<string, unknown>>(cs, campaign_id);
+            if (camp) {
+              await writeJson(cs, campaign_id, {
+                ...camp,
+                emails_generated: Math.max(0, ((camp.emails_generated as number) ?? 0) - 1),
+                updated_at: new Date().toISOString(),
+              });
+            }
+            return ok({ deleted: true });
+          }
+        }
+        return fail(404, "email not found");
+      }
+
+      // ── OUTREACH SETTINGS (footer postal address) ─────────────────
+      case "outreach.settings.get": {
+        const rec = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
+        return ok({ postal_address: rec?.postal_address ?? "" });
+      }
+      case "outreach.settings.set": {
+        const { postal_address } = params as Record<string, unknown>;
+        if (postal_address !== undefined && typeof postal_address !== "string") return fail(400, "postal_address must be a string");
+        const cleaned = (postal_address ?? "").toString().trim().slice(0, 300);
+        await writeJson(store(OUTREACH_SETTINGS), "settings", { postal_address: cleaned, updated_at: new Date().toISOString() });
+        return ok({ postal_address: cleaned });
       }
 
       case "outreach.emails.send": {
@@ -1783,7 +1914,13 @@ export const handler: Handler = async (event) => {
         //     For step 2+, automatically skips leads that already replied
         //     to an earlier step (don't nag people who said yes).
         //   - neither: sends all drafted emails in the campaign (legacy).
-        const { campaign_id, email_ids, sequence_position } = params as Record<string, unknown>;
+        //
+        // Batching: `limit` (positive int) caps how many go out in this call,
+        // oldest draft first; the rest stay "drafted" (queued) for a later send.
+        //
+        // Every outgoing email gets the opt-out + signature footer appended
+        // here (not by Gemini). Leads flagged do-not-contact are never sent to.
+        const { campaign_id, email_ids, sequence_position, limit } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         const agentmailKey = await readServiceKey("agentmail");
         if (!agentmailKey) return fail(400, "AgentMail key not configured");
@@ -1791,12 +1928,56 @@ export const handler: Handler = async (event) => {
         const campaign = await readJson<Record<string, unknown>>(cs, campaign_id);
         if (!campaign) return fail(404, "campaign not found");
 
-        await writeJson(cs, campaign_id, { ...campaign, status: "sending", updated_at: new Date().toISOString() });
-
         // Deployment URL lets the click-tracker links resolve back to us.
         const baseUrl = event.headers["x-forwarded-proto"] && event.headers["x-forwarded-host"]
           ? `${event.headers["x-forwarded-proto"]}://${event.headers["x-forwarded-host"]}`
           : (process.env.URL ?? "");
+
+        // ── Decide what to send BEFORE touching AgentMail or campaign status ──
+        const es = store(OUTREACH_EMAILS);
+        const allEmails = await listJson<{ id: string; campaign_id: string; lead_id: string; to_email: string; subject: string; body_text: string; body_html: string; status: string; sender_name?: string | null; sequence_position?: number; created_at?: string }>(
+          es,
+          `${campaign_id}/`,
+        );
+        const selectedIds = Array.isArray(email_ids) ? new Set(email_ids as string[]) : null;
+        const targetStep = typeof sequence_position === "number" && sequence_position >= 1 ? Math.floor(sequence_position) : null;
+        const batchLimit = typeof limit === "number" && Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : null;
+
+        // Leads that already replied (at any step) — skip for sequence follow-ups.
+        const repliedLeadIds = new Set(
+          allEmails.filter((e) => e.status === "replied").map((e) => e.lead_id),
+        );
+
+        // Do-not-contact: any lead (in any campaign) flagged by an opt-out reply.
+        const allLeads = await listJson<{ id: string; email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS));
+        const dncLeadIds = new Set(allLeads.filter((l) => l.do_not_contact).map((l) => l.id));
+        const dncEmails = new Set(allLeads.filter((l) => l.do_not_contact).map((l) => emailKey(l.email)).filter((e): e is string => !!e));
+        const isDnc = (e: { lead_id: string; to_email: string }) => dncLeadIds.has(e.lead_id) || dncEmails.has(emailKey(e.to_email) ?? "");
+
+        const eligible = allEmails.filter((e) => {
+          if (e.status !== "drafted") return false;
+          if (isDnc(e)) return false;
+          if (selectedIds) return selectedIds.has(e.id);
+          if (targetStep !== null) {
+            if ((e.sequence_position ?? 1) !== targetStep) return false;
+            // Don't nag leads who already replied to an earlier step.
+            if (targetStep > 1 && repliedLeadIds.has(e.lead_id)) return false;
+          }
+          return true;
+        });
+        // Oldest first, then cap to the requested batch size.
+        eligible.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? -1 : (a.created_at ?? "") > (b.created_at ?? "") ? 1 : 0));
+        const toSend = batchLimit ? eligible.slice(0, batchLimit) : eligible;
+        const queuedBefore = allEmails.filter((e) => e.status === "drafted" && !isDnc(e)).length;
+
+        if (toSend.length === 0) {
+          return ok({ sent: 0, total: 0, queued: queuedBefore, errors: [], skipped_do_not_contact: allEmails.filter((e) => e.status === "drafted" && isDnc(e)).length });
+        }
+
+        const settings = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
+        const postalAddress = settings?.postal_address ?? "";
+
+        await writeJson(cs, campaign_id, { ...campaign, status: "sending", updated_at: new Date().toISOString() });
 
         const inbox = await getOrCreateCampaignInbox(agentmailKey, campaign.name as string);
 
@@ -1810,40 +1991,18 @@ export const handler: Handler = async (event) => {
           await ensureInboxDisplayName(agentmailKey, inbox.inbox_id, campaignSenderName, inbox.display_name);
         }
 
-        const es = store(OUTREACH_EMAILS);
-        const allEmails = await listJson<{ id: string; campaign_id: string; lead_id: string; to_email: string; subject: string; body_text: string; body_html: string; status: string; sender_name?: string | null; sequence_position?: number }>(
-          es,
-          `${campaign_id}/`,
-        );
-        const selectedIds = Array.isArray(email_ids) ? new Set(email_ids as string[]) : null;
-        const targetStep = typeof sequence_position === "number" && sequence_position >= 1 ? Math.floor(sequence_position) : null;
-
-        // Leads that already replied (at any step) — skip for sequence follow-ups.
-        const repliedLeadIds = new Set(
-          allEmails.filter((e) => e.status === "replied").map((e) => e.lead_id),
-        );
-
-        const toSend = allEmails.filter((e) => {
-          if (e.status !== "drafted") return false;
-          if (selectedIds) return selectedIds.has(e.id);
-          if (targetStep !== null) {
-            if ((e.sequence_position ?? 1) !== targetStep) return false;
-            // Don't nag leads who already replied to an earlier step.
-            if (targetStep > 1 && repliedLeadIds.has(e.lead_id)) return false;
-          }
-          return true;
-        });
-
         let sent = 0;
         const errors: Array<{ email_id: string; error: string }> = [];
         for (const em of toSend) {
           try {
-            const trackedHtml = rewriteLinksForTracking(em.body_html || `<p>${em.body_text || ""}</p>`, baseUrl, campaign_id, em.lead_id, em.id);
+            const trackedHtml = rewriteLinksForTracking(em.body_html || textToHtml(em.body_text || ""), baseUrl, campaign_id, em.lead_id, em.id);
+            // Footer goes on AFTER link tracking so the shiftforge.ai link stays direct.
+            const withFooter = appendFooter(em.body_text || "", trackedHtml, postalAddress);
             const sendBody: Record<string, unknown> = {
               to: [em.to_email],
               subject: em.subject,
-              text: em.body_text,
-              html: trackedHtml,
+              text: withFooter.text,
+              html: withFooter.html,
             };
             const r = await agentmailFetch(agentmailKey, `/inboxes/${inbox.inbox_id}/messages/send`, {
               method: "POST",
@@ -1878,9 +2037,11 @@ export const handler: Handler = async (event) => {
           }
         }
 
+        const queuedAfter = Math.max(0, queuedBefore - sent);
         const updated = {
           ...campaign,
-          status: sent > 0 ? "completed" : "failed",
+          // Drafts still queued → keep the campaign "ready" for the next batch.
+          status: sent > 0 ? (queuedAfter > 0 ? "ready" : "completed") : "failed",
           emails_sent: (campaign.emails_sent as number ?? 0) + sent,
           last_send_at: new Date().toISOString(),
           agentmail_inbox_id: inbox.inbox_id,
@@ -1890,10 +2051,10 @@ export const handler: Handler = async (event) => {
         await logActivity({
           agent_id: identity?.kind === "agent" ? identity.agent_id : null,
           category: "email",
-          summary: `Sent ${sent} of ${toSend.length} emails for "${campaign.name}"`,
-          details: { campaign_id, sent, errors: errors.length, inbox: inbox.inbox_id },
+          summary: `Sent ${sent} of ${toSend.length} emails for "${campaign.name}" (${queuedAfter} still queued)`,
+          details: { campaign_id, sent, queued: queuedAfter, errors: errors.length, inbox: inbox.inbox_id },
         });
-        return ok({ sent, total: toSend.length, errors, inbox });
+        return ok({ sent, total: toSend.length, queued: queuedAfter, errors, inbox });
       }
 
       // ── INBOX (AgentMail inbound replies) ─────────────────────────

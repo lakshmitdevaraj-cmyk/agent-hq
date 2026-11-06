@@ -129,7 +129,7 @@ Gate 2 (real emails to real people). Everything else is autonomous.
   out email addresses. Recovers ~40–70% of the missing addresses. Fails
   open — if a site blocks scraping, we move on.
   params: `{ campaign_id, lead_id }`
-- `outreach.leads.delete` — removes one lead.
+- `outreach.leads.delete` — removes one lead and its drafted (unsent) emails.
   params: `{ campaign_id, lead_id }`
 
 ### Emails — two paths, pick based on who's writing
@@ -182,7 +182,13 @@ cold strangers.
   Leads who already replied (at any prior step) are auto-skipped for
   step 2+. The human clicks "Send step N" when they're ready — there
   is no auto-scheduler; cadence is deliberate and human-controlled.
-  params: `{ campaign_id, email_ids?, sequence_position? }`
+  params: `{ campaign_id, email_ids?, sequence_position?, limit? }`
+  - `limit` — send only this many drafts, oldest first; the rest stay
+    queued. Returns `{ sent, total, queued, errors }`.
+  - A footer (opt-out line + "ShiftForge AI" signature, plus the optional
+    postal address from `outreach.settings`) is appended automatically at
+    send time — never write it into drafts. Leads marked do-not-contact
+    (an inbound reply said no/stop/unsubscribe) are never sent to.
   - `email_ids` — explicit list wins over everything else
   - `sequence_position` — filter by step (1, 2, or 3)
   - neither — send all drafts (legacy single-step behavior)
@@ -190,8 +196,12 @@ cold strangers.
 ### Other email actions
 - `outreach.emails.list` — all drafts/sends for a campaign.
   params: `{ campaign_id, limit? }`
-- `outreach.emails.update` — edit a single draft before send.
+- `outreach.emails.update` — edit a single draft before send (drafts only).
   params: `{ campaign_id, email_id, subject?, body_text?, body_html? }`
+- `outreach.emails.delete` — delete a single draft (drafts only).
+  params: `{ campaign_id, email_id }`
+- `outreach.settings.get` / `outreach.settings.set` — optional footer
+  postal address (blank by default). params: `{ postal_address }`
 
 ### Replies (inbound, after AgentMail webhook fires)
 - `outreach.replies.list` — inbound replies. Filter by campaign.
