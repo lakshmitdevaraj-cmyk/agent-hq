@@ -1431,6 +1431,27 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead; onClose: () => void })
   );
 }
 
+// Read-only preview of what is appended automatically at send time.
+function FooterPreview({ email }: { email: EmailRow }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    call<{ footer_text: string }>("outreach.footer.preview", { campaign_id: email.campaign_id, email_id: email.id })
+      .then((r) => !cancelled && setText(r.footer_text))
+      .catch(() => !cancelled && setText(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [email.campaign_id, email.id, email.body_text]);
+  if (!text) return null;
+  return (
+    <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-3">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-white/40 mb-1.5">Added automatically when sent</div>
+      <pre className="whitespace-pre-wrap font-sans text-sm text-white/55 leading-relaxed">{text}</pre>
+    </div>
+  );
+}
+
 function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose: () => void; onSaved: () => void }) {
   const [subject, setSubject] = useState(email.subject);
   const [body, setBody] = useState(email.body_text);
@@ -1469,9 +1490,8 @@ function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose:
         <FormField label="Body">
           <TextArea value={body} onChange={(e) => setBody(e.target.value)} rows={12} />
         </FormField>
-        <p className="text-[11px] text-white/45">
-          The sign-off (your name, ShiftForge AI, website) and the opt-out line are added automatically when the email is sent — don't type them here.
-        </p>
+        <FooterPreview email={email} />
+        <p className="text-[11px] text-white/45">Don't type the sign-off or opt-out line above — they are added automatically.</p>
         {err && <p className="text-xs text-red-300">{err}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm font-semibold transition">
@@ -1518,6 +1538,8 @@ function EmailDetailModal({ email, onClose }: { email: EmailRow; onClose: () => 
             <pre className="whitespace-pre-wrap font-sans text-sm text-white/85 leading-relaxed">{email.body_text}</pre>
           )}
         </div>
+
+        {email.status === "drafted" && <FooterPreview email={email} />}
 
         <details className="rounded-lg bg-black/20 border border-white/[0.04]">
           <summary className="cursor-pointer px-3 py-2 text-xs text-white/50 font-mono hover:text-white/80 transition">

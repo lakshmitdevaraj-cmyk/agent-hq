@@ -1891,6 +1891,26 @@ export const handler: Handler = async (event) => {
         return fail(404, "email not found");
       }
 
+      case "outreach.footer.preview": {
+        // Exactly what send will append to a draft (sign-off + opt-out line),
+        // computed by the same function the sender uses — so the UI preview
+        // can't drift from the real email.
+        const { campaign_id, email_id } = params as Record<string, string>;
+        if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
+        const campaign = await readJson<Record<string, unknown>>(store(OUTREACH_CAMPAIGNS), campaign_id);
+        const es = store(OUTREACH_EMAILS);
+        const { blobs } = await es.list({ prefix: `${campaign_id}/` });
+        for (const b of blobs) {
+          const row = await readJson<{ id: string; body_text?: string; sender_name?: string | null }>(es, b.key);
+          if (row?.id !== email_id) continue;
+          const settings = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
+          const body = row.body_text ?? "";
+          const full = appendFooter(body, "", settings?.postal_address ?? "", row.sender_name || (campaign?.default_sender_name as string | undefined) || "");
+          return ok({ footer_text: full.text.slice(body.trimEnd().length).trim() });
+        }
+        return fail(404, "email not found");
+      }
+
       // ── OUTREACH SETTINGS (footer postal address) ─────────────────
       case "outreach.settings.get": {
         const rec = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
