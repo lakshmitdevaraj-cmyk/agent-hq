@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:vite": "vite",
     "dev:netlify": "netlify dev",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

@@ -22,6 +22,7 @@ import {
   Star,
   Phone,
   Globe,
+  Pencil,
   X,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -39,6 +40,7 @@ type Campaign = {
   structured_query: { location: string; searchTerms: string[]; maxResults: number } | null;
   status: string;
   total_leads_found: number;
+  leads_skipped_duplicate?: number; // scraped leads skipped: already in an earlier campaign
   leads_imported: number;
   emails_generated: number;
   emails_sent: number;
@@ -72,6 +74,7 @@ type Lead = {
   raw?: Record<string, unknown>;
   status: string;
   is_test: boolean;
+  do_not_contact?: boolean;
   created_at: string;
 };
 
@@ -92,6 +95,8 @@ type EmailRow = {
   sequence_total?: number;
   framework?: Framework | null;
   source?: string; // "agent_drafted" when injected via emails.create
+  edited?: boolean;
+  blocked_do_not_contact?: boolean; // recipient said no: this draft will never be sent
   created_at: string;
   updated_at: string;
 };
@@ -119,6 +124,12 @@ export default function CampaignDetail() {
   const [emailDetail, setEmailDetail] = useState<EmailRow | null>(null);
   const [generateProgress, setGenerateProgress] = useState<{ done: number; total: number } | null>(null);
   const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number; found: number } | null>(null);
+  // Batch sending: how many queued drafts to send per click (oldest first).
+  const [sendCount, setSendCount] = useState("5");
+  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number } | null>(null);
+  const [editDraft, setEditDraft] = useState<EmailRow | null>(null);
+  // Drafts ticked for "Send selected" (overrides the batch size).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
@@ -195,24 +206,59 @@ export default function CampaignDetail() {
     }
   }
 
-  async function sendAll() {
-    if (!id) return;
-    const drafted = emails.filter((e) => e.status === "drafted").length;
-    if (drafted === 0) {
-      alert("No drafted emails to send. Generate drafts first.");
-      return;
-    }
-    if (!confirm(`Send ${drafted} emails via AgentMail? This will hit real recipients' inboxes.`)) return;
+  // How many drafts to send this click: the number typed in "Send how many?",
+  // at least 1 and never more than what is queued.
+  function batchSize(queued: number): number {
+    const n = Math.floor(Number(sendCount));
+    return Math.min(Math.max(Number.isFinite(n) && n >= 1 ? n : 1, 1), Math.max(queued, 1));
+  }
+
+  const selectedDrafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && selectedIds.has(e.id)).length;
+
+  async function runSend(params: Record<string, unknown>, limit: number) {
     setBusyAction("send");
     setErr(null);
     try {
-      await call("outreach.emails.send", { campaign_id: id });
+      const res = await call<{ sent: number; queued: number; errors: unknown[] }>("outreach.emails.send", { campaign_id: id, limit, ...params });
+      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0 });
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Send failed");
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function toggleSelected(emailId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(emailId)) next.delete(emailId);
+      else next.add(emailId);
+      return next;
+    });
+  }
+
+  // Sends exactly the ticked drafts, ignoring the batch size.
+  async function sendSelected() {
+    if (!id) return;
+    const picked = emails.filter((e) => e.status === "drafted" && selectedIds.has(e.id));
+    if (picked.length === 0) return;
+    const list = picked.map((e) => e.to_email).join("\n");
+    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.\n\n${list}`)) return;
+    await runSend({ email_ids: picked.map((e) => e.id) }, picked.length);
+    setSelectedIds(new Set());
+  }
+
+  async function sendAll() {
+    if (!id) return;
+    const drafted = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length;
+    if (drafted === 0) {
+      alert("No drafted emails to send. Generate drafts first.");
+      return;
+    }
+    const n = batchSize(drafted);
+    if (!confirm(`Send ${n} of ${drafted} queued emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.`)) return;
+    await runSend({}, n);
   }
 
   // Sends only the drafted emails at a specific sequence step. Used by
@@ -220,32 +266,38 @@ export default function CampaignDetail() {
   async function sendStep(step: number) {
     if (!id) return;
     const draftsAtStep = emails.filter(
-      (e) => e.status === "drafted" && (e.sequence_position ?? 1) === step,
+      (e) => e.status === "drafted" && !e.blocked_do_not_contact && (e.sequence_position ?? 1) === step,
     ).length;
     if (draftsAtStep === 0) {
       alert(`No drafted emails at step ${step}.`);
       return;
     }
+    const n = batchSize(draftsAtStep);
     const verb = step === 1 ? "Send step 1" : `Send follow-up step ${step}`;
-    if (!confirm(`${verb} — ${draftsAtStep} email${draftsAtStep === 1 ? "" : "s"} via AgentMail. Leads who already replied will be skipped automatically.`))
+    if (!confirm(`${verb} — ${n} of ${draftsAtStep} queued email${draftsAtStep === 1 ? "" : "s"} (oldest first) via AgentMail. Leads who already replied will be skipped automatically.`))
       return;
-    setBusyAction("send");
-    setErr(null);
-    try {
-      await call("outreach.emails.send", { campaign_id: id, sequence_position: step });
-      await refresh();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Send failed");
-    } finally {
-      setBusyAction(null);
-    }
+    await runSend({ sequence_position: step }, n);
   }
 
   async function removeLead(leadId: string) {
     if (!id) return;
+    const drafts = emails.filter((e) => e.lead_id === leadId && e.status === "drafted").length;
+    if (drafts > 0 && !confirm(`Delete this lead and its ${drafts} draft${drafts === 1 ? "" : "s"}?`)) return;
     try {
       await call("outreach.leads.delete", { campaign_id: id, lead_id: leadId });
       setLeads((prev) => prev.filter((l) => l.id !== leadId));
+      await refresh(); // the server also removed this lead's drafts
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  async function deleteDraft(email: EmailRow) {
+    if (!id) return;
+    if (!confirm(`Delete the draft to ${email.to_email}?`)) return;
+    try {
+      await call("outreach.emails.delete", { campaign_id: id, email_id: email.id });
+      setEmails((prev) => prev.filter((e) => e.id !== email.id));
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
     }
@@ -287,8 +339,8 @@ export default function CampaignDetail() {
   // Delivered/clicked/replied are cumulative — once an email is "clicked"
   // it was also "delivered", etc.
   const counters = useMemo(() => {
-    const drafts = emails.filter((e) => e.status === "drafted").length;
-    const postSend = emails.filter((e) => e.status !== "drafted");
+    const drafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length;
+    const postSend = emails.filter((e) => e.status !== "drafted" && !e.blocked_do_not_contact);
     const delivered = emails.filter((e) =>
       ["delivered", "clicked", "replied"].includes(e.status),
     ).length;
@@ -320,7 +372,7 @@ export default function CampaignDetail() {
       const emailsAtStep = emails.filter((e) => (e.sequence_position ?? 1) === s);
       stats.push({
         step: s,
-        drafted: emailsAtStep.filter((e) => e.status === "drafted").length,
+        drafted: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length,
         sent: emailsAtStep.filter((e) => e.status !== "drafted").length,
         delivered: emailsAtStep.filter((e) => ["delivered", "clicked", "replied"].includes(e.status)).length,
         clicked: emailsAtStep.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
@@ -486,12 +538,52 @@ export default function CampaignDetail() {
             onClick={sendAll}
             busy={busyAction === "send"}
             label="Send campaign"
-            sublabel={counters && counters.sent > 0 ? `${counters.sent} sent · AgentMail` : "Fires all drafts from AgentMail inbox"}
+            sublabel={counters && counters.sent > 0 ? `${counters.sent} sent · ${counters.drafts} queued` : "Sends the batch size below, oldest first"}
             icon={<Send size={16} />}
             tint="accent"
           />
         )}
       </div>
+
+      {/* Batch send control — applies to "Send campaign" and to each step button */}
+      {((counters?.drafts ?? 0) > 0 || (counters?.sent ?? 0) > 0) && (
+        <div className="mb-5 flex items-center gap-3 flex-wrap rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3">
+          <label htmlFor="send-count" className="text-xs font-bold tracking-wider uppercase text-white/70">
+            Send how many?
+          </label>
+          <input
+            id="send-count"
+            type="number"
+            min={1}
+            max={Math.max(counters?.drafts ?? 1, 1)}
+            value={sendCount}
+            onChange={(e) => setSendCount(e.target.value)}
+            disabled={busyAction !== null}
+            className="w-20 px-2 py-1.5 rounded-lg bg-black/30 border border-white/15 text-white text-sm font-mono focus:outline-none focus:border-accent/60"
+          />
+          <span className="text-sm text-white/80 font-mono" data-testid="send-summary">
+            {counters?.sent ?? 0} sent, {counters?.drafts ?? 0} still queued
+          </span>
+          {lastSend && (
+            <span className="text-xs text-white/50 font-mono">
+              last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}
+            </span>
+          )}
+          <button
+            onClick={() => void sendSelected()}
+            disabled={busyAction !== null || selectedDrafts === 0}
+            className="px-3 py-1.5 rounded-lg bg-accent/20 hover:bg-accent/30 border border-accent/40 text-accent text-xs font-bold tracking-wide transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Send selected ({selectedDrafts})
+          </button>
+          {selectedDrafts > 0 && (
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-white/50 hover:text-white underline">
+              Clear selection
+            </button>
+          )}
+          <span className="text-[11px] text-white/40 ml-auto">Tick drafts in the Emails list to pick exactly which to send; otherwise oldest go first.</span>
+        </div>
+      )}
 
       {/* Per-step send bar — appears only for sequence campaigns. Each step
           is a separate send button so the user controls cadence manually. */}
@@ -662,6 +754,11 @@ export default function CampaignDetail() {
               {counters.leadsWithEmail} of {counters.leads} leads have email addresses.
               {counters.leads - counters.leadsWithEmail > 0 && ` ${counters.leads - counters.leadsWithEmail} will be skipped at generate time.`}
             </p>
+            {(campaign.total_leads_found ?? 0) > 0 && campaign.leads_skipped_duplicate !== undefined && (
+              <p className="text-[11px] text-white/60 mb-2 font-mono" data-testid="dedupe-summary">
+                {campaign.total_leads_found} found, {campaign.leads_skipped_duplicate} skipped as already contacted
+              </p>
+            )}
             <div className="space-y-1">
               {leads.map((l) => (
                 <div key={l.id} className="group flex items-center gap-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 transition cursor-pointer"
@@ -677,6 +774,11 @@ export default function CampaignDetail() {
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/45">
                         {l.status}
                       </span>
+                      {l.do_not_contact && (
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 uppercase tracking-wider">
+                          do not contact
+                        </span>
+                      )}
                       {!l.email && !l.is_test && (
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
                           no email
@@ -783,6 +885,16 @@ export default function CampaignDetail() {
                     className="rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] p-3 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {e.status === "drafted" && !e.blocked_do_not_contact && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(e.id)}
+                          onChange={() => toggleSelected(e.id)}
+                          onClick={(ev) => ev.stopPropagation()}
+                          aria-label={`Select draft to ${e.to_email}`}
+                          className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                        />
+                      )}
                       {showStep && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/10 border border-accent/30 text-accent text-[10px] font-bold tracking-wider uppercase">
                           Step {pos}/{total}
@@ -796,12 +908,37 @@ export default function CampaignDetail() {
                       <span className="text-xs text-white/50 font-mono">to</span>
                       <span className="text-sm text-white font-medium truncate">{e.to_email}</span>
                       <StatusPill status={e.status} />
+                      {e.blocked_do_not_contact && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 border border-red-500/40 text-red-300 text-[10px] font-bold tracking-wider uppercase" title="This person asked not to be contacted. This draft will never be sent.">
+                          Blocked: do not contact
+                        </span>
+                      )}
                       {(e.click_count ?? 0) > 0 && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-[10px] font-bold">
                           <MousePointerClick size={10} /> {e.click_count}
                         </span>
                       )}
-                      <ExternalLink size={11} className="ml-auto text-white/30" />
+                      <div className="ml-auto flex items-center gap-1" onClick={(ev) => ev.stopPropagation()}>
+                        {e.status === "drafted" && (
+                          <>
+                            <button
+                              onClick={() => setEditDraft(e)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-[11px] font-semibold transition"
+                              title="Edit subject and body"
+                            >
+                              <Pencil size={11} /> Edit
+                            </button>
+                            <button
+                              onClick={() => void deleteDraft(e)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-[11px] font-semibold transition"
+                              title="Delete this draft"
+                            >
+                              <Trash2 size={11} /> Delete
+                            </button>
+                          </>
+                        )}
+                        <ExternalLink size={11} className="text-white/30" />
+                      </div>
                     </div>
                     <p className="text-sm font-semibold text-white mb-0.5">{e.subject}</p>
                     <p className="text-xs text-white/55 line-clamp-2 whitespace-pre-wrap">{e.body_text}</p>
@@ -837,6 +974,18 @@ export default function CampaignDetail() {
 
       {/* Lead detail */}
       {leadDetail && <LeadDetailModal lead={leadDetail} onClose={() => setLeadDetail(null)} />}
+
+      {/* Edit draft */}
+      {editDraft && (
+        <EditDraftModal
+          email={editDraft}
+          onClose={() => setEditDraft(null)}
+          onSaved={() => {
+            setEditDraft(null);
+            void refresh();
+          }}
+        />
+      )}
 
       {/* Email detail */}
       {emailDetail && <EmailDetailModal email={emailDetail} onClose={() => setEmailDetail(null)} />}
@@ -1095,6 +1244,11 @@ function GenerateEmailsModal({
         setLocalErr(`All ${errors.length} drafts failed. First error: ${errors[0]?.error ?? "unknown"}`);
         setErr(errors[0]?.error ?? "Drafts failed");
       } else {
+        // Some (not all) drafts failed: say so, instead of silently leaving a lead without a draft.
+        if (errors.length > 0) {
+          const names = errors.map((x) => leads.find((l) => l.id === x.lead_id)?.name ?? x.lead_id).join(", ");
+          setErr(`${errors.length} of ${plannedCount} drafts failed (${names}): ${errors[0]?.error ?? "unknown"}. Click Generate emails again to retry just those.`);
+        }
         onClose();
         setTimeout(() => setProgress(null), 1200);
       }
@@ -1283,6 +1437,81 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead; onClose: () => void })
   );
 }
 
+// Read-only preview of what is appended automatically at send time.
+function FooterPreview({ email }: { email: EmailRow }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    call<{ footer_text: string }>("outreach.footer.preview", { campaign_id: email.campaign_id, email_id: email.id })
+      .then((r) => !cancelled && setText(r.footer_text))
+      .catch(() => !cancelled && setText(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [email.campaign_id, email.id, email.body_text]);
+  if (!text) return null;
+  return (
+    <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-3">
+      <div className="text-[10px] font-bold tracking-widest uppercase text-white/40 mb-1.5">Added automatically when sent</div>
+      <pre className="whitespace-pre-wrap font-sans text-sm text-white/55 leading-relaxed">{text}</pre>
+    </div>
+  );
+}
+
+function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose: () => void; onSaved: () => void }) {
+  const [subject, setSubject] = useState(email.subject);
+  const [body, setBody] = useState(email.body_text);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (!subject.trim() || !body.trim()) {
+      setErr("Subject and body can't be empty.");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await call("outreach.emails.update", {
+        campaign_id: email.campaign_id,
+        email_id: email.id,
+        subject: subject.trim(),
+        body_text: body,
+      });
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open={true} onClose={onClose} title="Edit draft" description={`to ${email.to_email}`} maxWidth="max-w-2xl">
+      <form onSubmit={save} className="space-y-4">
+        <FormField label="Subject">
+          <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} autoFocus />
+        </FormField>
+        <FormField label="Body">
+          <TextArea value={body} onChange={(e) => setBody(e.target.value)} rows={12} />
+        </FormField>
+        <FooterPreview email={email} />
+        <p className="text-[11px] text-white/45">Don't type the sign-off or opt-out line above — they are added automatically.</p>
+        {err && <p className="text-xs text-red-300">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm font-semibold transition">
+            Cancel
+          </button>
+          <PrimaryButton type="submit" loading={busy} disabled={busy}>
+            Save changes
+          </PrimaryButton>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function EmailDetailModal({ email, onClose }: { email: EmailRow; onClose: () => void }) {
   return (
     <Modal
@@ -1315,6 +1544,8 @@ function EmailDetailModal({ email, onClose }: { email: EmailRow; onClose: () => 
             <pre className="whitespace-pre-wrap font-sans text-sm text-white/85 leading-relaxed">{email.body_text}</pre>
           )}
         </div>
+
+        {email.status === "drafted" && <FooterPreview email={email} />}
 
         <details className="rounded-lg bg-black/20 border border-white/[0.04]">
           <summary className="cursor-pointer px-3 py-2 text-xs text-white/50 font-mono hover:text-white/80 transition">

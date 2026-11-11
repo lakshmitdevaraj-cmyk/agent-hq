@@ -40,6 +40,69 @@ const SERVICE_META: Record<ServiceKey, { title: string; summary: string; url: st
   },
 };
 
+// Optional postal address appended to the footer of every outreach email.
+// Blank by default (CAN-SPAM asks for one on commercial email to US recipients).
+function FooterSettings() {
+  const [address, setAddress] = useState("");
+  const [saved, setSaved] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    call<{ postal_address: string }>("outreach.settings.get")
+      .then((r) => {
+        setAddress(r.postal_address);
+        setSaved(r.postal_address);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await call<{ postal_address: string }>("outreach.settings.set", { postal_address: address });
+      setAddress(r.postal_address);
+      setSaved(r.postal_address);
+      setMsg("Saved");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <GlassCard className="mt-6">
+      <h3 className="font-display text-lg font-bold text-white mb-1">Email footer</h3>
+      <p className="text-sm text-white/65 mb-3">
+        Every outreach email automatically ends with the opt-out line and the ShiftForge AI signature. Optionally add a postal address below — it is appended to that footer. Leave blank to omit.
+      </p>
+      <label htmlFor="postal-address" className="text-xs font-bold tracking-wider uppercase text-white/60">
+        Postal address (optional)
+      </label>
+      <textarea
+        id="postal-address"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        rows={2}
+        placeholder="Leave blank to omit"
+        className="mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60"
+      />
+      <div className="flex items-center gap-3 mt-3">
+        <button
+          onClick={save}
+          disabled={busy || address.trim() === saved}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40"
+        >
+          {busy && <Loader2 size={12} className="animate-spin" />} Save
+        </button>
+        {msg && <span className="text-xs text-white/60">{msg}</span>}
+      </div>
+    </GlassCard>
+  );
+}
+
 export default function Settings() {
   const [status, setStatus] = useState<ConfigStatus | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -198,6 +261,8 @@ export default function Settings() {
           );
         })}
       </div>
+
+      <FooterSettings />
 
       <OnboardingWizard
         open={wizardOpen}

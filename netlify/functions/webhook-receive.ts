@@ -2,6 +2,7 @@ import type { Handler } from "@netlify/functions";
 import { connectLambda } from "@netlify/blobs";
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson } from "./lib/blobs";
+import { isOptOutReply, extractEmailAddress, emailKey } from "./lib/outreach";
 
 const WEBHOOKS = "agent-hq-webhooks";
 const WEBHOOK_EVENTS = "agent-hq-webhook-events";
@@ -9,6 +10,7 @@ const ACTIVITY = "agent-hq-activity";
 const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 const OUTREACH_EMAILS = "agent-hq-outreach-emails";
 const OUTREACH_REPLIES = "agent-hq-outreach-replies";
+const OUTREACH_LEADS = "agent-hq-outreach-leads";
 
 type WebhookRecord = {
   name: string;
@@ -105,6 +107,48 @@ async function findOutreachEmailByAgentMailIds(
   return null;
 }
 
+function stripTags(html: string | null | undefined): string {
+  return (html ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<[^>]+>/g, " ");
+}
+
+/**
+ * Flags every lead that matches the replier (by lead id, or by email address
+ * as a fallback / across campaigns) as do_not_contact and deletes its queued
+ * drafts so nothing more goes out. The flag is also what the import dedupe
+ * and the send step check. Returns how many leads were flagged.
+ */
+async function markDoNotContact(leadId: string | null, fromEmail: string | null, at: string, replyId: string): Promise<number> {
+  const leadsStore = store(OUTREACH_LEADS);
+  const emailsStore = store(OUTREACH_EMAILS);
+  const { blobs } = await leadsStore.list();
+  let flagged = 0;
+  for (const b of blobs) {
+    const lead = await readJson<Record<string, unknown>>(leadsStore, b.key);
+    if (!lead) continue;
+    const byId = !!leadId && lead.id === leadId;
+    const byEmail = !!fromEmail && emailKey(lead.email as string | null) === fromEmail;
+    if (!byId && !byEmail) continue;
+    await writeJson(leadsStore, b.key, {
+      ...lead,
+      do_not_contact: true,
+      status: "do_not_contact",
+      do_not_contact_at: at,
+      do_not_contact_reason: "opt-out reply",
+      do_not_contact_reply_id: replyId,
+      updated_at: new Date().toISOString(),
+    });
+    flagged++;
+    // Cancel anything still queued for this lead.
+    const cid = (lead.campaign_id as string | undefined) ?? b.key.split("/")[0];
+    const { blobs: eblobs } = await emailsStore.list({ prefix: `${cid}/` });
+    for (const eb of eblobs) {
+      const em = await readJson<{ lead_id?: string; status?: string }>(emailsStore, eb.key);
+      if (em && em.lead_id === lead.id && em.status === "drafted") await emailsStore.delete(eb.key);
+    }
+  }
+  return flagged;
+}
+
 /**
  * AgentMail event handler. Updates per-email status + per-campaign counters
  * and — for inbound replies — stores the full reply content so the /inbox
@@ -172,6 +216,8 @@ async function processAgentMailEvent(event: AgentMailEvent): Promise<void> {
     const campaignId = (match?.record.campaign_id as string) ?? null;
     const replyId = nanoid(12);
     const receivedAt = message.timestamp ?? new Date().toISOString();
+    // Does the new part of this reply clearly say no / stop / unsubscribe?
+    const optOut = isOptOutReply(message.subject, message.text ?? stripTags(message.html));
     const reply = {
       id: replyId,
       campaign_id: campaignId,
@@ -186,6 +232,7 @@ async function processAgentMailEvent(event: AgentMailEvent): Promise<void> {
       html: message.html ?? null,
       received_at: receivedAt,
       handled: false, // set true once user converts to task or dismisses
+      opt_out: optOut, // true → the lead was marked do_not_contact
     };
     // Keyed by (campaign | unassigned)/timestamp-id for cheap per-campaign listing.
     const prefix = campaignId ?? "unassigned";
@@ -209,6 +256,16 @@ async function processAgentMailEvent(event: AgentMailEvent): Promise<void> {
           });
         }
       }
+    }
+
+    if (optOut) {
+      const n = await markDoNotContact(
+        (match?.record.lead_id as string | undefined) ?? null,
+        extractEmailAddress(message.from),
+        receivedAt,
+        replyId,
+      );
+      console.log(`[webhook-receive] opt-out reply ${replyId}: marked ${n} lead(s) do_not_contact`);
     }
 
     // Surface in activity so the Office page ticker picks it up.
