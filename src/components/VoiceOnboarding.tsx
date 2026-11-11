@@ -74,7 +74,7 @@ export default function VoiceOnboarding({ onSaved }: Props) {
         <FormField
           label="Gemini API Key"
           required
-          hint="Starts with 'AIza'. Stored server-side in your AgentHQ Blobs — never committed anywhere."
+          hint="Starts with 'AIza'. Stored server-side in your ShiftForge HQ Blobs — never committed anywhere."
         >
           <TextInput
             autoFocus

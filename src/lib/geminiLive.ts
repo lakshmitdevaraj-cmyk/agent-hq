@@ -30,7 +30,7 @@ const TOOLS: FunctionDeclaration[] = [
   {
     name: "create_task",
     description:
-      "Create a new task card on the user's AgentHQ kanban board. Use this whenever the user asks you to do something substantive or asks you to remember to do something.",
+      "Create a new task card on the user's ShiftForge HQ kanban board. Use this whenever the user asks you to do something substantive or asks you to remember to do something.",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -94,7 +94,7 @@ const TOOLS: FunctionDeclaration[] = [
   },
 ];
 
-const BASE_SYSTEM_INSTRUCTION = `You are the voice of AgentHQ — a mission control dashboard for AI agents.
+const BASE_SYSTEM_INSTRUCTION = `You are the voice of ShiftForge HQ — a mission control dashboard for AI agents.
 You're talking directly to the human operator through their microphone.
 
 Your personality: warm, concise, confident. One or two sentences per response.

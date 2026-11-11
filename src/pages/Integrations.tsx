@@ -202,9 +202,9 @@ function buildFullGuide(baseUrl: string, apiKey: string): string {
     g.items.map((a) => `- \`${a.action}\` — ${a.desc}${a.params ? `\n  params: \`${a.params}\`` : ""}`),
   ).join("\n");
 
-  return `# AgentHQ Integration Guide
+  return `# ShiftForge HQ Integration Guide
 
-You have access to an AgentHQ mission control dashboard. Every action you take
+You have access to an ShiftForge HQ mission control dashboard. Every action you take
 can be logged, shown to the human operator, and tracked over time.
 
 ## Credentials
@@ -326,7 +326,7 @@ Prefer the agent key for day-to-day operations.
 }
 
 function buildAgentPrompt(baseUrl: string, apiKey: string): string {
-  return `You are connected to an AgentHQ dashboard — a visual mission control
+  return `You are connected to an ShiftForge HQ dashboard — a visual mission control
 where the human operator watches your work in real time.
 
 ENDPOINT: ${baseUrl}/api/command
@@ -434,7 +434,7 @@ Pages (landing pages):
                      Tailwind CDN, your own fonts, your own everything.
                      This is what you use for real landing pages.
 
-                   - THEMED — html_body is just a body fragment. AgentHQ
+                   - THEMED — html_body is just a body fragment. ShiftForge HQ
                      wraps it in the dark-futuristic theme. Classes:
                      .hero, .features, .card, .button, .button.ghost,
                      .stat, .eyebrow, .cta-row, footer. Good for fast

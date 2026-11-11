@@ -5,7 +5,7 @@
 **What it does:** Takes a URL, scrapes the content, generates 5 repurposed pieces
 of content (LinkedIn post, Instagram caption, blog summary, X/Twitter thread,
 email newsletter snippet), creates an Instagram carousel cover image with
-Gemini, and POSTs everything to your AgentHQ dashboard so you can see it appear
+Gemini, and POSTs everything to your ShiftForge HQ dashboard so you can see it appear
 in real time.
 
 ---
@@ -37,7 +37,7 @@ Use your built-in web-read or curl the URL directly.
 
 ### STEP 2 — Tell the dashboard you're starting
 
-POST to AgentHQ so the human can see you started working:
+POST to ShiftForge HQ so the human can see you started working:
 
 ```bash
 curl -X POST $AGENT_HQ_URL/api/command \
@@ -163,7 +163,7 @@ curl -X POST $AGENT_HQ_URL/api/command \
 After all steps complete, reply with:
 
 > Done. Repurposed **<topic>** into 5 content pieces + an Instagram cover
-> image. Your AgentHQ dashboard shows everything live — check the Activity
+> image. Your ShiftForge HQ dashboard shows everything live — check the Activity
 > feed and the Tasks board.
 
 Do NOT paste all 5 pieces into the chat reply. The human reads them in the

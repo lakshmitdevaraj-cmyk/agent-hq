@@ -4,10 +4,10 @@
 "ship a page …" or "design a page for …"
 
 **What it does:** Generates a complete, professional-looking landing page on
-the user's AgentHQ deployment — with an optional contact form embedded
+the user's ShiftForge HQ deployment — with an optional contact form embedded
 inline — and returns a live URL in under 30 seconds. **You write a full,
 modern HTML document** with your own styling (Tailwind CDN, inline CSS,
-whatever produces the best result). AgentHQ serves it verbatim.
+whatever produces the best result). ShiftForge HQ serves it verbatim.
 
 **Replaces:** Webflow ($14-39/mo), Carrd ($19/yr), Framer ($15-30/mo), and
 freelance landing-page designers ($500-$5,000 one-time).
@@ -30,7 +30,7 @@ AGENT_HQ_KEY=<your master or agent api_key>
 ### Full-HTML mode (default, recommended)
 
 Write a complete HTML document starting with `<!doctype html>` or `<html>`.
-AgentHQ serves it as-is. You own the layout, typography, color, motion,
+ShiftForge HQ serves it as-is. You own the layout, typography, color, motion,
 everything. Use Tailwind CDN or any CSS framework you want. This is how
 you produce a landing page that looks like a real brand site.
 
@@ -51,7 +51,7 @@ you produce a landing page that looks like a real brand site.
 
 ### Themed mode (for simple drafts)
 
-Write just a fragment of body HTML and AgentHQ wraps it in a dark-futuristic
+Write just a fragment of body HTML and ShiftForge HQ wraps it in a dark-futuristic
 theme. Use this only for quick drafts or when you explicitly want the default
 theme. **Most of the time, use full-HTML mode.**
 
@@ -175,7 +175,7 @@ default to generic SaaS. Use Tailwind CDN for fast, beautiful output:
   </section>
 
   <footer class="px-6 md:px-12 py-12 border-t border-neutral-900 text-sm text-neutral-500">
-    © Lumina Studio · Built on AgentHQ
+    © Lumina Studio · Built on ShiftForge HQ
   </footer>
 
 </body>
@@ -274,7 +274,7 @@ Same URL, updated content. User refreshes — new version.
 
 ## Form embeds — `{{form:slug}}` works in both modes
 
-Drop `{{form:some-form-slug}}` anywhere in your HTML. AgentHQ substitutes
+Drop `{{form:some-form-slug}}` anywhere in your HTML. ShiftForge HQ substitutes
 it with a styled form that POSTs to `/api/form/<slug>`. In full-HTML mode
 the form brings its own scoped styles so it looks polished regardless of
 your page's design system.
@@ -289,7 +289,7 @@ intercept — or skip the marker entirely and post via JS on submit.
 ## Themed mode (the fallback)
 
 If you just want a fast, decent-looking page without thinking about
-design, write body fragments and let the AgentHQ dark-futuristic theme
+design, write body fragments and let the ShiftForge HQ dark-futuristic theme
 wrap them. Class conventions: `.hero`, `.features`, `.card`, `.button`,
 `.button.ghost`, `.stat`, `.eyebrow`, `.cta-row`, `footer`.
 
@@ -308,7 +308,7 @@ Example:
 {{form:contact}}
 ```
 
-POST this as `html_body` the same way — no `<!doctype>` up top. AgentHQ
+POST this as `html_body` the same way — no `<!doctype>` up top. ShiftForge HQ
 detects it's a fragment and wraps it.
 
 ---
