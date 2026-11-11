@@ -91,6 +91,9 @@ const BUSINESS_HINT = /\b(llc|inc|ltd|co|corp|company|services|roofing|plumbing|
 export function greetingFor(lead: { name?: string | null; category?: string | null; website?: string | null; is_test?: boolean }): string | null {
   const name = (lead.name ?? "").trim();
   if (!name || /@/.test(name)) return null;
+  // A test lead added without a name gets its email's local part as the name
+  // (e.g. "shiftforge.ai+t4") — not something to greet.
+  if (!/\s/.test(name) && /[.+_\d]/.test(name) && name === name.toLowerCase()) return null;
   const businessLike = !lead.is_test && (!!lead.category || !!lead.website || BUSINESS_HINT.test(name) || name.split(/\s+/).length > 2);
   if (businessLike) return `Hi ${name} team`;
   return `Hi ${name.split(/\s+/)[0]}`;
