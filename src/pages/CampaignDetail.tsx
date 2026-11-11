@@ -1238,6 +1238,11 @@ function GenerateEmailsModal({
         setLocalErr(`All ${errors.length} drafts failed. First error: ${errors[0]?.error ?? "unknown"}`);
         setErr(errors[0]?.error ?? "Drafts failed");
       } else {
+        // Some (not all) drafts failed: say so, instead of silently leaving a lead without a draft.
+        if (errors.length > 0) {
+          const names = errors.map((x) => leads.find((l) => l.id === x.lead_id)?.name ?? x.lead_id).join(", ");
+          setErr(`${errors.length} of ${plannedCount} drafts failed (${names}): ${errors[0]?.error ?? "unknown"}. Click Generate emails again to retry just those.`);
+        }
         onClose();
         setTimeout(() => setProgress(null), 1200);
       }
