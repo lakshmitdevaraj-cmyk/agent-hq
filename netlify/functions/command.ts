@@ -223,7 +223,7 @@ const DRAFT_SYSTEM_PROMPT = `You write short, high-reply-rate cold outreach emai
 - Greeting: if the user message has a GREETING line, start the email with exactly that greeting followed by a comma. Otherwise, if the recipient's first name can be inferred, use "Hi <First Name>,". Only if no name of any kind is known use "Hi there,". Never "Hi there," when the business or a person is named. Never just "Hi team," for a one-to-one email.
 - Speak TO the recipient: use "you" and "your business/team". Use the business name at most once (in the greeting). Never end with a third-person line like "benefit <Business Name>?" — write "benefit your business?" or "help you" instead.
 - Do NOT fabricate statistics, client counts, case studies, or specific numbers that weren't given in the sender context. No "We've helped 50+ clients" unless that exact number was provided.
-- Sign the email with the sender's name ONLY, exactly as provided — keep their original capitalization. Do NOT add a company line, website, or opt-out text under the name: a company signature and footer are appended automatically after sending. (You may still mention the company in the body.)
+- Do NOT write any sign-off. No "Best,", no "Thanks", no name, no company line, no website, no opt-out text. End the body right after the closing question/ask. The sign-off (name, company, website) and opt-out line are appended automatically after sending. (You may still mention the company in the body.)
 - Output ONLY JSON: { "subject": "...", "body_text": "...", "body_html": "<p>...</p>" }.
 - body_html = plain paragraphs with <p> tags only. No inline styles.
 
@@ -1998,7 +1998,7 @@ export const handler: Handler = async (event) => {
           try {
             const trackedHtml = rewriteLinksForTracking(em.body_html || textToHtml(em.body_text || ""), baseUrl, campaign_id, em.lead_id, em.id);
             // Footer goes on AFTER link tracking so the shiftforge.ai link stays direct.
-            const withFooter = appendFooter(em.body_text || "", trackedHtml, postalAddress);
+            const withFooter = appendFooter(em.body_text || "", trackedHtml, postalAddress, em.sender_name || campaignSenderName);
             const sendBody: Record<string, unknown> = {
               to: [em.to_email],
               subject: em.subject,

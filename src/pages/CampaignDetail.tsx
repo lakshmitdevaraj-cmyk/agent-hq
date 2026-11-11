@@ -1470,7 +1470,7 @@ function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose:
           <TextArea value={body} onChange={(e) => setBody(e.target.value)} rows={12} />
         </FormField>
         <p className="text-[11px] text-white/45">
-          The opt-out line and ShiftForge AI signature are added automatically when the email is sent — don't type them here.
+          The sign-off (your name, ShiftForge AI, website) and the opt-out line are added automatically when the email is sent — don't type them here.
         </p>
         {err && <p className="text-xs text-red-300">{err}</p>}
         <div className="flex justify-end gap-2">

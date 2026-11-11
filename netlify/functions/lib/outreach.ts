@@ -13,13 +13,32 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** Build the footer. `postalAddress` is optional; blank/whitespace = omitted. */
-export function buildFooter(postalAddress?: string | null): { text: string; html: string } {
+/**
+ * Build the sign-off block + opt-out line. Order (top to bottom):
+ *   Best,
+ *   <sender name>
+ *   ShiftForge AI
+ *   https://shiftforge.ai
+ *   (blank)
+ *   If you would rather not hear from me, ...
+ *   <postal address, only if set>
+ * `senderName` blank → the name line is omitted.
+ */
+export function buildFooter(
+  postalAddress?: string | null,
+  senderName?: string | null,
+  /** The body already ends with a sign-off (older drafts): only add what is missing. */
+  signedOff?: { hasCompany: boolean } | null,
+): { text: string; html: string } {
   const postal = (postalAddress ?? "").trim();
-  const text = [FOOTER_OPT_OUT_LINE, "", FOOTER_SIGNATURE, FOOTER_URL, ...(postal ? [postal] : [])].join("\n");
+  const name = (senderName ?? "").trim();
+  const sigLines = signedOff
+    ? [...(signedOff.hasCompany ? [] : [FOOTER_SIGNATURE]), FOOTER_URL]
+    : ["Best,", ...(name ? [name] : []), FOOTER_SIGNATURE, FOOTER_URL];
+  const text = [...sigLines, "", FOOTER_OPT_OUT_LINE, ...(postal ? [postal] : [])].join("\n");
   const html =
-    `<p style="margin-top:24px">${escapeHtml(FOOTER_OPT_OUT_LINE)}</p>` +
-    `<p>${escapeHtml(FOOTER_SIGNATURE)}<br><a href="${FOOTER_URL}">${FOOTER_URL}</a>` +
+    `<p>${sigLines.slice(0, -1).map(escapeHtml).join("<br>")}<br><a href="${FOOTER_URL}">${FOOTER_URL}</a></p>` +
+    `<p style="margin-top:24px">${escapeHtml(FOOTER_OPT_OUT_LINE)}` +
     (postal ? `<br>${escapeHtml(postal).replace(/\r?\n/g, "<br>")}` : "") +
     `</p>`;
   return { text, html };
@@ -30,14 +49,19 @@ export function hasFooter(bodyText: string): boolean {
   return bodyText.includes(FOOTER_OPT_OUT_LINE);
 }
 
-/** Append the footer to a text + html pair (idempotent). */
+/** Append the sign-off + footer to a text + html pair (idempotent). */
 export function appendFooter(
   bodyText: string,
   bodyHtml: string,
   postalAddress?: string | null,
+  senderName?: string | null,
 ): { text: string; html: string } {
   if (hasFooter(bodyText)) return { text: bodyText, html: bodyHtml };
-  const f = buildFooter(postalAddress);
+  // Older drafts (or hand-edited ones) may already end with the sender's name:
+  // don't print it twice.
+  const tail = bodyText.trimEnd().split("\n").slice(-3).join("\n").toLowerCase();
+  const alreadySigned = !!senderName && tail.includes(senderName.trim().toLowerCase());
+  const f = buildFooter(postalAddress, senderName, alreadySigned ? { hasCompany: tail.includes(FOOTER_SIGNATURE.toLowerCase()) } : null);
   return {
     text: `${bodyText.trimEnd()}\n\n${f.text}`,
     html: `${bodyHtml}${f.html}`,
