@@ -96,6 +96,7 @@ type EmailRow = {
   framework?: Framework | null;
   source?: string; // "agent_drafted" when injected via emails.create
   edited?: boolean;
+  blocked_do_not_contact?: boolean; // recipient said no: this draft will never be sent
   created_at: string;
   updated_at: string;
 };
@@ -212,7 +213,7 @@ export default function CampaignDetail() {
     return Math.min(Math.max(Number.isFinite(n) && n >= 1 ? n : 1, 1), Math.max(queued, 1));
   }
 
-  const selectedDrafts = emails.filter((e) => e.status === "drafted" && selectedIds.has(e.id)).length;
+  const selectedDrafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && selectedIds.has(e.id)).length;
 
   async function runSend(params: Record<string, unknown>, limit: number) {
     setBusyAction("send");
@@ -250,7 +251,7 @@ export default function CampaignDetail() {
 
   async function sendAll() {
     if (!id) return;
-    const drafted = emails.filter((e) => e.status === "drafted").length;
+    const drafted = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length;
     if (drafted === 0) {
       alert("No drafted emails to send. Generate drafts first.");
       return;
@@ -265,7 +266,7 @@ export default function CampaignDetail() {
   async function sendStep(step: number) {
     if (!id) return;
     const draftsAtStep = emails.filter(
-      (e) => e.status === "drafted" && (e.sequence_position ?? 1) === step,
+      (e) => e.status === "drafted" && !e.blocked_do_not_contact && (e.sequence_position ?? 1) === step,
     ).length;
     if (draftsAtStep === 0) {
       alert(`No drafted emails at step ${step}.`);
@@ -338,8 +339,8 @@ export default function CampaignDetail() {
   // Delivered/clicked/replied are cumulative — once an email is "clicked"
   // it was also "delivered", etc.
   const counters = useMemo(() => {
-    const drafts = emails.filter((e) => e.status === "drafted").length;
-    const postSend = emails.filter((e) => e.status !== "drafted");
+    const drafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length;
+    const postSend = emails.filter((e) => e.status !== "drafted" && !e.blocked_do_not_contact);
     const delivered = emails.filter((e) =>
       ["delivered", "clicked", "replied"].includes(e.status),
     ).length;
@@ -371,7 +372,7 @@ export default function CampaignDetail() {
       const emailsAtStep = emails.filter((e) => (e.sequence_position ?? 1) === s);
       stats.push({
         step: s,
-        drafted: emailsAtStep.filter((e) => e.status === "drafted").length,
+        drafted: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length,
         sent: emailsAtStep.filter((e) => e.status !== "drafted").length,
         delivered: emailsAtStep.filter((e) => ["delivered", "clicked", "replied"].includes(e.status)).length,
         clicked: emailsAtStep.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
@@ -884,7 +885,7 @@ export default function CampaignDetail() {
                     className="rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] p-3 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {e.status === "drafted" && (
+                      {e.status === "drafted" && !e.blocked_do_not_contact && (
                         <input
                           type="checkbox"
                           checked={selectedIds.has(e.id)}
@@ -907,6 +908,11 @@ export default function CampaignDetail() {
                       <span className="text-xs text-white/50 font-mono">to</span>
                       <span className="text-sm text-white font-medium truncate">{e.to_email}</span>
                       <StatusPill status={e.status} />
+                      {e.blocked_do_not_contact && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 border border-red-500/40 text-red-300 text-[10px] font-bold tracking-wider uppercase" title="This person asked not to be contacted. This draft will never be sent.">
+                          Blocked: do not contact
+                        </span>
+                      )}
                       {(e.click_count ?? 0) > 0 && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-[10px] font-bold">
                           <MousePointerClick size={10} /> {e.click_count}

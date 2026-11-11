@@ -1565,6 +1565,11 @@ export const handler: Handler = async (event) => {
         if (!lead) return fail(404, "lead not found");
         if (!lead.email) return fail(400, "lead has no email address — cannot draft");
         if (lead.do_not_contact) return fail(400, "lead is marked do-not-contact — no email will be drafted");
+        {
+          const mail = emailKey(lead.email as string);
+          const flagged = (await listJson<{ email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).some((l) => l.do_not_contact && emailKey(l.email) === mail);
+          if (flagged) return fail(400, "this email address asked not to be contacted — no draft created");
+        }
 
         // Check if a draft already exists for this (lead, step) and short-circuit.
         // Previously we dedupe'd on lead alone which broke sequences (step 2 would
@@ -1828,9 +1833,19 @@ export const handler: Handler = async (event) => {
       case "outreach.emails.list": {
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string") return fail(400, "campaign_id required");
-        const rows = await listJson<{ created_at?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
+        const rows = await listJson<{ created_at?: string; status?: string; lead_id?: string; to_email?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
         rows.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1));
-        return ok(rows.slice(0, typeof limit === "number" ? limit : 500));
+        // Flag drafts that will never be sent because the recipient said no
+        // (any lead, in any campaign, with that email or lead id is do-not-contact).
+        const dncLeads = (await listJson<{ id: string; email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).filter((l) => l.do_not_contact);
+        const dncIds = new Set(dncLeads.map((l) => l.id));
+        const dncMail = new Set(dncLeads.map((l) => emailKey(l.email)).filter((e): e is string => !!e));
+        const annotated = rows.map((r) =>
+          r.status === "drafted" && ((r.lead_id && dncIds.has(r.lead_id)) || dncMail.has(emailKey(r.to_email) ?? ""))
+            ? { ...r, blocked_do_not_contact: true }
+            : r,
+        );
+        return ok(annotated.slice(0, typeof limit === "number" ? limit : 500));
       }
 
       case "outreach.emails.update": {
