@@ -72,7 +72,7 @@ function Logo() {
         <div className="absolute inset-0 rounded-2xl shadow-glow animate-pulse" />
       </div>
       <div className="text-center">
-        <div className="font-display font-black tracking-[0.25em] text-lg">AGENT HQ</div>
+        <div className="font-display font-black tracking-[0.25em] text-lg">SHIFTFORGE HQ</div>
         <div className="text-[10px] tracking-[0.4em] text-white/70 uppercase font-semibold">Mission Control</div>
       </div>
     </div>

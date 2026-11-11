@@ -185,7 +185,7 @@ async function ensureInboxDisplayName(key: string, inboxId: string, desired: str
 }
 
 // Rewrite every <a href="..."> in the HTML body to route through the
-// AgentHQ click tracker. The tracker function lives at /t/<token> and
+// ShiftForge HQ click tracker. The tracker function lives at /t/<token> and
 // 302s to the original URL after logging the click.
 function rewriteLinksForTracking(html: string, baseUrl: string, campaignId: string, leadId: string, emailId: string): string {
   return html.replace(/href="([^"]+)"/gi, (full, rawUrl) => {
@@ -452,7 +452,7 @@ async function findEmailFromWebsite(website: string): Promise<{ email: string | 
       const r = await fetch(url, {
         signal: AbortSignal.timeout(6000),
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; AgentHQ/1.0)",
+          "User-Agent": "Mozilla/5.0 (compatible; ShiftForgeHQ/1.0)",
           Accept: "text/html,application/xhtml+xml",
         },
         redirect: "follow",
@@ -2032,7 +2032,7 @@ export const handler: Handler = async (event) => {
         const agentmailKey = await readServiceKey("agentmail");
         if (!agentmailKey) return fail(400, "AgentMail key not configured");
 
-        const inbox = await getOrCreateCampaignInbox(agentmailKey, "AgentHQ Health Check");
+        const inbox = await getOrCreateCampaignInbox(agentmailKey, "ShiftForge HQ Health Check");
         const address = inbox.email ?? null;
         if (!address) return fail(500, "AgentMail returned an inbox without an email field. Check your AgentMail account setup.");
 
@@ -2045,9 +2045,9 @@ export const handler: Handler = async (event) => {
           method: "POST",
           body: JSON.stringify({
             to: [address],
-            subject: "AgentHQ webhook health check",
-            text: "This is an automated test from your AgentHQ dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
-            html: "<p>This is an automated test from your AgentHQ dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
+            subject: "ShiftForge HQ webhook health check",
+            text: "This is an automated test from your ShiftForge HQ dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
+            html: "<p>This is an automated test from your ShiftForge HQ dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
           }),
         });
         if (!sendR.ok) {

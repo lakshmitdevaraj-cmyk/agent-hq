@@ -17,7 +17,7 @@ Smartlead ($97/mo), plus an SDR making $60K+/yr.
 
 ## Setup — one-time
 
-The human installs AgentHQ from the one-click Netlify button, then pastes
+The human installs ShiftForge HQ from the one-click Netlify button, then pastes
 three keys (Gemini, Apify, AgentMail) in the onboarding wizard. That's
 your entire prerequisite. Env vars for you:
 
@@ -410,7 +410,7 @@ curl -X POST $AGENT_HQ_URL/api/command ... \
 
 ## Design principle
 
-AgentHQ's whole promise is **one dashboard, one API, one agent that
+ShiftForge HQ's whole promise is **one dashboard, one API, one agent that
 compounds**. The outreach skill shouldn't feel like a new product —
 it should feel like Max (or whoever you are) grew a new room in the
 house. Narrate each action in the activity log so the human watches

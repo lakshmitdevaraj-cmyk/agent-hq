@@ -1,4 +1,4 @@
-# AgentHQ
+# ShiftForge HQ
 
 > Mission control for AI agents. Yours. Deployed. Free.
 

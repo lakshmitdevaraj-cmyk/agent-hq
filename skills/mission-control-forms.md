@@ -5,7 +5,7 @@
 to capture structured data from a human via a public URL.
 
 **What it does:** Publishes a public form at `/form/<slug>` in the
-user's AgentHQ deployment. Submissions land in the dashboard and
+user's ShiftForge HQ deployment. Submissions land in the dashboard and
 fire activity-log entries the human can review. Forms can also be
 embedded into landing pages with a `{{form:<slug>}}` marker.
 
