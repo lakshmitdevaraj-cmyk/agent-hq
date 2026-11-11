@@ -127,6 +127,8 @@ export default function CampaignDetail() {
   const [sendCount, setSendCount] = useState("5");
   const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number } | null>(null);
   const [editDraft, setEditDraft] = useState<EmailRow | null>(null);
+  // Drafts ticked for "Send selected" (overrides the batch size).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
@@ -210,6 +212,8 @@ export default function CampaignDetail() {
     return Math.min(Math.max(Number.isFinite(n) && n >= 1 ? n : 1, 1), Math.max(queued, 1));
   }
 
+  const selectedDrafts = emails.filter((e) => e.status === "drafted" && selectedIds.has(e.id)).length;
+
   async function runSend(params: Record<string, unknown>, limit: number) {
     setBusyAction("send");
     setErr(null);
@@ -222,6 +226,26 @@ export default function CampaignDetail() {
     } finally {
       setBusyAction(null);
     }
+  }
+
+  function toggleSelected(emailId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(emailId)) next.delete(emailId);
+      else next.add(emailId);
+      return next;
+    });
+  }
+
+  // Sends exactly the ticked drafts, ignoring the batch size.
+  async function sendSelected() {
+    if (!id) return;
+    const picked = emails.filter((e) => e.status === "drafted" && selectedIds.has(e.id));
+    if (picked.length === 0) return;
+    const list = picked.map((e) => e.to_email).join("\n");
+    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.\n\n${list}`)) return;
+    await runSend({ email_ids: picked.map((e) => e.id) }, picked.length);
+    setSelectedIds(new Set());
   }
 
   async function sendAll() {
@@ -544,7 +568,19 @@ export default function CampaignDetail() {
               last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}
             </span>
           )}
-          <span className="text-[11px] text-white/40 ml-auto">Oldest drafts go first; the rest stay queued.</span>
+          <button
+            onClick={() => void sendSelected()}
+            disabled={busyAction !== null || selectedDrafts === 0}
+            className="px-3 py-1.5 rounded-lg bg-accent/20 hover:bg-accent/30 border border-accent/40 text-accent text-xs font-bold tracking-wide transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Send selected ({selectedDrafts})
+          </button>
+          {selectedDrafts > 0 && (
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-white/50 hover:text-white underline">
+              Clear selection
+            </button>
+          )}
+          <span className="text-[11px] text-white/40 ml-auto">Tick drafts in the Emails list to pick exactly which to send; otherwise oldest go first.</span>
         </div>
       )}
 
@@ -848,6 +884,16 @@ export default function CampaignDetail() {
                     className="rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] p-3 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {e.status === "drafted" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(e.id)}
+                          onChange={() => toggleSelected(e.id)}
+                          onClick={(ev) => ev.stopPropagation()}
+                          aria-label={`Select draft to ${e.to_email}`}
+                          className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                        />
+                      )}
                       {showStep && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/10 border border-accent/30 text-accent text-[10px] font-bold tracking-wider uppercase">
                           Step {pos}/{total}
