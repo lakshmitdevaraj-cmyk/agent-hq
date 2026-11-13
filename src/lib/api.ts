@@ -8,6 +8,29 @@ export function setApiKey(key: string) {
   localStorage.setItem(API_KEY_STORAGE, key);
 }
 
+export function clearApiKey() {
+  localStorage.removeItem(API_KEY_STORAGE);
+}
+
+/** Error from /api/command. `code` and `retryAfter` come from structured failures (e.g. Gemini rate limits). */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  retryAfter?: number;
+  constructor(message: string, status: number, code?: string, retryAfter?: number) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.retryAfter = retryAfter;
+  }
+}
+
+/** Tell the app shell to show the "paste your API key" screen. */
+export const SIGNIN_EVENT = "shiftforge:signin-required";
+function requestSignIn() {
+  window.dispatchEvent(new Event(SIGNIN_EVENT));
+}
+
 // Bootstrap promise kept in-module so concurrent calls don't each
 // fire their own auth.bootstrap on a fresh browser.
 let bootstrapInFlight: Promise<string | null> | null = null;
@@ -28,6 +51,7 @@ async function ensureApiKey(): Promise<string | null> {
       if (!text) return null;
       const parsed = JSON.parse(text) as {
         ok?: boolean;
+        code?: string;
         data?: { api_key?: string };
       };
       const key = parsed?.data?.api_key;
@@ -35,6 +59,9 @@ async function ensureApiKey(): Promise<string | null> {
         setApiKey(key);
         return key;
       }
+      // The workspace already has a key: first-run bootstrap is closed, so this
+      // browser has to be given the key by the owner.
+      if (parsed?.code === "signin_required") requestSignIn();
       return null;
     } catch {
       return null;
@@ -66,6 +93,8 @@ export async function call<T = unknown>(
 
   const text = await res.text();
 
+  if (action !== "auth.bootstrap" && (!key || res.status === 401)) requestSignIn();
+
   if (!text) {
     throw new Error(
       `Empty response from /api/command (status ${res.status}). ` +
@@ -74,7 +103,7 @@ export async function call<T = unknown>(
     );
   }
 
-  let parsed: { ok?: boolean; data?: unknown; error?: string };
+  let parsed: { ok?: boolean; data?: unknown; error?: string; code?: string; retry_after?: number };
   try {
     parsed = JSON.parse(text);
   } catch {
@@ -84,7 +113,7 @@ export async function call<T = unknown>(
   }
 
   if (!res.ok || parsed.ok === false) {
-    throw new Error(parsed.error || `Request failed: ${res.status}`);
+    throw new ApiError(parsed.error || `Request failed: ${res.status}`, res.status, parsed.code, parsed.retry_after);
   }
   return parsed.data as T;
 }

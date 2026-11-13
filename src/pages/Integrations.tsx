@@ -169,6 +169,7 @@ const ACTIONS: ActionGroup[] = [
       },
       { action: "outreach.replies.list", desc: "Inbound replies. Filter by campaign id if provided.", params: "{ campaign_id?, limit? }" },
       { action: "outreach.replies.get", desc: "One reply's full content.", params: "{ id }" },
+      { action: "outreach.replies.delete", desc: "Delete one reply from the Inbox (the lead's do-not-contact flag, if any, stays).", params: "{ id }" },
       {
         action: "outreach.replies.convert_to_task",
         desc: "Turns a reply into a kanban card in the Needs Input column. Closes the loop back to /tasks.",

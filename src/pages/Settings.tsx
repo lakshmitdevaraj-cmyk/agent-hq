@@ -103,6 +103,100 @@ function FooterSettings() {
   );
 }
 
+// Gemini model + default sender details (prefill the Generate emails form).
+type OutreachDefaults = {
+  gemini_model: string;
+  default_gemini_model: string;
+  default_sender_name: string;
+  default_sender_company: string;
+  default_sender_offer: string;
+};
+
+function OutreachDefaultsSettings() {
+  const [form, setForm] = useState<OutreachDefaults | null>(null);
+  const [saved, setSaved] = useState<OutreachDefaults | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    call<OutreachDefaults>("outreach.settings.get")
+      .then((r) => {
+        setForm(r);
+        setSaved(r);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  if (!form || !saved) return null;
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved);
+  const set = (k: keyof OutreachDefaults, v: string) => setForm({ ...form, [k]: v });
+  const input = "mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60";
+  const label = "text-xs font-bold tracking-wider uppercase text-white/60";
+
+  async function save() {
+    if (!form) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await call<OutreachDefaults>("outreach.settings.set", {
+        gemini_model: form.gemini_model,
+        default_sender_name: form.default_sender_name,
+        default_sender_company: form.default_sender_company,
+        default_sender_offer: form.default_sender_offer,
+      });
+      const next = { ...form, ...r };
+      setForm(next);
+      setSaved(next);
+      setMsg({ ok: true, text: "Saved" });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Save failed" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <GlassCard className="mt-6">
+      <h3 className="font-display text-lg font-bold text-white mb-1">Drafting defaults</h3>
+      <p className="text-sm text-white/65 mb-3">
+        These prefill the "Generate emails" form for every campaign (a campaign's own saved sender details win).
+        Changing the Gemini model runs a real test call first, so a wrong name fails here, not mid-campaign.
+      </p>
+      <div className="grid gap-3">
+        <div>
+          <label htmlFor="g-model" className={label}>Gemini model</label>
+          <input id="g-model" value={form.gemini_model} onChange={(e) => set("gemini_model", e.target.value)} className={input} />
+          <div className="text-[11px] text-white/45 mt-1">Default: {form.default_gemini_model}</div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="s-name" className={label}>Your name</label>
+            <input id="s-name" value={form.default_sender_name} onChange={(e) => set("default_sender_name", e.target.value)} className={input} />
+          </div>
+          <div>
+            <label htmlFor="s-company" className={label}>Company</label>
+            <input id="s-company" value={form.default_sender_company} onChange={(e) => set("default_sender_company", e.target.value)} className={input} />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="s-offer" className={label}>What you offer (one sentence)</label>
+          <textarea id="s-offer" rows={2} value={form.default_sender_offer} onChange={(e) => set("default_sender_offer", e.target.value)} className={input} />
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mt-3">
+        <button
+          onClick={save}
+          disabled={busy || !dirty}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40"
+        >
+          {busy && <Loader2 size={12} className="animate-spin" />} {busy ? "Testing and saving…" : "Save"}
+        </button>
+        {msg && <span className={`text-xs ${msg.ok ? "text-white/60" : "text-red-300"}`}>{msg.text}</span>}
+      </div>
+    </GlassCard>
+  );
+}
+
 export default function Settings() {
   const [status, setStatus] = useState<ConfigStatus | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -262,6 +356,7 @@ export default function Settings() {
         })}
       </div>
 
+      <OutreachDefaultsSettings />
       <FooterSettings />
 
       <OnboardingWizard

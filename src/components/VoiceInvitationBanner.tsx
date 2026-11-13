@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PhoneCall, X } from "lucide-react";
@@ -9,11 +10,7 @@ export default function VoiceInvitationBanner() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 8000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 60_000);
 
   async function refresh() {
     try {

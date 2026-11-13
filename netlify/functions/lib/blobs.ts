@@ -2,8 +2,19 @@ import { getStore } from "@netlify/blobs";
 
 export type Store = ReturnType<typeof getStore>;
 
+// Stores the app reads straight after writing (leads, drafts, campaigns,
+// replies, settings). Strong consistency makes a new item show up in the next
+// list/get instead of ~1 minute later.
+const STRONG = new Set([
+  "agent-hq-outreach-campaigns",
+  "agent-hq-outreach-leads",
+  "agent-hq-outreach-emails",
+  "agent-hq-outreach-replies",
+  "agent-hq-outreach-settings",
+]);
+
 export function store(name: string): Store {
-  return getStore(name);
+  return STRONG.has(name) ? getStore({ name, consistency: "strong" }) : getStore(name);
 }
 
 export async function readJson<T>(s: Store, key: string): Promise<T | null> {

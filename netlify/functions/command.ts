@@ -2,7 +2,7 @@ import type { Handler } from "@netlify/functions";
 import { connectLambda } from "@netlify/blobs";
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson } from "./lib/blobs";
-import { getOrCreateApiKey, identifyApiKey, createAgentKey } from "./lib/auth";
+import { getOrCreateApiKey, identifyApiKey, createAgentKey, hasApiKey, rotateApiKey } from "./lib/auth";
 import {
   appendFooter,
   textToHtml,
@@ -13,6 +13,8 @@ import {
   addToIndex,
   matchesIndex,
   emailKey,
+  leadSkipReason,
+  isGovEduEmail,
 } from "./lib/outreach";
 
 function slugify(s: string): string {
@@ -33,6 +35,10 @@ const json = (status: number, body: unknown) => ({
 
 const ok = (data: unknown) => json(200, { ok: true, data });
 const fail = (status: number, error: string) => json(status, { ok: false, error });
+// Failure with a machine-readable code (and optional extras like retry_after)
+// so the UI can react: wait and retry, stop, etc.
+const failCode = (status: number, error: string, code: string, extra: Record<string, unknown> = {}) =>
+  json(status, { ok: false, error, code, ...extra });
 
 const AGENTS = "agent-hq-agents";
 const TASKS = "agent-hq-tasks";
@@ -85,19 +91,149 @@ async function writeServiceKey(name: ServiceKey, key: string, test?: ServiceConf
   }
 }
 
+// ── Gemini access: model setting, retries, error classes ───────────────
+
+const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
+
+type OutreachSettings = {
+  postal_address?: string;
+  gemini_model?: string;
+  default_sender_name?: string;
+  default_sender_company?: string;
+  default_sender_offer?: string;
+  updated_at?: string;
+};
+
+async function readOutreachSettings(): Promise<OutreachSettings> {
+  return (await readJson<OutreachSettings>(store(OUTREACH_SETTINGS), "settings")) ?? {};
+}
+
+async function getGeminiModel(): Promise<string> {
+  const m = (await readOutreachSettings()).gemini_model?.trim();
+  return m || DEFAULT_GEMINI_MODEL;
+}
+
+// Google's free-tier daily quota resets at midnight Pacific. Work out when
+// that is in India time so the message can say it plainly.
+function dailyResetText(): string {
+  const fmtLA = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "numeric", hourCycle: "h23" });
+  const half = 30 * 60_000;
+  let t = Math.ceil(Date.now() / half) * half;
+  for (let i = 0; i < 50; i++, t += half) {
+    const parts = fmtLA.formatToParts(new Date(t));
+    const h = Number(parts.find((p) => p.type === "hour")?.value);
+    const m = Number(parts.find((p) => p.type === "minute")?.value);
+    if (h === 0 && m === 0) {
+      const ist = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(t));
+      return `at about ${ist.toLowerCase()} India time`;
+    }
+  }
+  return "at midnight Pacific time";
+}
+
+type GeminiErrorKind = "daily_quota" | "rate_limited" | "unavailable" | "model_unavailable" | "auth" | "other";
+
+class GeminiError extends Error {
+  constructor(
+    message: string,
+    public kind: GeminiErrorKind,
+    public status: number,
+    public retryAfterS?: number,
+  ) {
+    super(message);
+  }
+}
+
+function classifyGeminiError(status: number, text: string, model: string): GeminiError {
+  const snippet = text.replace(/\s+/g, " ").slice(0, 200);
+  if (status === 429) {
+    if (/PerDay|per day|daily/i.test(text)) {
+      return new GeminiError(`Gemini's daily free limit is used up for today. It resets ${dailyResetText()}. Drafts already made are saved; run Generate again after the reset.`, "daily_quota", status);
+    }
+    const m = text.match(/"retryDelay"\s*:\s*"([\d.]+)s"/) ?? text.match(/retry in ([\d.]+)s/i);
+    const retry = m ? Math.ceil(Number(m[1])) : 15;
+    return new GeminiError(`Gemini per-minute limit reached (retry in ~${retry}s).`, "rate_limited", status, retry);
+  }
+  if (status === 500 || status === 502 || status === 503 || status === 504) {
+    return new GeminiError(`Gemini is busy right now (${status}).`, "unavailable", status, 5);
+  }
+  if (status === 404 || /no longer available|not found for API version/i.test(text)) {
+    return new GeminiError(`Gemini model "${model}" is not available to this key (${status}). Pick another model in Settings. ${snippet}`, "model_unavailable", status);
+  }
+  if (status === 401 || status === 403 || /API_KEY_INVALID|API key not valid/i.test(text)) {
+    return new GeminiError(`Gemini rejected the key (${status}): ${snippet}`, "auth", status);
+  }
+  return new GeminiError(`Gemini failed (${status}): ${snippet}`, "other", status);
+}
+
+/**
+ * One Gemini generateContent call with retries. Retries 503/5xx and per-minute
+ * 429 with backoff, but only inside `budgetMs` (Netlify functions have a hard
+ * time cap): when the wait would blow the budget it throws, carrying
+ * retryAfterS so the caller (the UI loop) can wait and try again. A daily-quota
+ * 429 is never retried.
+ */
+async function geminiGenerate(
+  body: unknown,
+  opts: { key: string; model?: string; budgetMs?: number },
+): Promise<{ candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }> {
+  const model = opts.model || (await getGeminiModel());
+  const deadline = Date.now() + (opts.budgetMs ?? 20_000);
+  let attempt = 0;
+  for (;;) {
+    let err: GeminiError;
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(opts.key)}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(Math.max(3000, deadline - Date.now())) },
+      );
+      if (r.ok) return (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      err = classifyGeminiError(r.status, await r.text(), model);
+    } catch (e) {
+      if (e instanceof GeminiError) throw e;
+      err = new GeminiError(`Could not reach Gemini: ${e instanceof Error ? e.message : "network error"}`, "unavailable", 0, 5);
+    }
+    const retryable = err.kind === "unavailable" || err.kind === "rate_limited";
+    if (!retryable) throw err;
+    attempt++;
+    const wait = Math.max((err.retryAfterS ?? 0) * 1000, Math.min(8000, 1500 * 2 ** (attempt - 1))) + Math.floor(Math.random() * 400);
+    if (attempt >= 4 || Date.now() + wait > deadline) throw err;
+    await new Promise((res) => setTimeout(res, wait));
+  }
+}
+
+// Turn a GeminiError into the structured API failure the UI understands.
+function geminiFail(err: GeminiError) {
+  const status = err.kind === "daily_quota" || err.kind === "rate_limited" ? 429 : err.kind === "unavailable" ? 503 : 502;
+  return failCode(status, err.message, err.kind, err.retryAfterS ? { retry_after: err.retryAfterS } : {});
+}
+
 // Light-touch "does this key actually work" tests. We do NOT hit the full
 // service surface here — just a cheap endpoint that returns 200 on a valid
 // key and 401/403 on an invalid one. Keeps onboarding fast.
-async function testServiceKey(name: ServiceKey, key: string): Promise<{ ok: boolean; message: string }> {
+async function testServiceKey(name: ServiceKey, key: string, model?: string): Promise<{ ok: boolean; message: string }> {
   try {
     if (name === "gemini") {
-      // Gemini "models" list is a cheap authenticated GET.
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
-      );
-      if (r.ok) return { ok: true, message: "Gemini key verified" };
-      const body = await r.text();
-      return { ok: false, message: `Gemini rejected key (${r.status}): ${body.slice(0, 120)}` };
+      // A models-list call passes for keys whose chosen model is unusable, so
+      // do one tiny REAL generate call with the chosen model. A bad key or an
+      // unavailable model fails here, at save time, not later mid-campaign.
+      const usedModel = model || (await getGeminiModel());
+      try {
+        await geminiGenerate(
+          { contents: [{ role: "user", parts: [{ text: "Reply with the single word: ok" }] }], generationConfig: { maxOutputTokens: 16, temperature: 0 } },
+          { key, model: usedModel, budgetMs: 12_000 },
+        );
+        return { ok: true, message: `Gemini key verified (model ${usedModel})` };
+      } catch (err) {
+        if (err instanceof GeminiError) {
+          // Quota messages mean the key and model are fine — just out of requests right now.
+          if (err.kind === "daily_quota" || err.kind === "rate_limited") {
+            return { ok: true, message: `Gemini key accepted (model ${usedModel}), but ${err.message}` };
+          }
+          return { ok: false, message: err.message };
+        }
+        throw err;
+      }
     }
     if (name === "apify") {
       // Apify "user/me" requires a valid token.
@@ -220,7 +356,7 @@ const DRAFT_SYSTEM_PROMPT = `You write short, high-reply-rate cold outreach emai
 - One low-friction ask: the offer is ALWAYS a free 30-minute call. Say "30-minute free call". Never offer a 10/15/20-minute call, a demo, or any other length.
 - No fluff, no "I hope this finds you well", no superlatives, no fake flattery.
 - Conversational and personal, not corporate — but use STANDARD sentence capitalization. Proper nouns (person names, company names, cities, products, brands) are ALWAYS capitalized. Never lowercase "I", never lowercase a person's name or company name. Sentences start with a capital letter.
-- Greeting: if the user message has a GREETING line, start the email with exactly that greeting followed by a comma. Otherwise, if the recipient's first name can be inferred, use "Hi <First Name>,". Only if no name of any kind is known use "Hi there,". Never "Hi there," when the business or a person is named. Never just "Hi team," for a one-to-one email.
+- Greeting: start the email with exactly the GREETING line from the user message followed by a comma ("Hi <First Name>," when a person's first name is known, otherwise "Hi there,"). NEVER address the business name in the greeting: no "Hi <Business> team,", no "Hi <Business>,". Never invent a first name.
 - Speak TO the recipient: use "you" and "your business/team". Use the business name at most once (in the greeting). Never end with a third-person line like "benefit <Business Name>?" — write "benefit your business?" or "help you" instead.
 - Do NOT fabricate statistics, client counts, case studies, or specific numbers that weren't given in the sender context. No "We've helped 50+ clients" unless that exact number was provided.
 - Do NOT write any sign-off. No "Best,", no "Thanks", no name, no company line, no website, no opt-out text. End the body right after the closing question/ask. The sign-off (name, company, website) and opt-out line are appended automatically after sending. (You may still mention the company in the body.)
@@ -261,13 +397,13 @@ type SequenceContext = {
 
 async function generateEmailDraft(
   geminiKey: string,
-  lead: { name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean },
+  lead: { name?: string; contact_name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean },
   senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string },
   sequence: SequenceContext = {},
 ): Promise<EmailDraft> {
   const greeting = greetingFor(lead);
   const leadSummary = [
-    greeting ? `GREETING: ${greeting}` : null,
+    `GREETING: ${greeting ?? "Hi there"}`,
     lead.name ? `Business: ${lead.name}` : null,
     lead.company && lead.company !== lead.name ? `Company: ${lead.company}` : null,
     lead.category ? `Category: ${lead.category}` : null,
@@ -314,15 +450,7 @@ async function generateEmailDraft(
     ],
     generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
   };
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-  );
-  if (!r.ok) {
-    const txt = await r.text();
-    throw new Error(`Gemini draft failed (${r.status}): ${txt.slice(0, 200)}`);
-  }
-  const data = (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const data = await geminiGenerate(body, { key: geminiKey });
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text) throw new Error("Gemini returned empty draft");
   let parsed: unknown;
@@ -497,6 +625,7 @@ async function findEmailFromWebsite(website: string): Promise<{ email: string | 
     if (/\.(png|jpg|jpeg|gif|webp|svg|ico)$/i.test(e)) return false;
     if (/^(example|sentry|wixpress|wix|youremail|test)@/i.test(e)) return false;
     if (/\.(example|wixsite|sentry)\./i.test(e)) return false;
+    if (isGovEduEmail(e)) return false;
     return true;
   });
   if (cleaned.length === 0) return { email: null, tried };
@@ -530,6 +659,59 @@ function extractLeadFromApify(raw: Record<string, unknown>): {
     reviews_count: typeof r.reviewsCount === "number" ? r.reviewsCount : null,
     maps_url: (r.url as string | undefined) ?? null,
   };
+}
+
+// ── Email status refresh from AgentMail's API ──────────────────────────
+// Webhooks are the fast path, but they can be missed (not registered on a
+// preview, a failed delivery of the webhook itself, ...), leaving an email on
+// "sent" forever. On campaign sync we ask AgentMail directly for the message
+// and move the status forward from its labels. Forward-only, like the webhook.
+
+const STATUS_RANK: Record<string, number> = { drafted: 0, sent: 1, delivered: 2, clicked: 3, replied: 4 };
+
+function statusFromLabels(labels: unknown): "bounced" | "complained" | "failed" | "delivered" | "sent" | null {
+  if (!Array.isArray(labels)) return null;
+  const set = new Set(labels.filter((l): l is string => typeof l === "string").map((l) => l.toLowerCase()));
+  if (set.has("bounced")) return "bounced";
+  if (set.has("complained")) return "complained";
+  if (set.has("rejected") || set.has("failed")) return "failed";
+  if (set.has("delivered")) return "delivered";
+  if (set.has("sent")) return "sent";
+  return null;
+}
+
+async function refreshEmailStatuses(agentmailKey: string, campaignId: string, max = 15): Promise<{ checked: number; updated: number }> {
+  const es = store(OUTREACH_EMAILS);
+  const { blobs } = await es.list({ prefix: `${campaignId}/` });
+  let checked = 0;
+  let updated = 0;
+  for (const b of blobs) {
+    if (checked >= max) break;
+    const row = await readJson<Record<string, unknown>>(es, b.key);
+    if (!row || !row.agentmail_message_id || !row.agentmail_inbox_id) continue;
+    const cur = String(row.status ?? "");
+    // Only messages still in flight: sent or delivered. Replied/clicked/bounced are final here.
+    if (cur !== "sent" && cur !== "delivered") continue;
+    checked++;
+    try {
+      const r = await agentmailFetch(
+        agentmailKey,
+        `/inboxes/${encodeURIComponent(row.agentmail_inbox_id as string)}/messages/${encodeURIComponent(row.agentmail_message_id as string)}`,
+      );
+      if (!r.ok) continue;
+      const msg = (await r.json()) as { labels?: unknown };
+      const next = statusFromLabels(msg.labels);
+      if (!next || next === cur) continue;
+      const negative = next === "bounced" || next === "complained" || next === "failed";
+      if (!negative && (STATUS_RANK[next] ?? 0) <= (STATUS_RANK[cur] ?? 0)) continue;
+      const now = new Date().toISOString();
+      await writeJson(es, b.key, { ...row, status: next, [`${next}_at`]: now, status_source: "agentmail_api", updated_at: now });
+      updated++;
+    } catch {
+      // Network hiccup on one message: leave it for the next sync.
+    }
+  }
+  return { checked, updated };
 }
 
 // ── OUTREACH helpers ───────────────────────────────────────────────
@@ -571,21 +753,7 @@ async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxRes
       responseMimeType: "application/json",
     },
   };
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!r.ok) {
-    const txt = await r.text();
-    throw new Error(`Gemini preview failed (${r.status}): ${txt.slice(0, 200)}`);
-  }
-  const data = (await r.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
+  const data = await geminiGenerate(body, { key: geminiKey });
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text) throw new Error("Gemini returned empty response");
 
@@ -648,10 +816,24 @@ export const handler: Handler = async (event) => {
     switch (action) {
       // ── AUTH ──────────────────────────────────────────────
       case "auth.bootstrap": {
-        // First-visit endpoint. Returns the API key if caller includes the deploy secret,
-        // OR if no key has been issued yet (first visit from the owner).
+        // First-run only. It hands out the master key ONLY while none exists
+        // (the very first visit claims it). After that it is closed: it used to
+        // return the master key to anyone who asked. Existing browsers keep
+        // working (their key is in localStorage); new browsers must paste the key.
+        if (await hasApiKey()) {
+          return failCode(403, "This workspace is already set up. Paste your API key to sign in.", "signin_required");
+        }
         const apiKey = await getOrCreateApiKey();
         return ok({ api_key: apiKey });
+      }
+      case "auth.rotate": {
+        // Issues a brand-new master key; the old one stops working immediately.
+        // Master key only, and the caller must pass confirm: true.
+        if (identity?.kind !== "master") return fail(403, "Only the master key can rotate the key");
+        if ((params as Record<string, unknown>).confirm !== true) return fail(400, "Pass confirm: true. This invalidates the current key everywhere.");
+        const fresh = await rotateApiKey();
+        await logActivity({ category: "system", summary: "Master API key rotated" });
+        return ok({ api_key: fresh });
       }
 
       // ── AGENTS ──────────────────────────────────────────────
@@ -875,7 +1057,7 @@ export const handler: Handler = async (event) => {
         return ok(out);
       }
       case "config.set": {
-        const { service, key, skip_test = false } = params as Record<string, unknown>;
+        const { service, key, skip_test = false, model } = params as Record<string, unknown>;
         if (!service || !SERVICE_KEYS.includes(service as ServiceKey)) {
           return fail(400, `service must be one of: ${SERVICE_KEYS.join(", ")}`);
         }
@@ -883,7 +1065,7 @@ export const handler: Handler = async (event) => {
         const trimmed = key.trim();
         let test: ServiceConfigRecord["last_test"] | undefined;
         if (!skip_test) {
-          const result = await testServiceKey(service as ServiceKey, trimmed);
+          const result = await testServiceKey(service as ServiceKey, trimmed, typeof model === "string" && model.trim() ? model.trim() : undefined);
           test = { ok: result.ok, at: new Date().toISOString(), message: result.message };
           if (!result.ok) {
             // Store nothing on test failure — surface the rejection to the caller.
@@ -891,6 +1073,9 @@ export const handler: Handler = async (event) => {
           }
         }
         await writeServiceKey(service as ServiceKey, trimmed, test);
+        if (service === "gemini" && typeof model === "string" && model.trim()) {
+          await writeJson(store(OUTREACH_SETTINGS), "settings", { ...(await readOutreachSettings()), gemini_model: model.trim(), updated_at: new Date().toISOString() });
+        }
         await logActivity({
           agent_id: identity?.kind === "agent" ? identity.agent_id : null,
           category: "system",
@@ -900,13 +1085,13 @@ export const handler: Handler = async (event) => {
       }
       case "config.test": {
         // Re-run the validity test for an already-stored key.
-        const { service } = params as Record<string, unknown>;
+        const { service, model } = params as Record<string, unknown>;
         if (!service || !SERVICE_KEYS.includes(service as ServiceKey)) {
           return fail(400, `service must be one of: ${SERVICE_KEYS.join(", ")}`);
         }
         const key = await readServiceKey(service as ServiceKey);
         if (!key) return fail(404, `${service} key not configured`);
-        const result = await testServiceKey(service as ServiceKey, key);
+        const result = await testServiceKey(service as ServiceKey, key, typeof model === "string" && model.trim() ? model.trim() : undefined);
         const rec: ServiceConfigRecord = {
           key,
           updated_at: (await readJson<ServiceConfigRecord>(store(SERVICE_CONFIG), service as string))?.updated_at ?? new Date().toISOString(),
@@ -1118,6 +1303,7 @@ export const handler: Handler = async (event) => {
           );
           return ok(structured);
         } catch (err) {
+          if (err instanceof GeminiError) return geminiFail(err);
           return fail(500, err instanceof Error ? err.message : "Preview failed");
         }
       }
@@ -1177,7 +1363,12 @@ export const handler: Handler = async (event) => {
         const s = store(OUTREACH_CAMPAIGNS);
         const existing = await readJson<Record<string, unknown>>(s, id);
         if (!existing) return fail(404, "campaign not found");
-        const updated = { ...existing, ...patch, id, updated_at: new Date().toISOString() };
+        const now = new Date().toISOString();
+        // A job that starts running is stamped with the SERVER clock, so the UI can
+        // count "drafts created since the job started" without clock-skew errors.
+        const job = (patch as { job?: { status?: string } | null }).job;
+        if (job && job.status === "running") (patch as { job: Record<string, unknown> }).job.started_at = now;
+        const updated = { ...existing, ...patch, id, updated_at: now };
         await writeJson(s, id, updated);
         return ok(updated);
       }
@@ -1254,8 +1445,24 @@ export const handler: Handler = async (event) => {
         const s = store(OUTREACH_CAMPAIGNS);
         const campaign = await readJson<Record<string, unknown>>(s, id);
         if (!campaign) return fail(404, "campaign not found");
+        // Refresh sent-email statuses from AgentMail (throttled to once a minute
+        // per campaign) so a missed webhook cannot leave "sent" showing forever.
+        let statusRefresh: { checked: number; updated: number } | null = null;
+        {
+          const last = typeof campaign.last_status_refresh_at === "string" ? Date.parse(campaign.last_status_refresh_at) : 0;
+          const amKey = Date.now() - last > 60_000 ? await readServiceKey("agentmail") : null;
+          if (amKey) {
+            try {
+              statusRefresh = await refreshEmailStatuses(amKey, id);
+              await writeJson(s, id, { ...campaign, last_status_refresh_at: new Date().toISOString() });
+              campaign.last_status_refresh_at = new Date().toISOString();
+            } catch {
+              // Non-fatal: the scrape sync below must still run.
+            }
+          }
+        }
         if (campaign.status !== "searching" || !campaign.apify_run_id) {
-          return ok({ status: campaign.status, apify_status: campaign.apify_status ?? null, changed: false });
+          return ok({ status: campaign.status, apify_status: campaign.apify_status ?? null, changed: false, status_refresh: statusRefresh });
         }
         const apifyKey = await readServiceKey("apify");
         if (!apifyKey) return fail(400, "Apify key not configured");
@@ -1301,6 +1508,8 @@ export const handler: Handler = async (event) => {
             const skippedBy = { place_id: 0, email: 0, website: 0 };
             for (const raw of items) {
               const extracted = extractLeadFromApify(raw);
+              // A .gov/.edu address is never a sales contact: keep the lead but drop the address.
+              if (isGovEduEmail(extracted.email)) extracted.email = null;
               const candidate = { email: extracted.email, website: extracted.website, raw };
               if (matchesIndex(ownIndex, candidate)) continue; // already imported by an earlier attempt
               const hit = matchesIndex(priorIndex, candidate);
@@ -1377,12 +1586,19 @@ export const handler: Handler = async (event) => {
       case "outreach.leads.list": {
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
-        const rows = await listJson<{ created_at?: string }>(
+        const rows = await listJson<{ created_at?: string; name?: string; email?: string | null; website?: string | null; address?: string | null; is_test?: boolean; raw?: unknown }>(
           store(OUTREACH_LEADS),
           `${campaign_id}/`,
         );
         rows.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1));
-        return ok(rows.slice(0, typeof limit === "number" ? limit : 500));
+        // Flag leads we will not email-find / draft for (.gov/.edu, chains,
+        // out-of-state). Computed here, so older campaigns are covered too.
+        const campLoc = (await readJson<{ structured_query?: { location?: string } | null }>(store(OUTREACH_CAMPAIGNS), campaign_id))?.structured_query?.location;
+        const annotated = rows.map((r) => {
+          const why = leadSkipReason(r, campLoc);
+          return why ? { ...r, skip_reason: why.message, skip_code: why.code } : r;
+        });
+        return ok(annotated.slice(0, typeof limit === "number" ? limit : 500));
       }
 
       case "outreach.leads.count": {
@@ -1498,17 +1714,30 @@ export const handler: Handler = async (event) => {
         if (!lead || !storeKey) return fail(404, "lead not found");
         if (lead.email) return ok({ ...lead, already_had_email: true, enriched: false });
         const website = lead.website as string | undefined;
-        if (!website) return ok({ ...lead, enriched: false, reason: "no website to scrape" });
+        // Mark every attempt so a progress counter can survive a page reload.
+        const checkedAt = new Date().toISOString();
+        const campaignLoc = (await readJson<{ structured_query?: { location?: string } | null }>(store(OUTREACH_CAMPAIGNS), campaign_id))?.structured_query?.location;
+        const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], campaignLoc);
+        if (skip && skip.code !== "gov_edu_email") {
+          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
+          return ok({ ...lead, enriched: false, reason: skip.message });
+        }
+        if (!website) {
+          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
+          return ok({ ...lead, enriched: false, reason: "no website to scrape" });
+        }
 
         try {
           const { email, tried } = await findEmailFromWebsite(website);
           if (!email) {
+            await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
             return ok({ ...lead, enriched: false, tried, reason: "no email found on website" });
           }
           const updated = {
             ...lead,
             email,
             enriched_at: new Date().toISOString(),
+            enrich_checked_at: checkedAt,
             enrichment_source: "website_scrape",
             updated_at: new Date().toISOString(),
           };
@@ -1566,6 +1795,10 @@ export const handler: Handler = async (event) => {
         if (!lead.email) return fail(400, "lead has no email address — cannot draft");
         if (lead.do_not_contact) return fail(400, "lead is marked do-not-contact — no email will be drafted");
         {
+          const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], (campaign.structured_query as { location?: string } | null)?.location);
+          if (skip) return failCode(400, `${skip.message} — no draft created`, "skipped_lead");
+        }
+        {
           const mail = emailKey(lead.email as string);
           const flagged = (await listJson<{ email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).some((l) => l.do_not_contact && emailKey(l.email) === mail);
           if (flagged) return fail(400, "this email address asked not to be contacted — no draft created");
@@ -1603,6 +1836,7 @@ export const handler: Handler = async (event) => {
             geminiKey,
             {
               name: lead.name as string | undefined,
+              contact_name: lead.contact_name as string | undefined,
               company: lead.company as string | undefined,
               website: lead.website as string | undefined,
               category: lead.category as string | undefined,
@@ -1657,6 +1891,7 @@ export const handler: Handler = async (event) => {
           });
           return ok(record);
         } catch (err) {
+          if (err instanceof GeminiError) return geminiFail(err);
           return fail(500, err instanceof Error ? err.message : "Draft failed");
         }
       }
@@ -1768,13 +2003,25 @@ export const handler: Handler = async (event) => {
           store(OUTREACH_LEADS),
           `${campaign_id}/`,
         );
-        const sendable = leads.filter((l) => l.email && !l.do_not_contact);
-        if (sendable.length === 0) return fail(400, "No leads with email addresses yet");
-
+        const loc = (campaign.structured_query as { location?: string } | null)?.location;
         const es = store(OUTREACH_EMAILS);
+        const already = new Set((await listJson<{ lead_id: string }>(es, `${campaign_id}/`)).map((e) => e.lead_id));
+        const sendable = leads.filter((l) => l.email && !l.do_not_contact && !leadSkipReason(l, loc) && !already.has(l.id));
+        if (sendable.length === 0) return fail(400, "No leads with email addresses that still need a draft");
+
+        // Paced: one lead at a time with a gap (the free tier allows 15 requests a
+        // minute), inside a time budget (Netlify's function cap). Whatever does not
+        // fit is reported as `remaining` so the caller can call again.
+        const PACE_MS = 4500;
+        const deadline = Date.now() + 18_000;
         let generated = 0;
+        let stopped: { code: string; message: string } | null = null;
         const errors: Array<{ lead_id: string; error: string }> = [];
-        for (const lead of sendable) {
+        let remaining = 0;
+        for (let i = 0; i < sendable.length; i++) {
+          const lead = sendable[i];
+          if (Date.now() + PACE_MS + 8000 > deadline) { remaining = sendable.length - i; break; }
+          if (i > 0) await new Promise((r) => setTimeout(r, PACE_MS));
           try {
             const draft = await generateEmailDraft(
               geminiKey,
@@ -1786,6 +2033,7 @@ export const handler: Handler = async (event) => {
                 address: lead.address,
                 notes: lead.notes,
                 is_test: lead.is_test === true,
+                contact_name: (lead as { contact_name?: string }).contact_name,
               },
               {
                 sender_name,
@@ -1811,6 +2059,11 @@ export const handler: Handler = async (event) => {
             });
             generated++;
           } catch (err) {
+            if (err instanceof GeminiError && err.kind === "daily_quota") {
+              stopped = { code: err.kind, message: err.message };
+              remaining = sendable.length - i;
+              break;
+            }
             errors.push({ lead_id: lead.id, error: err instanceof Error ? err.message : "unknown" });
           }
         }
@@ -1827,7 +2080,7 @@ export const handler: Handler = async (event) => {
           summary: `Drafted ${generated} emails for "${campaign.name}"`,
           details: { campaign_id, generated, errors: errors.length },
         });
-        return ok({ generated, errors });
+        return ok({ generated, errors, remaining, stopped });
       }
 
       case "outreach.emails.list": {
@@ -1928,15 +2181,53 @@ export const handler: Handler = async (event) => {
 
       // ── OUTREACH SETTINGS (footer postal address) ─────────────────
       case "outreach.settings.get": {
-        const rec = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
-        return ok({ postal_address: rec?.postal_address ?? "" });
+        const rec = await readOutreachSettings();
+        return ok({
+          postal_address: rec.postal_address ?? "",
+          gemini_model: rec.gemini_model || DEFAULT_GEMINI_MODEL,
+          default_gemini_model: DEFAULT_GEMINI_MODEL,
+          // Name and company are pre-seeded until the user saves their own (even an empty one).
+          default_sender_name: rec.default_sender_name ?? "Lakshmi Devaraj",
+          default_sender_company: rec.default_sender_company ?? "ShiftForge AI",
+          default_sender_offer: rec.default_sender_offer ?? "",
+        });
       }
       case "outreach.settings.set": {
-        const { postal_address } = params as Record<string, unknown>;
-        if (postal_address !== undefined && typeof postal_address !== "string") return fail(400, "postal_address must be a string");
-        const cleaned = (postal_address ?? "").toString().trim().slice(0, 300);
-        await writeJson(store(OUTREACH_SETTINGS), "settings", { postal_address: cleaned, updated_at: new Date().toISOString() });
-        return ok({ postal_address: cleaned });
+        // Partial update: only the fields that are present are changed.
+        const p = params as Record<string, unknown>;
+        const current = await readOutreachSettings();
+        const next: OutreachSettings = { ...current };
+        const text = (k: string, max: number): string | undefined | null => {
+          if (p[k] === undefined) return undefined;
+          if (typeof p[k] !== "string") return null;
+          return (p[k] as string).trim().slice(0, max);
+        };
+        for (const [k, max] of [["postal_address", 300], ["default_sender_name", 120], ["default_sender_company", 120], ["default_sender_offer", 600]] as const) {
+          const v = text(k, max);
+          if (v === null) return fail(400, `${k} must be a string`);
+          if (v !== undefined) next[k] = v;
+        }
+        const model = text("gemini_model", 80);
+        if (model === null) return fail(400, "gemini_model must be a string");
+        if (model !== undefined && model !== (current.gemini_model ?? "")) {
+          const chosen = model || DEFAULT_GEMINI_MODEL;
+          // A bad model name must fail when saved, so prove it with a real call.
+          const gkey = await readServiceKey("gemini");
+          if (gkey) {
+            const t = await testServiceKey("gemini", gkey, chosen);
+            if (!t.ok) return fail(400, t.message);
+          }
+          next.gemini_model = model;
+        }
+        next.updated_at = new Date().toISOString();
+        await writeJson(store(OUTREACH_SETTINGS), "settings", next);
+        return ok({
+          postal_address: next.postal_address ?? "",
+          gemini_model: next.gemini_model || DEFAULT_GEMINI_MODEL,
+          default_sender_name: next.default_sender_name ?? "",
+          default_sender_company: next.default_sender_company ?? "",
+          default_sender_offer: next.default_sender_offer ?? "",
+        });
       }
 
       case "outreach.emails.send": {
@@ -2101,6 +2392,23 @@ export const handler: Handler = async (event) => {
         const rows = await listJson<{ received_at?: string }>(s, prefix);
         rows.sort((a, b) => ((a.received_at ?? "") < (b.received_at ?? "") ? 1 : -1));
         return ok(rows.slice(0, typeof limit === "number" ? limit : 200));
+      }
+
+      case "outreach.replies.delete": {
+        // Removes one inbound reply from the Inbox. Does not touch the lead,
+        // so a do-not-contact flag set by this reply stays in force.
+        const { id } = params as Record<string, string>;
+        if (!id) return fail(400, "id required");
+        const s = store(OUTREACH_REPLIES);
+        const { blobs } = await s.list();
+        for (const b of blobs) {
+          const rec = await readJson<{ id: string }>(s, b.key);
+          if (rec?.id !== id) continue;
+          // Campaign reply counters are left alone: the email still counts as replied.
+          await s.delete(b.key);
+          return ok({ id, deleted: true });
+        }
+        return fail(404, "reply not found");
       }
 
       case "outreach.replies.get": {

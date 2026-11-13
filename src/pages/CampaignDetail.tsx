@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -29,7 +29,8 @@ import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/components/Modal";
 import AnimatedNumber from "@/components/AnimatedNumber";
-import { call } from "@/lib/api";
+import { call, ApiError } from "@/lib/api";
+import { usePolling } from "@/lib/usePolling";
 import { timeAgo } from "@/lib/utils";
 
 type Campaign = {
@@ -55,8 +56,23 @@ type Campaign = {
   default_sender_name?: string | null;
   default_sender_company?: string | null;
   default_sender_offer?: string | null;
+  job?: Job | null;
+  last_status_refresh_at?: string;
   created_at: string;
   updated_at: string;
+};
+
+// A long-running client-driven job (drafting / finding emails). Saved on the
+// campaign so its progress survives page reloads and navigation. Progress
+// itself is derived from the data (drafts / leads stamped since started_at).
+type Job = {
+  kind: "generate" | "enrich";
+  status: "running" | "done" | "stopped";
+  total: number;
+  started_at: string;
+  finished_at?: string;
+  message?: string;
+  failures?: Array<{ name: string; error: string }>;
 };
 
 type Lead = {
@@ -75,6 +91,9 @@ type Lead = {
   status: string;
   is_test: boolean;
   do_not_contact?: boolean;
+  skip_reason?: string; // .gov/.edu address, chain store or out of state: never email-found or drafted
+  enrich_checked_at?: string;
+  enriched_at?: string;
   created_at: string;
 };
 
@@ -123,7 +142,9 @@ export default function CampaignDetail() {
   const [leadDetail, setLeadDetail] = useState<Lead | null>(null);
   const [emailDetail, setEmailDetail] = useState<EmailRow | null>(null);
   const [generateProgress, setGenerateProgress] = useState<{ done: number; total: number } | null>(null);
-  const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number; found: number } | null>(null);
+  // Which job THIS tab is driving right now (so the banner can tell "running"
+  // from "interrupted": a job left 'running' by a closed tab).
+  const [localJob, setLocalJob] = useState<"generate" | "enrich" | null>(null);
   // Batch sending: how many queued drafts to send per click (oldest first).
   const [sendCount, setSendCount] = useState("5");
   const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number } | null>(null);
@@ -131,46 +152,29 @@ export default function CampaignDetail() {
   // Drafts ticked for "Send selected" (overrides the batch size).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!id) return;
-    void refresh();
-    // Light polling so counters tick live when webhooks arrive.
-    const t = setInterval(refresh, 6000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  // Polling costs Netlify function calls, so it is slow, pauses while the tab is
+  // hidden (see usePolling), and there is a Refresh button for "now". It speeds
+  // up a little only while a drafting/finding job is running in another tab.
+  const jobRunning = campaign?.job?.status === "running";
+  usePolling(() => { if (id) void refresh(); }, jobRunning ? 10_000 : 30_000, [id, jobRunning]);
 
-  // When a scrape is running on Apify's side, poll the sync action every
-  // 4s so we import leads as soon as Apify finishes. Separate from the
-  // general refresh interval so we can drive a tighter loop only when
-  // we're actively waiting on Apify.
-  useEffect(() => {
-    if (!id) return;
-    if (campaign?.status !== "searching") return;
-    let cancelled = false;
-    const tick = async () => {
-      if (cancelled) return;
+  // Sync: while a scrape runs it imports the leads when Apify finishes (every
+  // 8s); otherwise, once a minute, it refreshes sent-email statuses from
+  // AgentMail so a missed webhook cannot leave "sent" showing for days.
+  const searching = campaign?.status === "searching";
+  usePolling(
+    async () => {
+      if (!id) return;
       try {
-        const result = await call<{ status: string; apify_status: string | null; changed: boolean }>(
-          "outreach.campaign.sync",
-          { id },
-        );
-        if (!cancelled && result.changed) {
-          // Terminal state — refresh immediately to pull in leads/status.
-          await refresh();
-        }
+        const result = await call<{ changed: boolean; status_refresh?: { updated: number } | null }>("outreach.campaign.sync", { id });
+        if (result.changed || (result.status_refresh?.updated ?? 0) > 0) await refresh();
       } catch {
-        // Quiet — the regular refresh will surface persistent errors.
+        // Quiet — the regular refresh surfaces persistent errors.
       }
-    };
-    void tick();
-    const t = setInterval(tick, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, campaign?.status]);
+    },
+    searching ? 8000 : 60_000,
+    [id, searching],
+  );
 
   async function refresh() {
     if (!id) return;
@@ -187,6 +191,29 @@ export default function CampaignDetail() {
       setReplies(rs);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
+    }
+  }
+
+  // "Refresh now": reload everything and ask AgentMail for fresh email statuses.
+  const [refreshing, setRefreshing] = useState(false);
+  async function refreshNow() {
+    if (!id) return;
+    setRefreshing(true);
+    try {
+      await call("outreach.campaign.sync", { id }).catch(() => undefined);
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function saveJob(job: Job | null) {
+    if (!id) return;
+    try {
+      const c = await call<Campaign>("outreach.campaign.update", { id, job });
+      setCampaign(c);
+    } catch {
+      // Progress display only — never block the work on it.
     }
   }
 
@@ -308,12 +335,14 @@ export default function CampaignDetail() {
   // side so the progress bar reflects real per-lead latency.
   async function enrichEmails() {
     if (!id) return;
-    const targets = leads.filter((l) => !l.email && l.website);
+    // Chains, .gov/.edu and out-of-state leads are skipped by the server too.
+    const targets = leads.filter((l) => !l.email && l.website && !l.skip_reason);
     if (targets.length === 0) return;
-    setEnrichProgress({ done: 0, total: targets.length, found: 0 });
+    setLocalJob("enrich");
     setErr(null);
-    let done = 0;
+    await saveJob({ kind: "enrich", status: "running", total: targets.length, started_at: new Date().toISOString() });
     let found = 0;
+    let done = 0;
     for (const lead of targets) {
       try {
         const result = await call<{ enriched?: boolean }>("outreach.leads.enrich_one", {
@@ -325,13 +354,53 @@ export default function CampaignDetail() {
         // Per-lead failures shouldn't halt the loop — sites block, time out, etc.
       }
       done++;
-      setEnrichProgress({ done, total: targets.length, found });
       if (done % 3 === 0 || done === targets.length) await refresh();
     }
-    // Leave progress showing for a beat so the user sees the final count,
-    // then clear it.
-    setTimeout(() => setEnrichProgress(null), 3000);
+    await saveJob({
+      kind: "enrich",
+      status: "done",
+      total: targets.length,
+      started_at: campaign?.job?.started_at ?? new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+      message: `${found} of ${targets.length} sites gave us an email.`,
+    });
+    setLocalJob(null);
+    await refresh();
   }
+
+  // Progress of the saved job, derived from the data so it is still right after
+  // a reload: drafts created / leads checked since the job started.
+  const jobView = useMemo(() => {
+    const job = campaign?.job;
+    if (!job) return null;
+    const since = Date.parse(job.started_at);
+    let done = 0;
+    let found = 0;
+    let lastActivity = since;
+    if (job.kind === "generate") {
+      for (const e of emails) {
+        const t = Date.parse(e.created_at);
+        if (t >= since) {
+          done++;
+          lastActivity = Math.max(lastActivity, t);
+        }
+      }
+    } else {
+      for (const l of leads) {
+        const t = l.enrich_checked_at ? Date.parse(l.enrich_checked_at) : 0;
+        if (t >= since) {
+          done++;
+          lastActivity = Math.max(lastActivity, t);
+          if (l.enriched_at && Date.parse(l.enriched_at) >= since) found++;
+        }
+      }
+    }
+    done = Math.min(done, job.total);
+    // 'running' with no loop in this tab and nothing new for 2 minutes = the tab
+    // that was driving it was closed.
+    const interrupted = job.status === "running" && localJob !== job.kind && Date.now() - lastActivity > 120_000;
+    return { job, done, found, interrupted };
+  }, [campaign?.job, emails, leads, localJob]);
 
   // Derive counters from the emails array — race-free unlike the cached
   // counters on the campaign record (which can lose increments when
@@ -429,6 +498,52 @@ export default function CampaignDetail() {
           </div>
         </GlassCard>
       )}
+
+      {/* Persistent job progress — stays until the job finishes (survives reloads) */}
+      {jobView && (() => {
+        const { job, done, found, interrupted } = jobView;
+        const noun = job.kind === "generate" ? "drafts" : "sites checked";
+        const running = job.status === "running" && !interrupted;
+        const tone = running
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : job.status === "done" && !(job.failures?.length)
+            ? "border-green-500/40 bg-green-500/10 text-green-200"
+            : "border-amber-500/40 bg-amber-500/10 text-amber-200";
+        return (
+          <div className={`mb-5 rounded-xl border px-4 py-3 ${tone}`}>
+            <div className="flex items-center gap-3">
+              {running ? <Loader2 size={15} className="animate-spin shrink-0" /> : <AlertCircle size={15} className="shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">
+                  {running
+                    ? `${job.kind === "generate" ? "Drafting" : "Finding emails"}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}`
+                    : interrupted
+                      ? `Stopped at ${done} of ${job.total} ${noun}. The tab driving it was closed. ${job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : "Click Find emails to continue."}`
+                      : job.status === "stopped"
+                        ? `Stopped at ${done} of ${job.total} ${noun}. ${job.message ?? ""}`
+                        : `Finished: ${done} of ${job.total} ${noun}. ${job.message ?? ""}`}
+                </div>
+                {job.failures && job.failures.length > 0 && (
+                  <ul className="mt-1 text-xs opacity-90 list-disc pl-5">
+                    {job.failures.slice(0, 6).map((f, i) => (
+                      <li key={i}><span className="font-semibold">{f.name}</span>: {f.error}</li>
+                    ))}
+                    {job.failures.length > 6 && <li>…and {job.failures.length - 6} more</li>}
+                  </ul>
+                )}
+              </div>
+              {!running && (
+                <button onClick={() => void saveJob(null)} className="shrink-0 text-xs underline opacity-80 hover:opacity-100">Dismiss</button>
+              )}
+            </div>
+            {running && (
+              <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-primary transition-all duration-500" style={{ width: `${Math.round((done / Math.max(1, job.total)) * 100)}%` }} />
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Scraping banner — Apify run in progress, UI polls every 4s */}
       {campaign.status === "searching" && (
@@ -652,6 +767,16 @@ export default function CampaignDetail() {
       )}
 
       {/* Counters */}
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => void refreshNow()}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-white/70 text-[11px] font-semibold transition disabled:opacity-50"
+          title="Reload this campaign and refresh email statuses from AgentMail"
+        >
+          {refreshing ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Refresh now
+        </button>
+      </div>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-6">
         <MiniStat label="Leads" value={counters?.leads ?? 0} icon={<Users size={14} />} tint="primary" />
         <MiniStat label="Drafts" value={counters?.drafts ?? 0} icon={<Sparkles size={14} />} tint="purple" />
@@ -705,8 +830,8 @@ export default function CampaignDetail() {
           </div>
           <div className="flex items-center gap-2">
             {(() => {
-              const withoutEmail = leads.filter((l) => !l.email && l.website).length;
-              const enriching = enrichProgress !== null && enrichProgress.done < enrichProgress.total;
+              const withoutEmail = leads.filter((l) => !l.email && l.website && !l.skip_reason).length;
+              const enriching = localJob === "enrich";
               if (withoutEmail === 0 && !enriching) return null;
               return (
                 <button
@@ -715,7 +840,7 @@ export default function CampaignDetail() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
                 >
                   {enriching ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
-                  {enriching ? `Finding emails ${enrichProgress!.done}/${enrichProgress!.total}` : `Find emails (${withoutEmail})`}
+                  {enriching ? `Finding emails ${jobView?.done ?? 0}/${jobView?.job.total ?? ""}` : `Find emails (${withoutEmail})`}
                 </button>
               );
             })()}
@@ -728,22 +853,6 @@ export default function CampaignDetail() {
           </div>
         </div>
 
-        {enrichProgress && (
-          <div className="mb-3 flex items-center gap-3 rounded-lg bg-primary/10 border border-primary/30 px-3 py-2">
-            <Loader2 size={13} className={enrichProgress.done < enrichProgress.total ? "animate-spin text-primary" : "text-primary"} />
-            <span className="text-xs text-primary font-mono flex-1">
-              {enrichProgress.done < enrichProgress.total
-                ? `Scraping website ${enrichProgress.done + 1} of ${enrichProgress.total} · ${enrichProgress.found} email${enrichProgress.found === 1 ? "" : "s"} found so far`
-                : `Done · ${enrichProgress.found} of ${enrichProgress.total} sites gave us an email`}
-            </span>
-            <div className="w-28 h-1.5 rounded-full bg-white/5 overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${Math.round((enrichProgress.done / Math.max(1, enrichProgress.total)) * 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
         {leads.length === 0 ? (
           <div className="text-center py-10 text-white/50 text-sm">
             No leads yet. Click <span className="text-white font-semibold">Run Apify scrape</span> above, or add a test lead with your own email.
@@ -777,6 +886,11 @@ export default function CampaignDetail() {
                       {l.do_not_contact && (
                         <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 uppercase tracking-wider">
                           do not contact
+                        </span>
+                      )}
+                      {l.skip_reason && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                          {l.skip_reason.replace(/^Skipped: /, "skip: ")}
                         </span>
                       )}
                       {!l.email && !l.is_test && (
@@ -848,31 +962,10 @@ export default function CampaignDetail() {
         </div>
         {emails.length === 0 ? (
           <div className="text-center py-10 text-white/50 text-sm">
-            {generateProgress ? (
-              <div className="flex items-center justify-center gap-3 text-primary">
-                <Loader2 size={14} className="animate-spin" />
-                Generating email {generateProgress.done + 1} of {generateProgress.total}…
-              </div>
-            ) : (
-              <>No drafts yet. Click <span className="text-white font-semibold">Generate emails</span> after leads are in.</>
-            )}
+            <>No drafts yet. Click <span className="text-white font-semibold">Generate emails</span> after leads are in.</>
           </div>
         ) : (
           <>
-            {generateProgress && generateProgress.done < generateProgress.total && (
-              <div className="mb-3 flex items-center gap-3 rounded-lg bg-primary/10 border border-primary/30 px-3 py-2">
-                <Loader2 size={14} className="animate-spin text-primary" />
-                <span className="text-xs text-primary font-mono">
-                  Generating {generateProgress.done + 1} of {generateProgress.total}…
-                </span>
-                <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                  <div
-                    className="h-full bg-primary transition-all duration-500"
-                    style={{ width: `${Math.round((generateProgress.done / generateProgress.total) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
             <div className="space-y-2">
               {emails.map((e) => {
                 const pos = e.sequence_position ?? 1;
@@ -965,6 +1058,9 @@ export default function CampaignDetail() {
         campaignId={campaign.id}
         leads={leads}
         existingEmails={emails}
+        campaign={campaign}
+        saveJob={saveJob}
+        setLocalJob={setLocalJob}
         setBusyAction={setBusyAction}
         onComplete={() => void refresh()}
         setErr={setErr}
@@ -1154,6 +1250,9 @@ function GenerateEmailsModal({
   campaignId,
   leads,
   existingEmails,
+  campaign,
+  saveJob,
+  setLocalJob,
   setBusyAction,
   onComplete,
   setErr,
@@ -1165,6 +1264,9 @@ function GenerateEmailsModal({
   campaignId: string;
   leads: Lead[];
   existingEmails: EmailRow[];
+  campaign: Campaign;
+  saveJob: (j: Job | null) => Promise<void>;
+  setLocalJob: (v: "generate" | "enrich" | null) => void;
   setBusyAction: (v: "run" | "generate" | "send" | null) => void;
   onComplete: () => void;
   setErr: (s: string | null) => void;
@@ -1177,6 +1279,31 @@ function GenerateEmailsModal({
   const [framework, setFramework] = useState<Framework>("one-off");
   const [busy, setBusy] = useState(false);
   const [localErr, setLocalErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  // Prefill: the campaign's own saved sender details first, then the defaults
+  // from Settings. Only fills fields still empty, so it never overwrites typing.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!open || prefilled.current) return;
+    prefilled.current = true;
+    const fromCampaign = {
+      name: campaign.default_sender_name ?? "",
+      company: campaign.default_sender_company ?? "",
+      offer: campaign.default_sender_offer ?? "",
+    };
+    setSenderName((v) => v || fromCampaign.name);
+    setSenderCompany((v) => v || fromCampaign.company);
+    setSenderOffer((v) => v || fromCampaign.offer);
+    call<{ default_sender_name: string; default_sender_company: string; default_sender_offer: string }>("outreach.settings.get")
+      .then((d) => {
+        setSenderName((v) => v || d.default_sender_name);
+        setSenderCompany((v) => v || d.default_sender_company);
+        setSenderOffer((v) => v || d.default_sender_offer);
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const totalSteps = framework === "one-off" ? 1 : 3;
   const currentFramework = FRAMEWORK_OPTIONS.find((f) => f.value === framework)!;
@@ -1185,7 +1312,8 @@ function GenerateEmailsModal({
   // when drafting — skipping a lead only at a step that already has a draft.
   // For the pre-submit count display we show drafts-to-create = eligible × steps
   // minus any per-(lead, step) duplicates that already exist.
-  const leadsWithEmail = leads.filter((l) => l.email);
+  const leadsWithEmail = leads.filter((l) => l.email && !l.skip_reason && !l.do_not_contact);
+  const skippedQuality = leads.filter((l) => l.email && l.skip_reason).length;
   const existingByLeadStep = new Set(
     existingEmails.map((e) => `${e.lead_id}__${e.sequence_position ?? 1}`),
   );
@@ -1209,52 +1337,86 @@ function GenerateEmailsModal({
     setLocalErr(null);
     setErr(null);
     setProgress({ done: 0, total: plannedCount });
+    setLocalJob("generate");
+    setNote(null);
     let done = 0;
     const errors: Array<{ lead_id: string; step: number; error: string }> = [];
+    let stoppedMsg: string | null = null;
+    const PACE_MS = 4500; // free tier: 15 requests a minute
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    await saveJob({ kind: "generate", status: "running", total: plannedCount, started_at: new Date().toISOString() });
     try {
       // Critical ordering: ALL lead × step=1 first, then step=2, then step=3.
       // Step 2 drafts reference step 1 for continuity; step 3 references both.
-      // If we looped per-lead (step 1+2+3 for lead A, then step 1+2+3 for lead B),
-      // early leads would have full sequences while later leads sat empty — and
-      // step 2 of lead B couldn't reference the step 1 we just drafted. Batching
-      // by step keeps the sequence coherent across the whole campaign.
+      // Batching by step keeps the sequence coherent across the whole campaign.
       const sortedPairs = [...plannedPairs].sort((a, b) => a.step - b.step || a.lead.id.localeCompare(b.lead.id));
-      for (const { lead, step } of sortedPairs) {
-        try {
-          await call("outreach.emails.generate_one", {
-            campaign_id: campaignId,
-            lead_id: lead.id,
-            sender_name: senderName,
-            sender_company: senderCompany,
-            sender_offer: senderOffer,
-            framework,
-            step,
-            total_steps: totalSteps,
-          });
-        } catch (err) {
-          errors.push({ lead_id: lead.id, step, error: err instanceof Error ? err.message : "unknown" });
+      for (let i = 0; i < sortedPairs.length && !stoppedMsg; i++) {
+        const { lead, step } = sortedPairs[i];
+        if (i > 0) await sleep(PACE_MS);
+        for (let attempt = 1; ; attempt++) {
+          try {
+            await call("outreach.emails.generate_one", {
+              campaign_id: campaignId,
+              lead_id: lead.id,
+              sender_name: senderName,
+              sender_company: senderCompany,
+              sender_offer: senderOffer,
+              framework,
+              step,
+              total_steps: totalSteps,
+            });
+            break;
+          } catch (err) {
+            const code = err instanceof ApiError ? err.code : undefined;
+            if (code === "daily_quota") {
+              // Out of requests for the day: stop, do not keep hammering.
+              stoppedMsg = (err as Error).message;
+              break;
+            }
+            if ((code === "rate_limited" || code === "unavailable") && attempt < 4) {
+              const wait = Math.min(60, (err as ApiError).retryAfter ?? 10);
+              setNote(`Gemini asked us to slow down — waiting ${wait}s, then retrying ${lead.name} (try ${attempt + 1} of 4)…`);
+              await sleep(wait * 1000 + 500);
+              setNote(null);
+              continue;
+            }
+            errors.push({ lead_id: lead.id, step, error: err instanceof Error ? err.message : "unknown" });
+            break;
+          }
         }
-        done++;
-        setProgress({ done, total: plannedCount });
-        // Refresh the campaign detail view periodically so the user watches
-        // drafts appear in real time.
-        if (done % 3 === 0 || done === plannedCount) onComplete();
+        if (!stoppedMsg) {
+          done++;
+          setProgress({ done, total: plannedCount });
+          if (done % 3 === 0 || done === plannedCount) onComplete();
+        }
       }
-      if (errors.length > 0 && done - errors.length === 0) {
+      const failures = errors.map((x) => ({ name: leads.find((l) => l.id === x.lead_id)?.name ?? x.lead_id, error: x.error }));
+      const made = done - errors.length;
+      await saveJob({
+        kind: "generate",
+        status: stoppedMsg ? "stopped" : "done",
+        total: plannedCount,
+        started_at: campaign.job?.started_at ?? new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        message: stoppedMsg ?? (errors.length ? `${errors.length} failed. Click Generate emails again to retry just those.` : undefined),
+        failures: failures.length ? failures : undefined,
+      });
+      if (stoppedMsg) {
+        setLocalErr(`${stoppedMsg} ${made} draft${made === 1 ? "" : "s"} were made before it stopped.`);
+        setErr(stoppedMsg);
+      } else if (errors.length > 0 && made === 0) {
         setLocalErr(`All ${errors.length} drafts failed. First error: ${errors[0]?.error ?? "unknown"}`);
         setErr(errors[0]?.error ?? "Drafts failed");
       } else {
-        // Some (not all) drafts failed: say so, instead of silently leaving a lead without a draft.
-        if (errors.length > 0) {
-          const names = errors.map((x) => leads.find((l) => l.id === x.lead_id)?.name ?? x.lead_id).join(", ");
-          setErr(`${errors.length} of ${plannedCount} drafts failed (${names}): ${errors[0]?.error ?? "unknown"}. Click Generate emails again to retry just those.`);
-        }
         onClose();
         setTimeout(() => setProgress(null), 1200);
       }
     } finally {
+      setLocalJob(null);
+      setNote(null);
       setBusy(false);
       setBusyAction(null);
+      onComplete();
     }
   }
 
@@ -1326,6 +1488,12 @@ function GenerateEmailsModal({
               )}
             </span>
           </div>
+          {skippedQuality > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-amber-300/80">Chains, .gov/.edu and out-of-state leads (skipped)</span>
+              <span className="font-mono text-amber-300">{skippedQuality}</span>
+            </div>
+          )}
           {skippedNoEmail > 0 && (
             <div className="flex justify-between text-xs">
               <span className="text-amber-300/80">Leads without an email (skipped)</span>
@@ -1376,6 +1544,9 @@ function GenerateEmailsModal({
           </div>
         )}
 
+        {note && (
+          <div className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-4 py-2 text-sm text-amber-200">{note}</div>
+        )}
         {localErr && (
           <div className="rounded-lg bg-red-500/15 border border-red-500/40 px-4 py-2 text-sm text-red-200">{localErr}</div>
         )}

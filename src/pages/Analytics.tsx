@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -45,11 +46,7 @@ export default function Analytics() {
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 8000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 60000, []);
 
   async function refresh() {
     try {

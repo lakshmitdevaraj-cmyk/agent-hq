@@ -95,8 +95,12 @@ export function normalizeDraft<T extends { subject: string; body_text: string; b
   greeting?: string | null,
 ): T {
   const fixLen = (s: string) => s.replace(SHORT_CALL, "30-minute");
-  const generic = /^(\s*(?:<p>)?\s*)(?:hi|hello|hey)\s+there\s*,?/i;
-  const fixGreeting = (s: string) => (greeting ? s.replace(generic, `$1${greeting},`) : s);
+  // Always enforce the greeting: a known first name, else "Hi there". Whatever
+  // "Hi/Hello/Hey ...," the model opened with (including "Hi <Business> team,")
+  // is replaced. Anything that does not start with hi/hello/hey is left alone.
+  const target = greeting || "Hi there";
+  const opener = /^(\s*(?:<p>)?\s*)(?:hi|hello|hey)\b[^,\n<]{0,80},/i;
+  const fixGreeting = (s: string) => s.replace(opener, `$1${target},`);
   return {
     ...draft,
     subject: fixLen(draft.subject),
@@ -105,22 +109,21 @@ export function normalizeDraft<T extends { subject: string; body_text: string; b
   };
 }
 
-const BUSINESS_HINT = /\b(llc|inc|ltd|co|corp|company|services|roofing|plumbing|repair|restoration|construction|contractors?|group|solutions|studio|agency|clinic|dental|law|firm|partners)\b/i;
-
 /**
- * Greeting to open the email with, or null when we know nothing (the model
- * then falls back to its own rule). Scraped businesses get "Hi <Business> team",
- * person-like names (test / manual leads) get "Hi <First>".
+ * The greeting for a lead, or null when no person's first name is known (the
+ * draft then opens with "Hi there,"). A business name is never used: scraped
+ * leads only have a business name, so they get "Hi there,". A first name comes
+ * from an explicit `contact_name`, or from a test lead's person-like name.
  */
-export function greetingFor(lead: { name?: string | null; category?: string | null; website?: string | null; is_test?: boolean }): string | null {
-  const name = (lead.name ?? "").trim();
-  if (!name || /@/.test(name)) return null;
+export function greetingFor(lead: { name?: string | null; contact_name?: string | null; is_test?: boolean }): string | null {
+  const personal = (lead.contact_name ?? "").trim() || (lead.is_test ? (lead.name ?? "").trim() : "");
+  if (!personal || /@/.test(personal)) return null;
   // A test lead added without a name gets its email's local part as the name
   // (e.g. "shiftforge.ai+t4") — not something to greet.
-  if (!/\s/.test(name) && /[.+_\d]/.test(name) && name === name.toLowerCase()) return null;
-  const businessLike = !lead.is_test && (!!lead.category || !!lead.website || BUSINESS_HINT.test(name) || name.split(/\s+/).length > 2);
-  if (businessLike) return `Hi ${name} team`;
-  return `Hi ${name.split(/\s+/)[0]}`;
+  if (!/\s/.test(personal) && /[.+_\d]/.test(personal) && personal === personal.toLowerCase()) return null;
+  const first = personal.split(/\s+/)[0].replace(/[^\p{L}'-]/gu, "");
+  if (!first) return null;
+  return `Hi ${first}`;
 }
 
 // ── Opt-out detection for inbound replies ─────────────────────────────
@@ -248,4 +251,110 @@ export function extractEmailAddress(from: string | null | undefined): string | n
   if (!from) return null;
   const m = /<([^>]+@[^>]+)>/.exec(from) ?? /([^\s<>,;]+@[^\s<>,;]+)/.exec(from);
   return emailKey(m?.[1]);
+}
+
+// ── Lead quality filters ──────────────────────────────────────────────
+// Skip leads that should never be cold-emailed: government / school
+// addresses, big chains and franchise stores, and businesses outside the
+// campaign's state. Computed on the fly (nothing stored), so it also applies to
+// leads imported before these filters existed.
+
+/** .gov / .edu / .mil addresses, including country forms (gov.uk, edu.au) and US state/K-12 domains. */
+export function isGovEduEmail(email: string | null | undefined): boolean {
+  const at = (email ?? "").toLowerCase().trim().split("@")[1];
+  if (!at) return false;
+  const labels = at.split(".");
+  const last = labels[labels.length - 1];
+  const prev = labels[labels.length - 2] ?? "";
+  if (["gov", "edu", "mil"].includes(last)) return true;
+  if (last.length === 2 && ["gov", "edu", "mil", "ac"].includes(prev)) return true; // gov.uk, edu.au, ac.uk
+  if (last === "us" && (labels.includes("state") || labels.includes("k12") || labels.includes("fed"))) return true;
+  return false;
+}
+
+// Known national chains / franchise brands. Matched as whole words in the
+// business name, or against the website host. Extend this list as needed.
+const CHAIN_NAMES = [
+  "lennox", "trane", "rheem", "service experts", "aire serv", "one hour heating",
+  "ars rescue rooter", "rescue rooter", "roto-rooter", "benjamin franklin plumbing", "mr. rooter", "mr rooter",
+  "mr. handyman", "mr handyman", "servicemaster", "servpro", "terminix", "orkin", "rentokil", "trugreen",
+  "home depot", "the home depot", "lowe's", "lowes", "best buy", "walmart", "costco", "sam's club",
+  "ace hardware", "menards", "johnstone supply", "grainger", "fastenal",
+  "mcdonald's", "mcdonalds", "starbucks", "burger king", "wendy's", "wendys", "taco bell", "kfc",
+  "chick-fil-a", "chipotle", "domino's", "dominos", "pizza hut", "papa john's", "panera", "applebee's",
+  "chili's", "olive garden", "ihop", "denny's", "dennys", "waffle house", "buffalo wild wings", "sonic drive-in",
+  "jiffy lube", "firestone", "pep boys", "autozone", "o'reilly auto", "advance auto", "napa auto",
+  "supercuts", "great clips", "sport clips", "planet fitness", "anytime fitness", "la fitness", "24 hour fitness",
+  "h&r block", "state farm", "allstate", "farmers insurance", "geico", "liberty tax", "jackson hewitt",
+  "cvs", "walgreens", "rite aid", "7-eleven", "circle k", "chevron", "exxon", 
+  "wells fargo", "bank of america", "chase bank", "citibank", "us bank",
+];
+const CHAIN_HOSTS = [
+  "lennox.com", "lennoxpros.com", "homedepot.com", "lowes.com", "sears.com", "walmart.com",
+  "servicemaster.com", "servpro.com", "terminix.com", "orkin.com", "aireserv.com", "onehourheatandair.com",
+  "rotorooter.com", "mrrooter.com", "mrhandyman.com", "acehardware.com", "mcdonalds.com",
+  "starbucks.com", "statefarm.com", "allstate.com", "farmers.com", "geico.com",
+];
+
+function escapeRx(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+const CHAIN_RX = new RegExp(`(?:^|[^a-z0-9])(?:${CHAIN_NAMES.map(escapeRx).join("|")})(?:$|[^a-z0-9])`, "i");
+
+export function isChainBusiness(name: string | null | undefined, website: string | null | undefined): boolean {
+  const n = (name ?? "").toLowerCase();
+  if (n && CHAIN_RX.test(n)) return true;
+  const host = websiteKey(website ?? null)?.split("/")[0] ?? "";
+  return !!host && CHAIN_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}
+
+const US_STATES: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT",
+  delaware: "DE", florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
+  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA", michigan: "MI",
+  minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
+  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC",
+  "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI",
+  "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
+  virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
+};
+const STATE_CODES = new Set(Object.values(US_STATES));
+
+/** Best-effort 2-letter US state from free text ("Houston, TX 77002", "Houston, Texas", "TX"). Null when unknown. */
+export function usStateOf(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (!t) return null;
+  if (/^[A-Za-z]{2}$/.test(t) && STATE_CODES.has(t.toUpperCase())) return t.toUpperCase();
+  // "..., TX 77002" or "..., TX" at the end / before a country
+  const code = t.match(/,\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?(?:,\s*(?:USA|US|United States))?\s*$/);
+  if (code && STATE_CODES.has(code[1])) return code[1];
+  const low = t.toLowerCase();
+  // Longest state names first so "west virginia" wins over "virginia".
+  for (const name of Object.keys(US_STATES).sort((a, b) => b.length - a.length)) {
+    if (new RegExp(`(?:^|[^a-z])${name}(?:$|[^a-z])`).test(low)) return US_STATES[name];
+  }
+  return null;
+}
+
+export type SkipReason = { code: "gov_edu_email" | "chain" | "out_of_state"; message: string };
+
+/**
+ * Why a lead should be skipped for email finding / drafting, or null when it
+ * is fine. `campaignLocation` is the campaign's search location ("Houston, TX").
+ * Out-of-state only triggers when BOTH states are known and differ.
+ */
+export function leadSkipReason(
+  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; is_test?: boolean; raw?: unknown },
+  campaignLocation: string | null | undefined,
+): SkipReason | null {
+  if (lead.is_test) return null;
+  if (isGovEduEmail(lead.email)) return { code: "gov_edu_email", message: "Skipped: .gov/.edu address" };
+  if (isChainBusiness(lead.name, lead.website)) return { code: "chain", message: "Skipped: chain / franchise store" };
+  const rawState = (lead.raw && typeof lead.raw === "object" ? (lead.raw as { state?: unknown }).state : null) as string | null;
+  const leadState = usStateOf(typeof rawState === "string" ? rawState : null) ?? usStateOf(lead.address);
+  const wantState = usStateOf(campaignLocation);
+  if (leadState && wantState && leadState !== wantState) {
+    return { code: "out_of_state", message: `Skipped: out of state (${leadState}, campaign is ${wantState})` };
+  }
+  return null;
 }

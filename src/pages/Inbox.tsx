@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { usePolling } from "@/lib/usePolling";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Inbox as InboxIcon, Loader2, MessageSquare, KanbanSquare, AlertCircle } from "lucide-react";
+import { Inbox as InboxIcon, Loader2, MessageSquare, KanbanSquare, AlertCircle, Trash2, RefreshCw } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import { call } from "@/lib/api";
@@ -28,11 +29,7 @@ export default function Inbox() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 6000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 30000, []);
 
   async function refresh() {
     try {
@@ -43,6 +40,22 @@ export default function Inbox() {
       setErr(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoaded(true);
+    }
+  }
+
+  async function deleteReply(id: string) {
+    if (!confirm("Delete this reply from the Inbox? If it asked us to stop, the lead stays marked do-not-contact.")) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await call("outreach.replies.delete", { id });
+      const rest = replies.filter((r) => r.id !== id);
+      setReplies(rest);
+      setSelectedId(rest[0]?.id ?? null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -67,6 +80,15 @@ export default function Inbox() {
         title="Inbox"
         subtitle="Inbound replies to your outreach campaigns. AgentMail pushes them here in real time via webhook."
       />
+
+      <div className="flex justify-end -mt-2 mb-3">
+        <button
+          onClick={() => void refresh()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-white/70 text-xs font-semibold transition"
+        >
+          <RefreshCw size={12} /> Refresh
+        </button>
+      </div>
 
       {err && (
         <GlassCard className="mb-5 border-red-500/40 bg-red-500/10">
@@ -145,6 +167,14 @@ export default function Inbox() {
                 >
                   {busy ? <Loader2 size={12} className="animate-spin" /> : <KanbanSquare size={12} />}
                   Convert to task
+                </button>
+                <button
+                  onClick={() => void deleteReply(selected.id)}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-bold tracking-wide transition disabled:opacity-50"
+                >
+                  <Trash2 size={12} />
+                  Delete
                 </button>
               </div>
               <h2 className="font-display text-xl font-bold text-white mb-4">{selected.subject ?? "(no subject)"}</h2>

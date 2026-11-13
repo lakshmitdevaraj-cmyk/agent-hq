@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Copy, ExternalLink, Inbox, RefreshCw } from "lucide-react";
@@ -14,12 +15,7 @@ export default function FormSubmissions() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!slug) return;
-    void refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, [slug]);
+  usePolling(() => { if (slug) void refresh(); }, 30000, [slug]);
 
   async function refresh() {
     if (!slug) return;
