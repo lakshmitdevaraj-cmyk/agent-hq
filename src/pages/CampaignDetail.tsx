@@ -1369,6 +1369,7 @@ function GenerateEmailsModal({
             const made = await call<{ id: string; skipped?: boolean }>("outreach.emails.generate_one", {
               campaign_id: campaignId,
               lead_id: lead.id,
+              lead, // fallback for a lead the server's list cannot see yet
               sender_name: senderName,
               sender_company: senderCompany,
               sender_offer: senderOffer,

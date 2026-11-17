@@ -1771,6 +1771,7 @@ export const handler: Handler = async (event) => {
           framework,
           step,
           total_steps,
+          lead: leadHint,
         } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         if (typeof lead_id !== "string" || !lead_id) return fail(400, "lead_id required");
@@ -1796,6 +1797,13 @@ export const handler: Handler = async (event) => {
             lead = row;
             break;
           }
+        }
+        // A lead added seconds ago may not show up in the store's list yet (Blobs lists
+        // can lag about a minute). The page then sends the lead it already has; it is
+        // used only for this fallback, and only if it is for this very lead and campaign.
+        if (!lead && leadHint && typeof leadHint === "object") {
+          const hint = leadHint as Record<string, unknown>;
+          if (hint.id === lead_id && hint.campaign_id === campaign_id) lead = hint;
         }
         if (!lead) return fail(404, "lead not found");
         if (!lead.email) return fail(400, "lead has no email address — cannot draft");
