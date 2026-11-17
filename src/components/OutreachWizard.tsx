@@ -1,3 +1,4 @@
+import { noteCreated } from "@/lib/recent";
 import { useState } from "react";
 import { ChevronRight, Loader2, MapPin, Search, Sparkles, Target, Check, ArrowLeft } from "lucide-react";
 import Modal, { FormField, PrimaryButton, TextArea, TextInput } from "./Modal";
@@ -71,6 +72,7 @@ export default function OutreachWizard({ open, onClose, onCreated }: Props) {
         structured_query: preview,
         description: description.trim(),
       });
+      noteCreated("campaign", campaign);
       onCreated?.(campaign);
       close();
     } catch (err) {

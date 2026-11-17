@@ -2,19 +2,13 @@ import { getStore } from "@netlify/blobs";
 
 export type Store = ReturnType<typeof getStore>;
 
-// Stores the app reads straight after writing (leads, drafts, campaigns,
-// replies, settings). Strong consistency makes a new item show up in the next
-// list/get instead of ~1 minute later.
-const STRONG = new Set([
-  "agent-hq-outreach-campaigns",
-  "agent-hq-outreach-leads",
-  "agent-hq-outreach-emails",
-  "agent-hq-outreach-replies",
-  "agent-hq-outreach-settings",
-]);
-
+// NOTE: strong consistency was tried and removed. In this @netlify/blobs version
+// connectLambda() (classic functions) never supplies the 'uncachedEdgeURL' that
+// strong reads need, so every strong read threw. New items can take up to about a
+// minute to show up in a list; the UI covers that by showing items straight from
+// the server's create/delete response (src/lib/recent.ts).
 export function store(name: string): Store {
-  return STRONG.has(name) ? getStore({ name, consistency: "strong" }) : getStore(name);
+  return getStore(name);
 }
 
 export async function readJson<T>(s: Store, key: string): Promise<T | null> {

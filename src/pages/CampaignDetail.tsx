@@ -31,6 +31,7 @@ import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/componen
 import AnimatedNumber from "@/components/AnimatedNumber";
 import { call, ApiError } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { mergeRecent, noteCreated, noteDeleted, recentlyCreated } from "@/lib/recent";
 import { timeAgo } from "@/lib/utils";
 
 type Campaign = {
@@ -91,6 +92,7 @@ type Lead = {
   status: string;
   is_test: boolean;
   do_not_contact?: boolean;
+  campaign_id?: string;
   skip_reason?: string; // .gov/.edu address, chain store or out of state: never email-found or drafted
   enrich_checked_at?: string;
   enriched_at?: string;
@@ -180,14 +182,19 @@ export default function CampaignDetail() {
     if (!id) return;
     try {
       const [c, ls, es, rs] = await Promise.all([
-        call<Campaign>("outreach.campaign.get", { id }),
+        // A campaign created seconds ago may not be readable yet: fall back to what create returned.
+        call<Campaign>("outreach.campaign.get", { id }).catch((e) => {
+          const fresh = recentlyCreated<Campaign>("campaign", id);
+          if (fresh) return fresh;
+          throw e;
+        }),
         call<Lead[]>("outreach.leads.list", { campaign_id: id }),
         call<EmailRow[]>("outreach.emails.list", { campaign_id: id }),
         call<Reply[]>("outreach.replies.list", { campaign_id: id, limit: 20 }),
       ]);
       setCampaign(c);
-      setLeads(ls);
-      setEmails(es);
+      setLeads(mergeRecent("lead", ls, (l) => l.campaign_id === id));
+      setEmails(mergeRecent("email", es, (e) => e.campaign_id === id));
       setReplies(rs);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
@@ -312,6 +319,8 @@ export default function CampaignDetail() {
     if (drafts > 0 && !confirm(`Delete this lead and its ${drafts} draft${drafts === 1 ? "" : "s"}?`)) return;
     try {
       await call("outreach.leads.delete", { campaign_id: id, lead_id: leadId });
+      noteDeleted("lead", leadId);
+      for (const e of emails) if (e.lead_id === leadId) noteDeleted("email", e.id); // its drafts went too
       setLeads((prev) => prev.filter((l) => l.id !== leadId));
       await refresh(); // the server also removed this lead's drafts
     } catch (e) {
@@ -324,6 +333,7 @@ export default function CampaignDetail() {
     if (!confirm(`Delete the draft to ${email.to_email}?`)) return;
     try {
       await call("outreach.emails.delete", { campaign_id: id, email_id: email.id });
+      noteDeleted("email", email.id);
       setEmails((prev) => prev.filter((e) => e.id !== email.id));
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
@@ -1177,12 +1187,13 @@ function AddTestLeadModal({ open, onClose, campaignId, onAdded }: { open: boolea
     setBusy(true);
     setErr(null);
     try {
-      await call("outreach.leads.add_test", {
+      const lead = await call<{ id: string }>("outreach.leads.add_test", {
         campaign_id: campaignId,
         email: email.trim(),
         name: name.trim() || email.split("@")[0],
         notes,
       });
+      noteCreated("lead", lead); // show it now, even if the list has not caught up yet
       setEmail("");
       setName("");
       onAdded();
@@ -1355,7 +1366,7 @@ function GenerateEmailsModal({
         if (i > 0) await sleep(PACE_MS);
         for (let attempt = 1; ; attempt++) {
           try {
-            await call("outreach.emails.generate_one", {
+            const made = await call<{ id: string; skipped?: boolean }>("outreach.emails.generate_one", {
               campaign_id: campaignId,
               lead_id: lead.id,
               sender_name: senderName,
@@ -1365,6 +1376,7 @@ function GenerateEmailsModal({
               step,
               total_steps: totalSteps,
             });
+            if (made?.id) noteCreated("email", made);
             break;
           } catch (err) {
             const code = err instanceof ApiError ? err.code : undefined;
