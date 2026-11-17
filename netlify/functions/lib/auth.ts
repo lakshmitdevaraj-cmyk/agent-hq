@@ -56,3 +56,16 @@ export async function createAgentKey(agent_id: string, sign_in_name: string): Pr
   });
   return key;
 }
+
+/** True once a master key has been issued (bootstrap is then closed). */
+export async function hasApiKey(): Promise<boolean> {
+  const rec = await readJson<ApiKeyRecord>(store(CONFIG_STORE), API_KEY_KEY);
+  return !!rec?.key;
+}
+
+/** Replace the master key with a fresh one. Caller must already be authenticated as master. */
+export async function rotateApiKey(): Promise<string> {
+  const key = `ahq_${nanoid(32)}`;
+  await writeJson<ApiKeyRecord>(store(CONFIG_STORE), API_KEY_KEY, { key, created_at: new Date().toISOString() });
+  return key;
+}

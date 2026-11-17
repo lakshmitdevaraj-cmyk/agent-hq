@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
@@ -42,11 +43,7 @@ export default function Tasks() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 30000, []);
 
   async function refresh() {
     try {

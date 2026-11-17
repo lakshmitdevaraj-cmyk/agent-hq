@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useState } from "react";
 import { Plus, Copy, Sparkles, Calendar, CreditCard, GitPullRequest, Mail } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -12,11 +13,7 @@ export default function Webhooks() {
   const [loaded, setLoaded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 10_000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 60000, []);
 
   async function refresh() {
     try {

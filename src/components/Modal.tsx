@@ -25,12 +25,15 @@ export default function Modal({ open, onClose, title, description, children, max
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+    // The whole overlay scrolls, so a tall form (like Generate emails) can always
+    // be scrolled to its buttons instead of being clipped by the window.
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <div
-        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/75 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
+      <div className="relative flex min-h-full items-center justify-center px-6 py-8">
       <div className={`relative w-full ${maxWidth} glass p-7 animate-fade-in`}>
         <button
           onClick={onClose}
@@ -42,6 +45,7 @@ export default function Modal({ open, onClose, title, description, children, max
         <h2 className="font-display text-2xl font-bold tracking-wide mb-1">{title}</h2>
         {description && <p className="text-sm text-white/70 mb-5 font-medium">{description}</p>}
         {children}
+      </div>
       </div>
     </div>
   );

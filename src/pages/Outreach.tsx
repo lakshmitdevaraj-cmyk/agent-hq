@@ -1,3 +1,4 @@
+import { mergeRecent, noteDeleted } from "@/lib/recent";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -89,7 +90,7 @@ export default function Outreach() {
         call<Campaign[]>("outreach.campaign.list"),
         call<ConfigStatus>("config.status"),
       ]);
-      setCampaigns(list);
+      setCampaigns(mergeRecent("campaign", list));
       setConfig(cfg);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
@@ -102,6 +103,7 @@ export default function Outreach() {
     if (!confirm(`Delete campaign "${name}"? Leads and emails become inaccessible.`)) return;
     try {
       await call("outreach.campaign.delete", { id });
+      noteDeleted("campaign", id);
       setCampaigns((prev) => prev.filter((c) => c.id !== id));
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");

@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
@@ -27,11 +28,7 @@ const SEED: Entry[] = [
 export default function Activity() {
   const [log, setLog] = useState<Entry[]>([]);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 30000, []);
 
   async function refresh() {
     try {

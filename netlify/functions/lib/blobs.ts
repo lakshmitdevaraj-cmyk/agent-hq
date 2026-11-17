@@ -2,6 +2,11 @@ import { getStore } from "@netlify/blobs";
 
 export type Store = ReturnType<typeof getStore>;
 
+// NOTE: strong consistency was tried and removed. In this @netlify/blobs version
+// connectLambda() (classic functions) never supplies the 'uncachedEdgeURL' that
+// strong reads need, so every strong read threw. New items can take up to about a
+// minute to show up in a list; the UI covers that by showing items straight from
+// the server's create/delete response (src/lib/recent.ts).
 export function store(name: string): Store {
   return getStore(name);
 }

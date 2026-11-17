@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useState } from "react";
 import { Plus, Copy, Eye, EyeOff, AtSign, Trash2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -21,11 +22,7 @@ export default function Agents() {
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 30000, []);
 
   async function refresh() {
     try {

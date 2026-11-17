@@ -78,12 +78,11 @@ export default function LiveAgentFeed() {
       if (cancelled) return;
       // Skip the fetch when the tab is hidden — saves invocations and
       // matches the user's actual attention.
-      if (typeof document !== "undefined" && document.hidden) {
-        pollRef.current = setTimeout(tick, 3000);
-        return;
-      }
+      // Hidden tab: stop completely. The visibilitychange handler below
+      // restarts the loop when the tab comes back.
+      if (typeof document !== "undefined" && document.hidden) return;
       if (paused) {
-        pollRef.current = setTimeout(tick, 1500);
+        pollRef.current = setTimeout(tick, 5000);
         return;
       }
       try {
@@ -115,7 +114,7 @@ export default function LiveAgentFeed() {
       // Tighten polling when there's been recent activity.
       const mostRecent = entries[0] ? Date.parse(entries[0].created_at) : 0;
       const active = Date.now() - mostRecent < ACTIVE_WINDOW_MS;
-      const nextDelay = active ? 1500 : 4000;
+      const nextDelay = active ? 10_000 : 30_000;
       pollRef.current = setTimeout(tick, nextDelay);
     }
 

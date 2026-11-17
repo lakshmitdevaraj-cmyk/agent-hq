@@ -1,3 +1,4 @@
+import { usePolling } from "@/lib/usePolling";
 import { useEffect, useMemo, useState } from "react";
 import { Users, KanbanSquare, Activity as ActivityIcon, Zap } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
@@ -44,11 +45,7 @@ export default function Office() {
   // "flash of seed data" that used to happen on every Office page load.
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    void refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, []);
+  usePolling(refresh, 30000, []);
 
   async function refresh() {
     const [a, l, t] = await Promise.all([

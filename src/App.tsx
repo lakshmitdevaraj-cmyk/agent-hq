@@ -18,10 +18,12 @@ import Outreach from "@/pages/Outreach";
 import CampaignDetail from "@/pages/CampaignDetail";
 import Inbox from "@/pages/Inbox";
 import Analytics from "@/pages/Analytics";
+import SignInGate from "@/components/SignInGate";
 
 export default function App() {
   return (
     <>
+      <SignInGate />
       <div className="app-bg" />
       <div className="grid-bg" />
 
