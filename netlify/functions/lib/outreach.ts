@@ -58,10 +58,12 @@ export function appendFooter(
 ): { text: string; html: string } {
   if (hasFooter(bodyText)) return { text: bodyText, html: bodyHtml };
   // Older drafts (or hand-edited ones) may already end with the sender's name:
-  // don't print it twice.
-  const tail = bodyText.trimEnd().split("\n").slice(-3).join("\n").toLowerCase();
-  const alreadySigned = !!senderName && tail.includes(senderName.trim().toLowerCase());
-  const f = buildFooter(postalAddress, senderName, alreadySigned ? { hasCompany: tail.includes(FOOTER_SIGNATURE.toLowerCase()) } : null);
+  // don't print it twice. Only the LAST non-empty line counts: a name that merely
+  // appears near the end ("Thanks for reading, Lakshmi is based in...") is not a sign-off.
+  const lines = bodyText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const norm = (x: string) => x.toLowerCase().replace(/[\s,.;:!-]+$/, "").trim();
+  const alreadySigned = !!senderName && !!senderName.trim() && lines.length > 0 && norm(lines[lines.length - 1]) === norm(senderName);
+  const f = buildFooter(postalAddress, senderName, alreadySigned ? { hasCompany: false } : null);
   return {
     text: `${bodyText.trimEnd()}\n\n${f.text}`,
     html: `${bodyHtml}${f.html}`,
@@ -93,6 +95,7 @@ const SHORT_CALL = /\b(?:5|10|15|20|25)[\s-]?(?:minutes?|mins?)\b/gi;
 export function normalizeDraft<T extends { subject: string; body_text: string; body_html: string }>(
   draft: T,
   greeting?: string | null,
+  opts: { firstEmail?: boolean } = {},
 ): T {
   const fixLen = (s: string) => s.replace(SHORT_CALL, "30-minute");
   // Always enforce the greeting: a known first name, else "Hi there". Whatever
@@ -103,7 +106,8 @@ export function normalizeDraft<T extends { subject: string; body_text: string; b
   const fixGreeting = (s: string) => s.replace(opener, `$1${target},`);
   return {
     ...draft,
-    subject: fixLen(draft.subject),
+    // The first email of a thread is never a reply: drop any "Re:" / "Fwd:" the model added.
+    subject: opts.firstEmail ? fixLen(draft.subject).replace(/^\s*(?:(?:re|fwd?)\s*:\s*)+/i, "").trim() : fixLen(draft.subject),
     body_text: fixGreeting(fixLen(draft.body_text)),
     body_html: fixGreeting(fixLen(draft.body_html)),
   };
@@ -279,6 +283,8 @@ const CHAIN_NAMES = [
   "ars rescue rooter", "rescue rooter", "roto-rooter", "benjamin franklin plumbing", "mr. rooter", "mr rooter",
   "mr. handyman", "mr handyman", "servicemaster", "servpro", "terminix", "orkin", "rentokil", "trugreen",
   "home depot", "the home depot", "lowe's", "lowes", "best buy", "walmart", "costco", "sam's club",
+  "mr. electric", "mr electric", "mister sparky", "ies residential", "ies commercial", "mr. appliance", "mr appliance",
+  "molly maid", "window genie", "dryer vent wizard", "one hour air conditioning", "american home shield", "frontdoor",
   "ace hardware", "menards", "johnstone supply", "grainger", "fastenal",
   "mcdonald's", "mcdonalds", "starbucks", "burger king", "wendy's", "wendys", "taco bell", "kfc",
   "chick-fil-a", "chipotle", "domino's", "dominos", "pizza hut", "papa john's", "panera", "applebee's",
@@ -292,6 +298,7 @@ const CHAIN_NAMES = [
 const CHAIN_HOSTS = [
   "lennox.com", "lennoxpros.com", "homedepot.com", "lowes.com", "sears.com", "walmart.com",
   "servicemaster.com", "servpro.com", "terminix.com", "orkin.com", "aireserv.com", "onehourheatandair.com",
+  "mrelectric.com", "mollymaid.com", "mrappliance.com", "neighborly.com", "iesresidential.com", "mistersparky.com",
   "rotorooter.com", "mrrooter.com", "mrhandyman.com", "acehardware.com", "mcdonalds.com",
   "starbucks.com", "statefarm.com", "allstate.com", "farmers.com", "geico.com",
 ];
@@ -336,19 +343,29 @@ export function usStateOf(text: string | null | undefined): string | null {
   return null;
 }
 
-export type SkipReason = { code: "gov_edu_email" | "chain" | "out_of_state"; message: string };
+export type SkipReason = {
+  code: "gov_edu_email" | "chain" | "out_of_state" | "placeholder_email" | "other_trade" | "excluded";
+  message: string;
+};
 
 /**
  * Why a lead should be skipped for email finding / drafting, or null when it
- * is fine. `campaignLocation` is the campaign's search location ("Houston, TX").
- * Out-of-state only triggers when BOTH states are known and differ.
+ * is fine. `campaign` is the campaign's search location ("Houston, TX") or
+ * `{ location, query }`, where `query` is the campaign's trade/ICP text.
+ * Out-of-state only triggers when BOTH states are known and differ; a wrong
+ * trade only when the campaign's trade and the lead's trade are both known and
+ * do not overlap.
  */
 export function leadSkipReason(
-  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; is_test?: boolean; raw?: unknown },
-  campaignLocation: string | null | undefined,
+  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; is_test?: boolean; raw?: unknown },
+  campaign: string | null | undefined | { location?: string | null; query?: string | null },
 ): SkipReason | null {
+  if (lead.excluded) return { code: "excluded", message: "Excluded by you" };
   if (lead.is_test) return null;
+  const campaignLocation = typeof campaign === "string" || !campaign ? campaign : campaign.location;
+  const campaignQuery = campaign && typeof campaign === "object" ? campaign.query : null;
   if (isGovEduEmail(lead.email)) return { code: "gov_edu_email", message: "Skipped: .gov/.edu address" };
+  if (lead.email && isJunkEmail(lead.email)) return { code: "placeholder_email", message: "Skipped: placeholder email address" };
   if (isChainBusiness(lead.name, lead.website)) return { code: "chain", message: "Skipped: chain / franchise store" };
   const rawState = (lead.raw && typeof lead.raw === "object" ? (lead.raw as { state?: unknown }).state : null) as string | null;
   const leadState = usStateOf(typeof rawState === "string" ? rawState : null) ?? usStateOf(lead.address);
@@ -356,5 +373,98 @@ export function leadSkipReason(
   if (leadState && wantState && leadState !== wantState) {
     return { code: "out_of_state", message: `Skipped: out of state (${leadState}, campaign is ${wantState})` };
   }
+  const wantTrades = tradesOf(campaignQuery);
+  const leadTrades = tradesOf(`${lead.category ?? ""} ${lead.name ?? ""}`);
+  if (wantTrades.size > 0 && leadTrades.size > 0 && ![...leadTrades].some((t) => wantTrades.has(t))) {
+    return { code: "other_trade", message: `Skipped: different trade (${[...leadTrades].join(", ")})` };
+  }
   return null;
+}
+
+
+// ── Finding email addresses on a web page ─────────────────────────────
+
+/** Remove parts of a page whose "emails" are never real contacts: forms (placeholders like johndoe@email.com), scripts, styles, comments. */
+export function stripNonContactHtml(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|noscript|form|textarea|select|option|template)\b[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<input\b[^>]*>/gi, " ")
+    .replace(/\s(?:placeholder|value|data-[\w-]+|alt|title|content)\s*=\s*(?:"[^"]*"|'[^']*')/gi, " ");
+}
+
+const EMAIL_SHAPE = /^[a-z0-9][a-z0-9._%+-]*@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
+
+/** Clean stray characters off a scraped address (leading slashes, quotes, %20, JSON-escaped "u003e", trailing dots). Null if it is not an address. */
+export function cleanEmail(raw: string | null | undefined): string | null {
+  let e = (raw ?? "").trim();
+  try { e = decodeURIComponent(e); } catch { /* keep as is */ }
+  e = e
+    .toLowerCase()
+    .replace(/^mailto:/, "")
+    .replace(/^(?:u003[ce]|x3[ce]|&[lg]t;)+/i, "")
+    .replace(/^[^a-z0-9]+/, "")
+    .replace(/[^a-z0-9]+$/, "");
+  return EMAIL_SHAPE.test(e) ? e : null;
+}
+
+const JUNK_DOMAINS = [
+  "example.com", "example.org", "example.net", "email.com", "contractor.com", "sentry.io", "wixpress.com",
+  "sentry-next.wixpress.com", "domain.com", "yourdomain.com", "yoursite.com", "mysite.com", "website.com", "test.com", "sample.com",
+];
+const PLACEHOLDER_LOCALS = new Set([
+  "johndoe", "janedoe", "john.doe", "jane.doe", "yourname", "youremail", "your.email", "youremailaddress", "your-email",
+  "first.last", "firstlast", "firstname.lastname", "username", "email", "name", "user", "someone", "test", "noreply", "no-reply",
+]);
+
+/** Placeholder / tracking / asset-looking addresses that are never a business contact. */
+export function isJunkEmail(email: string | null | undefined): boolean {
+  const e = cleanEmail(email);
+  if (!e) return true;
+  const [local, domain] = e.split("@");
+  if (JUNK_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) return true;
+  if (PLACEHOLDER_LOCALS.has(local)) return true;
+  if (/^[a-f0-9]{16,}$/.test(local)) return true; // random hex ids (sentry, wix, trackers)
+  if (/\.(png|jpe?g|gif|webp|svg|ico|css|js|woff2?)$/.test(e)) return true;
+  if (/@\d+x\./.test(e)) return true; // image.png@2x.png
+  return false;
+}
+
+/** All plausible contact addresses on a page: mailto links first, then visible text. Junk removed, order kept, no duplicates. */
+export function extractEmailsFromHtml(html: string): string[] {
+  const body = stripNonContactHtml(html);
+  const out: string[] = [];
+  const add = (raw: string) => {
+    const e = cleanEmail(raw);
+    if (e && !isJunkEmail(e) && !out.includes(e)) out.push(e);
+  };
+  for (const m of body.matchAll(/href\s*=\s*["']\s*mailto:([^"'?\s>]+)/gi)) add(m[1]);
+  const text = body.replace(/<[^>]+>/g, " ");
+  for (const m of text.matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g)) add(m[0]);
+  return out;
+}
+
+// ── Trades (so an electrician does not land in an HVAC campaign) ──────
+
+const TRADE_PATTERNS: Array<[string, RegExp]> = [
+  ["hvac", /\b(?:hvac|heating|cooling|air[\s-]*conditioning|a\/c|ac|furnace|heat pump|refrigeration)\b/i],
+  ["electrical", /\belectric(?:al|ian|ians)?\b/i],
+  ["plumbing", /\b(?:plumb\w*|rooter|drain\w*|sewer|septic|water heater)\b/i],
+  ["roofing", /\broof\w*\b/i],
+  ["pest", /\b(?:pest|exterminat\w*|termite|rodent)\b/i],
+  ["restoration", /\b(?:restoration|water damage|fire damage|mold|remediation)\b/i],
+  ["landscaping", /\b(?:landscap\w*|lawn|tree service|irrigation|sprinkler)\b/i],
+  ["cleaning", /\b(?:cleaning|maid|janitorial|carpet)\b/i],
+  ["garage", /\bgarage door\w*\b/i],
+  ["painting", /\bpaint(?:ing|er|ers)?\b/i],
+  ["solar", /\bsolar\b/i],
+  ["pool", /\bpool\b/i],
+];
+
+/** Which trades a piece of text (business name, category, campaign query) mentions. Empty = unknown. */
+export function tradesOf(text: string | null | undefined): Set<string> {
+  const t = (text ?? "").toLowerCase();
+  const out = new Set<string>();
+  for (const [name, rx] of TRADE_PATTERNS) if (rx.test(t)) out.add(name);
+  return out;
 }

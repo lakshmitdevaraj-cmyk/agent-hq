@@ -2,7 +2,7 @@ import { noteCreated } from "@/lib/recent";
 import { useState } from "react";
 import { ChevronRight, Loader2, MapPin, Search, Sparkles, Target, Check, ArrowLeft } from "lucide-react";
 import Modal, { FormField, PrimaryButton, TextArea, TextInput } from "./Modal";
-import { call } from "@/lib/api";
+import { call, callBackground } from "@/lib/api";
 
 type StructuredQuery = { location: string; searchTerms: string[]; maxResults: number };
 
@@ -47,10 +47,24 @@ export default function OutreachWizard({ open, onClose, onCreated }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const result = await call<StructuredQuery>("outreach.preview", {
-        query: query.trim(),
-        max_results: maxResults,
-      });
+      // Runs in the background function (Gemini may need up to 60 s + a retry); poll for the result.
+      const { id } = await call<{ id: string }>("outreach.preview.start", { query: query.trim(), max_results: maxResults });
+      await callBackground("preview", { id, query: query.trim(), max_results: maxResults });
+      let result: StructuredQuery | null = null;
+      const deadline = Date.now() + 5 * 60_000;
+      while (!result) {
+        if (Date.now() > deadline) throw new Error("The preview is taking too long. Try again in a minute.");
+        await new Promise((r) => setTimeout(r, 2000));
+        let rec: { status: string; result?: StructuredQuery; error?: string } | null = null;
+        try {
+          rec = await call<{ status: string; result?: StructuredQuery; error?: string }>("outreach.preview.result", { id });
+        } catch (e) {
+          // The record may not be listed yet (404) right after it was written; keep polling.
+          if (!(e instanceof Error) || !/not found|Failed to fetch/i.test(e.message)) throw e;
+        }
+        if (rec?.status === "error") throw new Error(rec.error || "Preview failed");
+        if (rec?.status === "done" && rec.result) result = rec.result;
+      }
       setPreview(result);
       setStep("preview");
     } catch (err) {
