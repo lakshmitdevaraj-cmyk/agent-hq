@@ -52,6 +52,15 @@ const VOICE_SESSIONS = "agent-hq-voice-sessions";
 const VOICE_INVITATIONS = "agent-hq-voice-invitations";
 const PAGES = "agent-hq-pages";
 const SERVICE_CONFIG = "agent-hq-service-config"; // third-party API keys: apify, agentmail, gemini (shared)
+// Stores copied by data.export / data.import. Deliberately excludes SERVICE_CONFIG (third-party keys),
+// agent-hq-config (master key), agent-hq-agent-keys, and WEBHOOK_EVENTS (high-volume log).
+const MOVABLE_STORES = [
+  "agent-hq-outreach-campaigns", "agent-hq-outreach-leads", "agent-hq-outreach-emails",
+  "agent-hq-outreach-replies", "agent-hq-outreach-clicks", "agent-hq-outreach-settings",
+  "agent-hq-webhooks", "agent-hq-agents", "agent-hq-tasks", "agent-hq-forms", "agent-hq-submissions",
+  "agent-hq-pages", "agent-hq-voice-config", "agent-hq-voice-sessions", "agent-hq-voice-invitations",
+  "agent-hq-activity",
+];
 const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 const OUTREACH_LEADS = "agent-hq-outreach-leads"; // key: `<campaign_id>/<lead_id>`
 const OUTREACH_EMAILS = "agent-hq-outreach-emails"; // key: `<campaign_id>/<email_id>`
@@ -834,6 +843,67 @@ export const handler: Handler = async (event) => {
         const fresh = await rotateApiKey();
         await logActivity({ category: "system", summary: "Master API key rotated" });
         return ok({ api_key: fresh });
+      }
+
+      // ── DATA MOVE (export / import between sites) ───────────────────
+      // Master key only. Copies stored records as raw strings, so a round trip is exact.
+      // Secrets (service keys, master key, agent keys) and webhook event logs are not in
+      // MOVABLE_STORES on purpose; they are never exported.
+      case "data.counts": {
+        if (identity?.kind !== "master") return fail(403, "Only the master key can use data move");
+        const counts: Record<string, number> = {};
+        for (const name of MOVABLE_STORES) {
+          const { blobs } = await store(name).list();
+          counts[name] = blobs.length;
+        }
+        return ok({ counts });
+      }
+      case "data.export": {
+        if (identity?.kind !== "master") return fail(403, "Only the master key can use data move");
+        const { store: name, cursor } = params as { store?: string; cursor?: string | null };
+        if (!name || !MOVABLE_STORES.includes(name)) return fail(400, "unknown store");
+        const s = store(name);
+        const keys = (await s.list()).blobs.map((b) => b.key).sort();
+        const start = cursor ? keys.findIndex((k) => k > cursor) : 0;
+        const rest = start < 0 ? [] : keys.slice(start);
+        const records: { key: string; value: string }[] = [];
+        let bytes = 0;
+        let last: string | null = null;
+        for (const key of rest) {
+          if (records.length >= 100 || bytes > 1_500_000) break;
+          const value = await s.get(key);
+          last = key;
+          if (typeof value !== "string") continue;
+          bytes += value.length + key.length;
+          records.push({ key, value });
+        }
+        const done = !last || last === rest[rest.length - 1];
+        return ok({ store: name, records, next_cursor: done ? null : last, total: keys.length });
+      }
+      case "data.import": {
+        if (identity?.kind !== "master") return fail(403, "Only the master key can use data move");
+        const { store: name, records, overwrite } = params as {
+          store?: string;
+          records?: { key?: unknown; value?: unknown }[];
+          overwrite?: boolean;
+        };
+        if (!name || !MOVABLE_STORES.includes(name)) return fail(400, "unknown store");
+        if (!Array.isArray(records)) return fail(400, "records must be an array");
+        const s = store(name);
+        let written = 0;
+        let skipped = 0;
+        for (const r of records) {
+          if (typeof r?.key !== "string" || !r.key || r.key.length > 512 || r.key.includes("..") || typeof r.value !== "string") {
+            return fail(400, "bad record");
+          }
+          if (!overwrite && (await s.get(r.key)) !== null) {
+            skipped++;
+            continue;
+          }
+          await s.set(r.key, r.value);
+          written++;
+        }
+        return ok({ store: name, written, skipped });
       }
 
       // ── AGENTS ──────────────────────────────────────────────
