@@ -875,6 +875,10 @@ export async function draftOne(p: {
     const hint = leadHint as Record<string, unknown>;
     if (hint.id === lead_id && hint.campaign_id === campaign_id) lead = hint;
   }
+  // Blobs reads can lag a minute behind a write: the user's current tick state, sent by the page, wins.
+  if (lead && leadHint && typeof leadHint === "object" && (leadHint as Record<string, unknown>).id === lead_id && typeof (leadHint as Record<string, unknown>).excluded === "boolean") {
+    lead = { ...lead, excluded: (leadHint as Record<string, unknown>).excluded };
+  }
   if (!lead) return draftFail(404, "lead not found");
   if (!lead.email) return draftFail(400, "lead has no email address — cannot draft");
   if (lead.do_not_contact) return draftFail(400, "lead is marked do-not-contact — no email will be drafted");
@@ -992,7 +996,11 @@ async function planDraftPairs(campaign_id: string, framework: unknown, hints?: u
   // Leads added seconds ago may not be in the list yet: the page sends the ones it already has.
   if (Array.isArray(hints)) {
     for (const h of hints as Array<Record<string, unknown>>) {
-      if (h && typeof h.id === "string" && h.campaign_id === campaign_id && !leads.some((l) => l.id === h.id)) leads.push(h as Record<string, unknown> & { id: string });
+      if (!h || typeof h.id !== "string" || h.campaign_id !== campaign_id) continue;
+      const have = leads.find((l) => l.id === h.id);
+      if (!have) leads.push(h as Record<string, unknown> & { id: string });
+      // A just-changed tick may not be readable yet: the page's value wins.
+      else if (typeof h.excluded === "boolean") have.excluded = h.excluded;
     }
   }
   const emails = await listJson<{ lead_id: string; sequence_position?: number }>(store(OUTREACH_EMAILS), `${campaign_id}/`);

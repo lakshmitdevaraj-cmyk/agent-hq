@@ -49,3 +49,26 @@ export function recentlyCreated<T extends { id: string }>(kind: Kind, id: string
   const rec = bucket(created, kind).get(id);
   return rec && Date.now() - rec.at <= TTL_MS ? (rec.item as T) : null;
 }
+
+/**
+ * A lead's "draft / don't draft" tick is a write to an existing record, and reads can lag by about
+ * a minute, so a refresh would flip the checkbox back. Remember what the user chose for a few minutes.
+ */
+const excludedAt = new Map<string, { excluded: boolean; at: number }>();
+export function noteExcluded(leadId: string, excluded: boolean): void {
+  excludedAt.set(leadId, { excluded, at: Date.now() });
+}
+export function applyExcluded<T extends { id: string; excluded?: boolean; skip_code?: string; skip_reason?: string }>(leads: T[]): T[] {
+  const now = Date.now();
+  return leads.map((raw) => {
+    // "excluded" is the user's own choice, shown by the checkbox, not a skip reason that locks the lead.
+    const l = raw.skip_code === "excluded" ? { ...raw, excluded: true, skip_code: undefined, skip_reason: undefined } : raw;
+    const rec = excludedAt.get(l.id);
+    if (!rec) return l;
+    if (now - rec.at > TTL_MS) {
+      excludedAt.delete(l.id);
+      return l;
+    }
+    return { ...l, excluded: rec.excluded };
+  });
+}

@@ -31,7 +31,7 @@ import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/componen
 import AnimatedNumber from "@/components/AnimatedNumber";
 import { call, callBackground } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
-import { mergeRecent, noteCreated, noteDeleted, recentlyCreated } from "@/lib/recent";
+import { mergeRecent, noteCreated, noteDeleted, recentlyCreated, noteExcluded, applyExcluded } from "@/lib/recent";
 import { timeAgo } from "@/lib/utils";
 
 type Campaign = {
@@ -200,7 +200,7 @@ export default function CampaignDetail() {
         call<Reply[]>("outreach.replies.list", { campaign_id: id, limit: 20 }),
       ]);
       setCampaign(c);
-      setLeads(mergeRecent("lead", ls, (l) => l.campaign_id === id));
+      setLeads(applyExcluded(mergeRecent("lead", ls, (l) => l.campaign_id === id)));
       setEmails(mergeRecent("email", es, (e) => e.campaign_id === id));
       setReplies(rs);
     } catch (e) {
@@ -224,10 +224,12 @@ export default function CampaignDetail() {
   // Tick / untick a lead for drafting. Optimistic, rolled back if the server refuses.
   async function setLeadExcluded(leadId: string, excluded: boolean) {
     if (!id) return;
+    noteExcluded(leadId, excluded);
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded } : l)));
     try {
       await call("outreach.leads.update", { campaign_id: id, lead_id: leadId, excluded });
     } catch (e) {
+      noteExcluded(leadId, !excluded);
       setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded: !excluded } : l)));
       setErr(e instanceof Error ? e.message : "Could not update the lead");
     }
@@ -1413,7 +1415,7 @@ function GenerateEmailsModal({
         sender_offer: senderOffer,
         framework,
         // Fallback for leads the server's list cannot see yet (no bulky raw data).
-        leads: leads.filter((l) => !l.excluded).map((l) => ({ ...l, raw: undefined })),
+        leads: leads.map((l) => ({ ...l, raw: undefined, excluded: !!l.excluded })),
       };
       const started = await call<{ total: number; started_at: string }>("outreach.draft.start", jobParams);
       await callBackground("draft", jobParams);
