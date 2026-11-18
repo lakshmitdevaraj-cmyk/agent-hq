@@ -20,6 +20,13 @@ export const handler: Handler = async (event) => {
   const token = (event.path.split("/").pop() ?? "").trim();
   if (!token) return { statusCode: 400, body: "Missing token" };
 
+  // After a site move, the OLD site sets CLICK_FORWARD_URL so links in already-sent emails
+  // keep working: the click is handed to the new site, which logs it and redirects.
+  const forward = (process.env.CLICK_FORWARD_URL ?? "").trim().replace(/\/+$/, "");
+  if (forward) {
+    return { statusCode: 302, headers: { Location: `${forward}/t/${token}`, "Cache-Control": "no-store" }, body: "" };
+  }
+
   // Decode the token. Base64url → JSON → payload.
   let payload: ClickPayload | null = null;
   try {

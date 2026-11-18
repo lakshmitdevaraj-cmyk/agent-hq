@@ -197,6 +197,121 @@ function OutreachDefaultsSettings() {
   );
 }
 
+type MoveRecord = { key: string; value: string };
+type MoveFile = { format: "shiftforge-hq-export"; version: 1; exported_at: string; stores: Record<string, MoveRecord[]> };
+
+function MoveSiteSettings() {
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+  const [ok, setOk] = useState(true);
+  const add = (t: string) => setLog((l) => [...l, t]);
+
+  async function listStores(): Promise<Record<string, number>> {
+    return (await call<{ counts: Record<string, number> }>("data.counts")).counts;
+  }
+
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    setLog([]);
+    setOk(true);
+    try {
+      await fn();
+    } catch (e) {
+      setOk(false);
+      add(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const exportAll = () =>
+    run(async () => {
+      const names = Object.keys(await listStores());
+      const file: MoveFile = { format: "shiftforge-hq-export", version: 1, exported_at: new Date().toISOString(), stores: {} };
+      for (const name of names) {
+        const rows: MoveRecord[] = [];
+        let cursor: string | null = null;
+        do {
+          const r: { records: MoveRecord[]; next_cursor: string | null } = await call("data.export", { store: name, cursor });
+          rows.push(...r.records);
+          cursor = r.next_cursor;
+        } while (cursor);
+        file.stores[name] = rows;
+        add(`${name.replace("agent-hq-", "")}: ${rows.length}`);
+      }
+      const blob = new Blob([JSON.stringify(file)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `shiftforge-hq-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      add("Downloaded. Keep this file private: it contains your leads and emails.");
+    });
+
+  const importFile = (f: File) =>
+    run(async () => {
+      const file = JSON.parse(await f.text()) as MoveFile;
+      if (file.format !== "shiftforge-hq-export" || !file.stores) throw new Error("This is not a ShiftForge HQ export file");
+      for (const [name, rows] of Object.entries(file.stores)) {
+        let written = 0;
+        let skipped = 0;
+        let i = 0;
+        while (i < rows.length) {
+          const chunk: MoveRecord[] = [];
+          let bytes = 0;
+          while (i < rows.length && chunk.length < 100 && bytes < 1_500_000) {
+            bytes += rows[i].value.length + rows[i].key.length;
+            chunk.push(rows[i++]);
+          }
+          const r = await call<{ written: number; skipped: number }>("data.import", { store: name, records: chunk });
+          written += r.written;
+          skipped += r.skipped;
+        }
+        add(`${name.replace("agent-hq-", "")}: ${written} added, ${skipped} already there`);
+      }
+      add("Done. Press Compare counts to check against the old site.");
+    });
+
+  const compare = () =>
+    run(async () => {
+      const c = await listStores();
+      Object.entries(c).forEach(([k, v]) => add(`${k.replace("agent-hq-", "")}: ${v}`));
+    });
+
+  const btn = "flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40";
+  return (
+    <GlassCard className="mt-6">
+      <h3 className="font-display text-lg font-bold text-white mb-1">Move to another site</h3>
+      <p className="text-sm text-white/65 mb-3">
+        Export everything (campaigns, leads, drafts, sent emails, replies, settings) to one file, then import it on the new site.
+        Your API keys (AgentMail, Gemini, Apify) are never included; enter them again on the new site.
+        Wait a minute after your last change before exporting.
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={exportAll} disabled={busy} className={btn}>
+          {busy && <Loader2 size={12} className="animate-spin" />} Export everything
+        </button>
+        <label className={`${btn} cursor-pointer ${busy ? "opacity-40 pointer-events-none" : ""}`}>
+          Import a file
+          <input
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) importFile(f);
+            }}
+          />
+        </label>
+        <button onClick={compare} disabled={busy} className={btn}>Compare counts</button>
+      </div>
+      {log.length > 0 && (
+        <pre className={`mt-3 text-xs whitespace-pre-wrap ${ok ? "text-white/70" : "text-red-300"}`}>{log.join("\n")}</pre>
+      )}
+    </GlassCard>
+  );
+}
+
 export default function Settings() {
   const [status, setStatus] = useState<ConfigStatus | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -357,6 +472,7 @@ export default function Settings() {
       </div>
 
       <OutreachDefaultsSettings />
+      <MoveSiteSettings />
       <FooterSettings />
 
       <OnboardingWizard
