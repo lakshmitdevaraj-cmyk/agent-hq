@@ -3,6 +3,7 @@ import { connectLambda } from "@netlify/blobs";
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson } from "./lib/blobs";
 import { isOptOutReply, extractEmailAddress, emailKey } from "./lib/outreach";
+import { noteBounced } from "./lib/contacts";
 
 const WEBHOOKS = "agent-hq-webhooks";
 const WEBHOOK_EVENTS = "agent-hq-webhook-events";
@@ -184,6 +185,11 @@ async function processAgentMailEvent(event: AgentMailEvent): Promise<void> {
       updated_at: new Date().toISOString(),
     };
     await writeJson(store(OUTREACH_EMAILS), match.storeKey, updatedEmail);
+
+    // A bounce, complaint or rejection means this address must never be emailed again (any campaign).
+    if (newStatus === "bounced" || newStatus === "complained" || newStatus === "failed") {
+      try { await noteBounced(match.record.to_email as string | undefined); } catch { /* best effort */ }
+    }
 
     // Cached campaign counters are race-prone under concurrent webhooks;
     // the UI derives its counters from emails directly. We still bump

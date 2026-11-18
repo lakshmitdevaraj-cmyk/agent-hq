@@ -103,6 +103,21 @@ const ACTIONS: ActionGroup[] = [
         params: "{ query, max_results? }",
       },
       {
+        action: "outreach.preview.start / outreach.preview.result",
+        desc: "Slow-Gemini variant of preview: start returns { id }; the work then runs in the ai-background function (60 s timeout, one retry), and result { id } returns { status: running | done | error, result?, error? }.",
+        params: "start { query, max_results? }, result { id }",
+      },
+      {
+        action: "outreach.draft.start",
+        desc: "Start background drafting for a campaign (all eligible leads x steps, server-paced). Records campaign.job { total, done, made }; the page then POSTs the same params to /.netlify/functions/ai-background with { task: \"draft\", params } and X-API-Key. 409 job_running if one is already running.",
+        params: "{ campaign_id, sender_name?, sender_company?, sender_offer?, framework? }",
+      },
+      {
+        action: "outreach.leads.update",
+        desc: "Exclude (or re-include) a lead so no draft is written for it.",
+        params: "{ campaign_id, lead_id, excluded }",
+      },
+      {
         action: "outreach.campaign.create",
         desc: "Persist a new campaign. Pass the structured_query you got from preview so the UI shows the plan.",
         params: "{ name, query, structured_query?, description? }",
@@ -156,15 +171,15 @@ const ACTIONS: ActionGroup[] = [
       { action: "outreach.emails.list", desc: "All drafts/sends for a campaign.", params: "{ campaign_id, limit? }" },
       {
         action: "outreach.emails.update",
-        desc: "Edit a single DRAFT (subject / body) before send. Sent emails can't be edited. If body_text changes without body_html, the html is rebuilt from the text.",
-        params: "{ campaign_id, email_id, subject?, body_text?, body_html? }",
+        desc: "Edit a single DRAFT (to_email / subject / body) before send. Sent emails can't be edited. If body_text changes without body_html, the html is rebuilt from the text.",
+        params: "{ campaign_id, email_id, to_email?, subject?, body_text?, body_html? }",
       },
       { action: "outreach.emails.delete", desc: "Delete one DRAFT. Sent emails are kept as history.", params: "{ campaign_id, email_id }" },
       { action: "outreach.settings.get", desc: "Footer settings. postal_address is blank by default; when set it is appended to the footer of every email.", params: "{}" },
       { action: "outreach.settings.set", desc: "Set the optional postal address used in the email footer (blank = omit).", params: "{ postal_address }" },
       {
         action: "outreach.emails.send",
-        desc: "Fires drafted emails via AgentMail from the user's own inbox. Rewrites every outbound link through /t/:token for click tracking. Pass limit to send only that many (oldest drafts first; the rest stay queued) and sequence_position to send only that step; leads who already replied to an earlier step, and leads marked do-not-contact, are skipped. The opt-out line + ShiftForge AI signature footer is appended automatically. Returns { sent, total, queued, errors }. ALWAYS get explicit human approval (GATE 2) before each step — these are real emails to real people.",
+        desc: "Fires drafted emails via AgentMail from the user's own inbox. Rewrites every outbound link through /t/:token for click tracking. Pass limit to send only that many (oldest drafts first; the rest stay queued) and sequence_position to send only that step; leads who already replied to an earlier step, and leads marked do-not-contact, are skipped. The opt-out line + ShiftForge AI signature footer is appended automatically. Drafts to an address already emailed from another campaign, or that bounced earlier, are skipped and listed in skipped_contacted. Returns { sent, total, queued, errors, skipped_contacted }. ALWAYS get explicit human approval (GATE 2) before each step — these are real emails to real people.",
         params: "{ campaign_id, email_ids?, sequence_position?, limit? }",
       },
       { action: "outreach.replies.list", desc: "Inbound replies. Filter by campaign id if provided.", params: "{ campaign_id?, limit? }" },

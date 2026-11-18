@@ -29,7 +29,7 @@ import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/components/Modal";
 import AnimatedNumber from "@/components/AnimatedNumber";
-import { call, ApiError } from "@/lib/api";
+import { call, callBackground } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { mergeRecent, noteCreated, noteDeleted, recentlyCreated } from "@/lib/recent";
 import { timeAgo } from "@/lib/utils";
@@ -71,6 +71,9 @@ type Job = {
   status: "running" | "done" | "stopped";
   total: number;
   started_at: string;
+  progress_at?: string;
+  done?: number; // server-driven (background) jobs report their own progress
+  made?: number;
   finished_at?: string;
   message?: string;
   failures?: Array<{ name: string; error: string }>;
@@ -93,7 +96,10 @@ type Lead = {
   is_test: boolean;
   do_not_contact?: boolean;
   campaign_id?: string;
-  skip_reason?: string; // .gov/.edu address, chain store or out of state: never email-found or drafted
+  skip_reason?: string; // .gov/.edu address, chain store, other trade, already contacted or bounced: never email-found or drafted
+  skip_code?: string;
+  excluded?: boolean; // the user ticked this lead off: never drafted
+  contacted_at?: string;
   enrich_checked_at?: string;
   enriched_at?: string;
   created_at: string;
@@ -118,6 +124,7 @@ type EmailRow = {
   source?: string; // "agent_drafted" when injected via emails.create
   edited?: boolean;
   blocked_do_not_contact?: boolean; // recipient said no: this draft will never be sent
+  blocked_contact?: string; // "already contacted in another campaign" / "bounced earlier": will not be sent
   created_at: string;
   updated_at: string;
 };
@@ -149,7 +156,7 @@ export default function CampaignDetail() {
   const [localJob, setLocalJob] = useState<"generate" | "enrich" | null>(null);
   // Batch sending: how many queued drafts to send per click (oldest first).
   const [sendCount, setSendCount] = useState("5");
-  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number } | null>(null);
+  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number; skipped: number } | null>(null);
   const [editDraft, setEditDraft] = useState<EmailRow | null>(null);
   // Drafts ticked for "Send selected" (overrides the batch size).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -214,6 +221,18 @@ export default function CampaignDetail() {
     }
   }
 
+  // Tick / untick a lead for drafting. Optimistic, rolled back if the server refuses.
+  async function setLeadExcluded(leadId: string, excluded: boolean) {
+    if (!id) return;
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded } : l)));
+    try {
+      await call("outreach.leads.update", { campaign_id: id, lead_id: leadId, excluded });
+    } catch (e) {
+      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded: !excluded } : l)));
+      setErr(e instanceof Error ? e.message : "Could not update the lead");
+    }
+  }
+
   async function saveJob(job: Job | null) {
     if (!id) return;
     try {
@@ -247,14 +266,14 @@ export default function CampaignDetail() {
     return Math.min(Math.max(Number.isFinite(n) && n >= 1 ? n : 1, 1), Math.max(queued, 1));
   }
 
-  const selectedDrafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && selectedIds.has(e.id)).length;
+  const selectedDrafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && selectedIds.has(e.id)).length;
 
   async function runSend(params: Record<string, unknown>, limit: number) {
     setBusyAction("send");
     setErr(null);
     try {
-      const res = await call<{ sent: number; queued: number; errors: unknown[] }>("outreach.emails.send", { campaign_id: id, limit, ...params });
-      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0 });
+      const res = await call<{ sent: number; queued: number; errors: unknown[]; skipped_contacted?: unknown[] }>("outreach.emails.send", { campaign_id: id, limit, ...params });
+      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0, skipped: res.skipped_contacted?.length ?? 0 });
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Send failed");
@@ -275,7 +294,7 @@ export default function CampaignDetail() {
   // Sends exactly the ticked drafts, ignoring the batch size.
   async function sendSelected() {
     if (!id) return;
-    const picked = emails.filter((e) => e.status === "drafted" && selectedIds.has(e.id));
+    const picked = emails.filter((e) => e.status === "drafted" && !e.blocked_contact && !e.blocked_do_not_contact && selectedIds.has(e.id));
     if (picked.length === 0) return;
     const list = picked.map((e) => e.to_email).join("\n");
     if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.\n\n${list}`)) return;
@@ -285,7 +304,7 @@ export default function CampaignDetail() {
 
   async function sendAll() {
     if (!id) return;
-    const drafted = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length;
+    const drafted = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length;
     if (drafted === 0) {
       alert("No drafted emails to send. Generate drafts first.");
       return;
@@ -300,7 +319,7 @@ export default function CampaignDetail() {
   async function sendStep(step: number) {
     if (!id) return;
     const draftsAtStep = emails.filter(
-      (e) => e.status === "drafted" && !e.blocked_do_not_contact && (e.sequence_position ?? 1) === step,
+      (e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && (e.sequence_position ?? 1) === step,
     ).length;
     if (draftsAtStep === 0) {
       alert(`No drafted emails at step ${step}.`);
@@ -405,10 +424,19 @@ export default function CampaignDetail() {
         }
       }
     }
+    // Drafting runs on the server and reports its own count; other jobs are derived from the data.
+    if (job.kind === "generate" && typeof job.done === "number") {
+      done = job.done;
+      lastActivity = Date.parse(job.progress_at ?? job.started_at);
+    }
     done = Math.min(done, job.total);
-    // 'running' with no loop in this tab and nothing new for 2 minutes = the tab
-    // that was driving it was closed.
-    const interrupted = job.status === "running" && localJob !== job.kind && Date.now() - lastActivity > 120_000;
+    // 'running' with no loop in this tab (or no server progress) for a while = interrupted.
+    // A server-side draft waits up to ~60 s per Gemini call plus a retry, so give it 4 minutes.
+    const serverJob = job.kind === "generate";
+    const interrupted =
+      job.status === "running" &&
+      (serverJob || localJob !== job.kind) &&
+      Date.now() - lastActivity > (serverJob ? 240_000 : 120_000);
     return { job, done, found, interrupted };
   }, [campaign?.job, emails, leads, localJob]);
 
@@ -418,7 +446,7 @@ export default function CampaignDetail() {
   // Delivered/clicked/replied are cumulative — once an email is "clicked"
   // it was also "delivered", etc.
   const counters = useMemo(() => {
-    const drafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length;
+    const drafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length;
     const postSend = emails.filter((e) => e.status !== "drafted" && !e.blocked_do_not_contact);
     const delivered = emails.filter((e) =>
       ["delivered", "clicked", "replied"].includes(e.status),
@@ -451,7 +479,7 @@ export default function CampaignDetail() {
       const emailsAtStep = emails.filter((e) => (e.sequence_position ?? 1) === s);
       stats.push({
         step: s,
-        drafted: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact).length,
+        drafted: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length,
         sent: emailsAtStep.filter((e) => e.status !== "drafted").length,
         delivered: emailsAtStep.filter((e) => ["delivered", "clicked", "replied"].includes(e.status)).length,
         clicked: emailsAtStep.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
@@ -528,7 +556,7 @@ export default function CampaignDetail() {
                   {running
                     ? `${job.kind === "generate" ? "Drafting" : "Finding emails"}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}`
                     : interrupted
-                      ? `Stopped at ${done} of ${job.total} ${noun}. The tab driving it was closed. ${job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : "Click Find emails to continue."}`
+                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" ? "It stopped making progress." : "The tab driving it was closed."} ${job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : "Click Find emails to continue."}`
                       : job.status === "stopped"
                         ? `Stopped at ${done} of ${job.total} ${noun}. ${job.message ?? ""}`
                         : `Finished: ${done} of ${job.total} ${noun}. ${job.message ?? ""}`}
@@ -691,7 +719,7 @@ export default function CampaignDetail() {
           </span>
           {lastSend && (
             <span className="text-xs text-white/50 font-mono">
-              last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}
+              last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}{lastSend.skipped > 0 ? `, ${lastSend.skipped} skipped (already contacted or bounced)` : ""}
             </span>
           )}
           <button
@@ -882,6 +910,18 @@ export default function CampaignDetail() {
               {leads.map((l) => (
                 <div key={l.id} className="group flex items-center gap-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 transition cursor-pointer"
                      onClick={() => setLeadDetail(l)}>
+                  <div className="shrink-0 flex flex-col items-center" onClick={(ev) => ev.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="accent-primary w-4 h-4 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                      checked={!l.excluded && !l.skip_reason && !l.do_not_contact}
+                      disabled={!!l.skip_reason || !!l.do_not_contact}
+                      onChange={(ev) => void setLeadExcluded(l.id, !ev.target.checked)}
+                      title={l.excluded ? "Excluded: no draft will be written for this lead. Tick to include." : "Untick to skip this lead when drafting"}
+                      aria-label={`Draft an email for ${l.name}`}
+                    />
+                    <span className="text-[8px] uppercase tracking-wider text-white/35 mt-0.5">Draft</span>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-white truncate">{l.name}</span>
@@ -896,6 +936,16 @@ export default function CampaignDetail() {
                       {l.do_not_contact && (
                         <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 uppercase tracking-wider">
                           do not contact
+                        </span>
+                      )}
+                      {l.excluded && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white/70">
+                          excluded
+                        </span>
+                      )}
+                      {l.contacted_at && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-300">
+                          contacted
                         </span>
                       )}
                       {l.skip_reason && (
@@ -988,7 +1038,7 @@ export default function CampaignDetail() {
                     className="rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] p-3 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {e.status === "drafted" && !e.blocked_do_not_contact && (
+                      {e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && (
                         <input
                           type="checkbox"
                           checked={selectedIds.has(e.id)}
@@ -1011,6 +1061,11 @@ export default function CampaignDetail() {
                       <span className="text-xs text-white/50 font-mono">to</span>
                       <span className="text-sm text-white font-medium truncate">{e.to_email}</span>
                       <StatusPill status={e.status} />
+                      {e.blocked_contact && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-bold tracking-wider uppercase" title="This draft will not be sent.">
+                          {/bounced/i.test(e.blocked_contact) ? "Bounced earlier" : "Already contacted"}
+                        </span>
+                      )}
                       {e.blocked_do_not_contact && (
                         <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 border border-red-500/40 text-red-300 text-[10px] font-bold tracking-wider uppercase" title="This person asked not to be contacted. This draft will never be sent.">
                           Blocked: do not contact
@@ -1323,8 +1378,9 @@ function GenerateEmailsModal({
   // when drafting — skipping a lead only at a step that already has a draft.
   // For the pre-submit count display we show drafts-to-create = eligible × steps
   // minus any per-(lead, step) duplicates that already exist.
-  const leadsWithEmail = leads.filter((l) => l.email && !l.skip_reason && !l.do_not_contact);
+  const leadsWithEmail = leads.filter((l) => l.email && !l.skip_reason && !l.do_not_contact && !l.excluded);
   const skippedQuality = leads.filter((l) => l.email && l.skip_reason).length;
+  const skippedExcluded = leads.filter((l) => l.excluded).length;
   const existingByLeadStep = new Set(
     existingEmails.map((e) => `${e.lead_id}__${e.sequence_position ?? 1}`),
   );
@@ -1344,92 +1400,32 @@ function GenerateEmailsModal({
     e.preventDefault();
     if (!senderOffer.trim() || plannedCount === 0) return;
     setBusy(true);
-    setBusyAction("generate");
     setLocalErr(null);
     setErr(null);
-    setProgress({ done: 0, total: plannedCount });
-    setLocalJob("generate");
-    setNote(null);
-    let done = 0;
-    const errors: Array<{ lead_id: string; step: number; error: string }> = [];
-    let stoppedMsg: string | null = null;
-    const PACE_MS = 4500; // free tier: 15 requests a minute
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    await saveJob({ kind: "generate", status: "running", total: plannedCount, started_at: new Date().toISOString() });
     try {
-      // Critical ordering: ALL lead × step=1 first, then step=2, then step=3.
-      // Step 2 drafts reference step 1 for continuity; step 3 references both.
-      // Batching by step keeps the sequence coherent across the whole campaign.
-      const sortedPairs = [...plannedPairs].sort((a, b) => a.step - b.step || a.lead.id.localeCompare(b.lead.id));
-      for (let i = 0; i < sortedPairs.length && !stoppedMsg; i++) {
-        const { lead, step } = sortedPairs[i];
-        if (i > 0) await sleep(PACE_MS);
-        for (let attempt = 1; ; attempt++) {
-          try {
-            const made = await call<{ id: string; skipped?: boolean }>("outreach.emails.generate_one", {
-              campaign_id: campaignId,
-              lead_id: lead.id,
-              lead, // fallback for a lead the server's list cannot see yet
-              sender_name: senderName,
-              sender_company: senderCompany,
-              sender_offer: senderOffer,
-              framework,
-              step,
-              total_steps: totalSteps,
-            });
-            if (made?.id) noteCreated("email", made);
-            break;
-          } catch (err) {
-            const code = err instanceof ApiError ? err.code : undefined;
-            if (code === "daily_quota") {
-              // Out of requests for the day: stop, do not keep hammering.
-              stoppedMsg = (err as Error).message;
-              break;
-            }
-            if ((code === "rate_limited" || code === "unavailable") && attempt < 4) {
-              const wait = Math.min(60, (err as ApiError).retryAfter ?? 10);
-              setNote(`Gemini asked us to slow down — waiting ${wait}s, then retrying ${lead.name} (try ${attempt + 1} of 4)…`);
-              await sleep(wait * 1000 + 500);
-              setNote(null);
-              continue;
-            }
-            errors.push({ lead_id: lead.id, step, error: err instanceof Error ? err.message : "unknown" });
-            break;
-          }
-        }
-        if (!stoppedMsg) {
-          done++;
-          setProgress({ done, total: plannedCount });
-          if (done % 3 === 0 || done === plannedCount) onComplete();
-        }
-      }
-      const failures = errors.map((x) => ({ name: leads.find((l) => l.id === x.lead_id)?.name ?? x.lead_id, error: x.error }));
-      const made = done - errors.length;
-      await saveJob({
-        kind: "generate",
-        status: stoppedMsg ? "stopped" : "done",
-        total: plannedCount,
-        started_at: campaign.job?.started_at ?? new Date().toISOString(),
-        finished_at: new Date().toISOString(),
-        message: stoppedMsg ?? (errors.length ? `${errors.length} failed. Click Generate emails again to retry just those.` : undefined),
-        failures: failures.length ? failures : undefined,
-      });
-      if (stoppedMsg) {
-        setLocalErr(`${stoppedMsg} ${made} draft${made === 1 ? "" : "s"} were made before it stopped.`);
-        setErr(stoppedMsg);
-      } else if (errors.length > 0 && made === 0) {
-        setLocalErr(`All ${errors.length} drafts failed. First error: ${errors[0]?.error ?? "unknown"}`);
-        setErr(errors[0]?.error ?? "Drafts failed");
-      } else {
-        onClose();
-        setTimeout(() => setProgress(null), 1200);
-      }
-    } finally {
-      setLocalJob(null);
-      setNote(null);
-      setBusy(false);
-      setBusyAction(null);
+      // The server validates, records the job and returns at once; the slow work then runs in the
+      // background function (no browser tab needs to stay open, no gateway timeout). Progress
+      // ("3 of 6 drafts") is read from the campaign job by the banner.
+      const jobParams = {
+        campaign_id: campaignId,
+        sender_name: senderName,
+        sender_company: senderCompany,
+        sender_offer: senderOffer,
+        framework,
+        // Fallback for leads the server's list cannot see yet (no bulky raw data).
+        leads: leads.filter((l) => !l.excluded).map((l) => ({ ...l, raw: undefined })),
+      };
+      const started = await call<{ total: number; started_at: string }>("outreach.draft.start", jobParams);
+      await callBackground("draft", jobParams);
+      setProgress({ done: 0, total: started.total });
       onComplete();
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not start drafting";
+      setLocalErr(msg);
+      setErr(msg);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1501,9 +1497,15 @@ function GenerateEmailsModal({
               )}
             </span>
           </div>
+          {skippedExcluded > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-amber-300/80">Leads you unticked (not drafted)</span>
+              <span className="font-mono text-amber-300">{skippedExcluded}</span>
+            </div>
+          )}
           {skippedQuality > 0 && (
             <div className="flex justify-between text-xs">
-              <span className="text-amber-300/80">Chains, .gov/.edu and out-of-state leads (skipped)</span>
+              <span className="text-amber-300/80">Chains, other trades, already contacted, bounced, .gov/.edu and out-of-state leads (skipped)</span>
               <span className="font-mono text-amber-300">{skippedQuality}</span>
             </div>
           )}
@@ -1643,6 +1645,7 @@ function FooterPreview({ email }: { email: EmailRow }) {
 }
 
 function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose: () => void; onSaved: () => void }) {
+  const [toEmail, setToEmail] = useState(email.to_email);
   const [subject, setSubject] = useState(email.subject);
   const [body, setBody] = useState(email.body_text);
   const [busy, setBusy] = useState(false);
@@ -1654,6 +1657,10 @@ function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose:
       setErr("Subject and body can't be empty.");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail.trim())) {
+      setErr("Enter a valid To address.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -1662,6 +1669,7 @@ function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose:
         email_id: email.id,
         subject: subject.trim(),
         body_text: body,
+        ...(toEmail.trim().toLowerCase() !== email.to_email.toLowerCase() ? { to_email: toEmail.trim() } : {}),
       });
       onSaved();
     } catch (e) {
@@ -1672,8 +1680,11 @@ function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose:
   }
 
   return (
-    <Modal open={true} onClose={onClose} title="Edit draft" description={`to ${email.to_email}`} maxWidth="max-w-2xl">
+    <Modal open={true} onClose={onClose} title="Edit draft" description="Change the address, subject or body of this draft" maxWidth="max-w-2xl">
       <form onSubmit={save} className="space-y-4">
+        <FormField label="To">
+          <TextInput type="email" value={toEmail} onChange={(e) => setToEmail(e.target.value)} />
+        </FormField>
         <FormField label="Subject">
           <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} autoFocus />
         </FormField>

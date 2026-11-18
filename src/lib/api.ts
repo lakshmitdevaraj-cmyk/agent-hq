@@ -117,3 +117,20 @@ export async function call<T = unknown>(
   }
   return parsed.data as T;
 }
+
+/**
+ * Start a long task in the background function (no gateway time limit). It answers 202
+ * immediately and writes its progress/result to the store; callers then poll via `call`.
+ */
+export async function callBackground(task: "draft" | "preview", params: Record<string, unknown>): Promise<void> {
+  const key = await ensureApiKey();
+  const res = await fetch("/.netlify/functions/ai-background", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(key ? { "X-API-Key": key } : {}) },
+    body: JSON.stringify({ task, params }),
+  });
+  if (res.status === 401) requestSignIn();
+  if (res.status !== 202 && !res.ok) {
+    throw new ApiError(`Could not start the background task (status ${res.status})`, res.status);
+  }
+}

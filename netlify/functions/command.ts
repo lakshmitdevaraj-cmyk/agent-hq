@@ -15,7 +15,11 @@ import {
   emailKey,
   leadSkipReason,
   isGovEduEmail,
+  cleanEmail,
+  isJunkEmail,
+  extractEmailsFromHtml,
 } from "./lib/outreach";
+import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 
 function slugify(s: string): string {
   return s
@@ -140,7 +144,7 @@ function dailyResetText(): string {
   return "at midnight Pacific time";
 }
 
-type GeminiErrorKind = "daily_quota" | "rate_limited" | "unavailable" | "model_unavailable" | "auth" | "other";
+type GeminiErrorKind = "daily_quota" | "rate_limited" | "unavailable" | "model_unavailable" | "auth" | "timeout" | "other";
 
 class GeminiError extends Error {
   constructor(
@@ -182,24 +186,37 @@ function classifyGeminiError(status: number, text: string, model: string): Gemin
  * retryAfterS so the caller (the UI loop) can wait and try again. A daily-quota
  * 429 is never retried.
  */
+type GeminiAiOpts = { budgetMs?: number; timeoutMs?: number; retryOnTimeout?: boolean };
+
 async function geminiGenerate(
   body: unknown,
-  opts: { key: string; model?: string; budgetMs?: number },
+  opts: { key: string; model?: string } & GeminiAiOpts,
 ): Promise<{ candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }> {
   const model = opts.model || (await getGeminiModel());
   const deadline = Date.now() + (opts.budgetMs ?? 20_000);
   let attempt = 0;
+  let timeouts = 0;
   for (;;) {
     let err: GeminiError;
+    // One request may take at most `timeoutMs` (default: whatever is left of the budget).
+    const reqMs = Math.max(3000, Math.min(opts.timeoutMs ?? Infinity, deadline - Date.now()));
     try {
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(opts.key)}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(Math.max(3000, deadline - Date.now())) },
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(reqMs) },
       );
       if (r.ok) return (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       err = classifyGeminiError(r.status, await r.text(), model);
     } catch (e) {
       if (e instanceof GeminiError) throw e;
+      const name = (e as { name?: string } | null)?.name;
+      if (name === "TimeoutError" || name === "AbortError") {
+        err = new GeminiError(`Gemini did not answer within ${Math.round(reqMs / 1000)} seconds.`, "timeout", 0, 0);
+        timeouts++;
+        // A slow answer is retried once (when allowed), then reported as a plain timeout.
+        if (!opts.retryOnTimeout || timeouts > 1 || Date.now() + 3000 > deadline) throw err;
+        continue;
+      }
       err = new GeminiError(`Could not reach Gemini: ${e instanceof Error ? e.message : "network error"}`, "unavailable", 0, 5);
     }
     const retryable = err.kind === "unavailable" || err.kind === "rate_limited";
@@ -211,9 +228,12 @@ async function geminiGenerate(
   }
 }
 
+/** Settings for the long-running background jobs (drafting, preview): up to 60 s per Gemini answer, one retry on a slow one. */
+const BACKGROUND_AI: GeminiAiOpts = { budgetMs: 170_000, timeoutMs: 60_000, retryOnTimeout: true };
+
 // Turn a GeminiError into the structured API failure the UI understands.
 function geminiFail(err: GeminiError) {
-  const status = err.kind === "daily_quota" || err.kind === "rate_limited" ? 429 : err.kind === "unavailable" ? 503 : 502;
+  const status = err.kind === "daily_quota" || err.kind === "rate_limited" ? 429 : err.kind === "unavailable" ? 503 : err.kind === "timeout" ? 504 : 502;
   return failCode(status, err.message, err.kind, err.retryAfterS ? { retry_after: err.retryAfterS } : {});
 }
 
@@ -358,7 +378,7 @@ function rewriteLinksForTracking(html: string, baseUrl: string, campaignId: stri
 
 // ── Gemini email drafting ─────────────────────────────────────────────
 
-const DRAFT_SYSTEM_PROMPT = `You write short, high-reply-rate cold outreach emails. Rules:
+const DRAFT_BASE_PROMPT = `You write short, high-reply-rate cold outreach emails. Rules:
 - 70–120 words. Short subject (5–8 words, no emoji).
 - One clear observation about the recipient's business from the data provided.
 - One specific value hook tied to the sender's context.
@@ -369,10 +389,12 @@ const DRAFT_SYSTEM_PROMPT = `You write short, high-reply-rate cold outreach emai
 - Speak TO the recipient: use "you" and "your business/team". Use the business name at most once (in the greeting). Never end with a third-person line like "benefit <Business Name>?" — write "benefit your business?" or "help you" instead.
 - Do NOT fabricate statistics, client counts, case studies, or specific numbers that weren't given in the sender context. No "We've helped 50+ clients" unless that exact number was provided.
 - Do NOT write any sign-off. No "Best,", no "Thanks", no name, no company line, no website, no opt-out text. End the body right after the closing question/ask. The sign-off (name, company, website) and opt-out line are appended automatically after sending. (You may still mention the company in the body.)
+- Do not introduce yourself by name in the body (no "I'm <Name>", "My name is <Name>"). The name appears only in the sign-off, which is added automatically.
 - Output ONLY JSON: { "subject": "...", "body_text": "...", "body_html": "<p>...</p>" }.
-- body_html = plain paragraphs with <p> tags only. No inline styles.
+- body_html = plain paragraphs with <p> tags only. No inline styles.`;
 
-SEQUENCE MODE:
+// Only sent for sequences (a framework other than one-off).
+const DRAFT_SEQUENCE_PROMPT = `SEQUENCE MODE:
 If the user message names a FRAMEWORK and STEP, write the email for that specific step. Supported frameworks:
 
 PAS (Problem → Agitate → Solution):
@@ -395,6 +417,15 @@ Cross-framework continuity rule:
 - Never copy phrases verbatim from the previous step. Reference, don't repeat.
 - Keep subject lines related but distinct per step. For steps 2 and 3, a reply-style subject ("Re: <step 1 subject>") is often best.`;
 
+// Added for one-off emails and for step 1 of any sequence.
+const DRAFT_FIRST_EMAIL_RULE = `This is the FIRST email. Never use "Re:" in the subject, never write "following up", "as I mentioned" or any reference to an earlier message.`;
+
+/** The system prompt: the sequence section only for sequences; the first-email rule for one-offs and step 1. */
+export function buildDraftPrompt(isSequence: boolean, step = 1): string {
+  const first = !isSequence || step <= 1;
+  return [DRAFT_BASE_PROMPT, isSequence ? DRAFT_SEQUENCE_PROMPT : "", first ? DRAFT_FIRST_EMAIL_RULE : ""].filter(Boolean).join("\n\n");
+}
+
 type EmailDraft = { subject: string; body_text: string; body_html: string };
 
 type SequenceContext = {
@@ -409,6 +440,7 @@ async function generateEmailDraft(
   lead: { name?: string; contact_name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean },
   senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string },
   sequence: SequenceContext = {},
+  ai: GeminiAiOpts = {},
 ): Promise<EmailDraft> {
   const greeting = greetingFor(lead);
   const leadSummary = [
@@ -450,7 +482,7 @@ async function generateEmailDraft(
   }
 
   const body = {
-    systemInstruction: { role: "system", parts: [{ text: DRAFT_SYSTEM_PROMPT }] },
+    systemInstruction: { role: "system", parts: [{ text: buildDraftPrompt(!!isSequence, sequence.step ?? 1) }] },
     contents: [
       {
         role: "user",
@@ -459,7 +491,7 @@ async function generateEmailDraft(
     ],
     generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
   };
-  const data = await geminiGenerate(body, { key: geminiKey });
+  const data = await geminiGenerate(body, { key: geminiKey, ...ai });
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text) throw new Error("Gemini returned empty draft");
   let parsed: unknown;
@@ -478,6 +510,7 @@ async function generateEmailDraft(
       body_html: String(obj.body_html ?? "").trim(),
     },
     greeting,
+    { firstEmail: !isSequence || (sequence.step ?? 1) <= 1 },
   );
 }
 
@@ -598,9 +631,7 @@ async function findEmailFromWebsite(website: string): Promise<{ email: string | 
   // Only try a handful of paths — keeps each call well under Netlify's
   // 26s cap even when pages are slow.
   const paths = ["", "/contact", "/contact-us"];
-  const emailRx = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-  const mailtoRx = /mailto:([^"'?\s>]+)/gi;
-  const found = new Set<string>();
+  const found: string[] = [];
 
   for (const path of paths) {
     const url = new URL(path, base).toString();
@@ -615,28 +646,16 @@ async function findEmailFromWebsite(website: string): Promise<{ email: string | 
         redirect: "follow",
       });
       if (!r.ok) continue;
-      const text = await r.text();
-      for (const m of text.matchAll(mailtoRx)) {
-        if (m[1]) found.add(m[1].toLowerCase().trim().split("?")[0]);
-      }
-      for (const m of text.matchAll(emailRx)) {
-        if (m[0]) found.add(m[0].toLowerCase().trim());
-      }
-      if (found.size > 0) break; // Stop once we've got a hit.
+      // Forms, scripts and placeholder attributes are ignored; junk/placeholder
+      // addresses (example.com, hex ids, johndoe@email.com ...) are dropped.
+      for (const e of extractEmailsFromHtml(await r.text())) if (!found.includes(e)) found.push(e);
+      if (found.length > 0) break; // Stop once we've got a hit.
     } catch {
       continue;
     }
   }
 
-  // Filter obvious junk + image filenames that matched the email regex.
-  const cleaned = [...found].filter((e) => {
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(e)) return false;
-    if (/\.(png|jpg|jpeg|gif|webp|svg|ico)$/i.test(e)) return false;
-    if (/^(example|sentry|wixpress|wix|youremail|test)@/i.test(e)) return false;
-    if (/\.(example|wixsite|sentry)\./i.test(e)) return false;
-    if (isGovEduEmail(e)) return false;
-    return true;
-  });
+  const cleaned = found.filter((e) => !isGovEduEmail(e));
   if (cleaned.length === 0) return { email: null, tried };
 
   // Prefer role-based business addresses over individual ones.
@@ -656,7 +675,9 @@ function extractLeadFromApify(raw: Record<string, unknown>): {
   maps_url: string | null;
 } {
   const r = raw as ApifyLead;
-  const emails = Array.isArray(r.emails) ? r.emails.filter((e) => typeof e === "string" && e.includes("@")) : [];
+  const emails = Array.isArray(r.emails)
+    ? r.emails.map((e) => (typeof e === "string" ? cleanEmail(e) : null)).filter((e): e is string => !!e && !isJunkEmail(e) && !isGovEduEmail(e))
+    : [];
   return {
     name: String(r.title ?? r.subTitle ?? "Unknown"),
     email: emails[0] ?? null,
@@ -715,6 +736,7 @@ async function refreshEmailStatuses(agentmailKey: string, campaignId: string, ma
       if (!negative && (STATUS_RANK[next] ?? 0) <= (STATUS_RANK[cur] ?? 0)) continue;
       const now = new Date().toISOString();
       await writeJson(es, b.key, { ...row, status: next, [`${next}_at`]: now, status_source: "agentmail_api", updated_at: now });
+      if (negative) { try { await noteBounced(row.to_email as string | undefined); } catch { /* best effort */ } }
       updated++;
     } catch {
       // Network hiccup on one message: leave it for the next sync.
@@ -742,7 +764,7 @@ Rules:
 - "maxResults" = clamp the user-requested number into [10, 200]. If unspecified, use 50.
 - Always return valid JSON. No trailing commas. Double-quoted strings only.`;
 
-async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxResultsHint?: number): Promise<StructuredQuery> {
+async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxResultsHint?: number, ai: GeminiAiOpts = {}): Promise<StructuredQuery> {
   const body = {
     systemInstruction: { role: "system", parts: [{ text: PREVIEW_SYSTEM_PROMPT }] },
     contents: [
@@ -762,7 +784,7 @@ async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxRes
       responseMimeType: "application/json",
     },
   };
-  const data = await geminiGenerate(body, { key: geminiKey });
+  const data = await geminiGenerate(body, { key: geminiKey, ...ai });
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text) throw new Error("Gemini returned empty response");
 
@@ -782,6 +804,302 @@ async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxRes
   const rawMax = typeof obj.maxResults === "number" ? obj.maxResults : maxResultsHint ?? 50;
   const maxResults = Math.max(10, Math.min(200, Math.round(rawMax)));
   return { location, searchTerms, maxResults };
+}
+
+// ── Campaign skip context + drafting (shared by the sync action and the background job) ──
+
+type CampaignRecord = Record<string, unknown> & { query?: string; structured_query?: { location?: string; searchTerms?: string[] } | null };
+
+/** What leadSkipReason needs to know about a campaign: where it searches and for which trade. */
+function campaignSkipCtx(c: CampaignRecord | null | undefined): { location: string | null; query: string } {
+  const sq = c?.structured_query;
+  return { location: sq?.location ?? null, query: [c?.query ?? "", ...(Array.isArray(sq?.searchTerms) ? sq!.searchTerms! : [])].join(" ") };
+}
+
+/** A scraped address that is only a placeholder counts as "no email" (so Find emails tries again). */
+function withoutJunkEmail<T extends { email?: string | null }>(lead: T): T & { junk_email?: string } {
+  return lead.email && isJunkEmail(lead.email) ? { ...lead, email: null, junk_email: lead.email } : lead;
+}
+
+type DraftOneResult =
+  | { ok: true; data: Record<string, unknown> }
+  | { ok: false; status: number; error: string; code?: string; retry_after?: number };
+
+const draftFail = (status: number, error: string, code?: string, retry_after?: number): DraftOneResult => ({ ok: false, status, error, code, retry_after });
+
+/**
+ * Drafts one email for one lead at one sequence step and stores it. Refuses leads
+ * that must not be emailed (excluded, chain, wrong trade, placeholder address,
+ * opted out, bounced, already contacted from another campaign). A lead added
+ * seconds ago may not show in the store's list yet (Blobs lists lag about a
+ * minute), so the caller can pass the lead it already has as `leadHint`.
+ */
+export async function draftOne(p: {
+  campaign_id: string;
+  lead_id: string;
+  sender_name?: unknown;
+  sender_company?: unknown;
+  sender_offer?: unknown;
+  framework?: unknown;
+  step?: unknown;
+  total_steps?: unknown;
+  leadHint?: unknown;
+  ai?: GeminiAiOpts;
+  contacts?: Contacts;
+}): Promise<DraftOneResult> {
+  const { campaign_id, lead_id, sender_name, sender_company, sender_offer, framework, step, total_steps, leadHint } = p;
+  const geminiKey = await readServiceKey("gemini");
+  if (!geminiKey) return draftFail(400, "Gemini key not configured");
+
+  const cs = store(OUTREACH_CAMPAIGNS);
+  const campaign = await readJson<CampaignRecord>(cs, campaign_id);
+  if (!campaign) return draftFail(404, "campaign not found");
+
+  // Normalize framework + step inputs. Default = one-off at step 1.
+  const fw = typeof framework === "string" && ["pas", "aida", "sdr"].includes(framework) ? (framework as "pas" | "aida" | "sdr") : "one-off";
+  const stepNum = typeof step === "number" && step >= 1 && step <= 5 ? Math.floor(step) : 1;
+  const totalNum = typeof total_steps === "number" && total_steps >= 1 && total_steps <= 5 ? Math.floor(total_steps) : fw === "one-off" ? 1 : 3;
+
+  // Find the lead (iterate; scale here is in the hundreds).
+  const leadsStore = store(OUTREACH_LEADS);
+  const { blobs } = await leadsStore.list({ prefix: `${campaign_id}/` });
+  let lead: Record<string, unknown> | null = null;
+  for (const b of blobs) {
+    const row = await readJson<Record<string, unknown>>(leadsStore, b.key);
+    if ((row as { id?: string } | null)?.id === lead_id) {
+      lead = row;
+      break;
+    }
+  }
+  if (!lead && leadHint && typeof leadHint === "object") {
+    const hint = leadHint as Record<string, unknown>;
+    if (hint.id === lead_id && hint.campaign_id === campaign_id) lead = hint;
+  }
+  if (!lead) return draftFail(404, "lead not found");
+  if (!lead.email) return draftFail(400, "lead has no email address — cannot draft");
+  if (lead.do_not_contact) return draftFail(400, "lead is marked do-not-contact — no email will be drafted");
+  {
+    const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], campaignSkipCtx(campaign));
+    if (skip) return draftFail(400, `${skip.message} — no draft created`, skip.code === "excluded" ? "excluded" : "skipped_lead");
+  }
+  {
+    const block = contactBlock(p.contacts ?? (await loadContacts()), lead.email as string, campaign_id);
+    if (block) return draftFail(400, `${block.message} — no draft created`, block.code);
+  }
+  {
+    const mail = emailKey(lead.email as string);
+    const flagged = (await listJson<{ email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).some((l) => l.do_not_contact && emailKey(l.email) === mail);
+    if (flagged) return draftFail(400, "this email address asked not to be contacted — no draft created");
+  }
+
+  // A draft for this (lead, step) already exists: return it (sequences need one per step).
+  const es = store(OUTREACH_EMAILS);
+  const existingEmails = await listJson<{ id: string; lead_id: string; sequence_position?: number }>(es, `${campaign_id}/`);
+  const existing = existingEmails.find((e) => e.lead_id === lead_id && (e.sequence_position ?? 1) === stepNum);
+  if (existing) return { ok: true, data: { ...existing, skipped: true } };
+
+  // For steps >1, pull prior steps for this lead so Gemini can reference them implicitly.
+  const previousSteps = existingEmails
+    .filter((e) => e.lead_id === lead_id && (e.sequence_position ?? 1) < stepNum)
+    .map((e) => {
+      const full = e as unknown as { sequence_position?: number; subject?: string; body_text?: string };
+      return { step: full.sequence_position ?? 1, subject: full.subject ?? "", body_text: full.body_text ?? "" };
+    })
+    .sort((a, b) => a.step - b.step);
+
+  try {
+    const draft = await generateEmailDraft(
+      geminiKey,
+      {
+        name: lead.name as string | undefined,
+        contact_name: lead.contact_name as string | undefined,
+        company: lead.company as string | undefined,
+        website: lead.website as string | undefined,
+        category: lead.category as string | undefined,
+        address: lead.address as string | undefined,
+        notes: lead.notes as string | undefined,
+        is_test: lead.is_test === true,
+      },
+      {
+        sender_name: typeof sender_name === "string" ? sender_name : undefined,
+        sender_company: typeof sender_company === "string" ? sender_company : undefined,
+        sender_offer: typeof sender_offer === "string" ? sender_offer : undefined,
+        campaign_query: campaign.query as string,
+      },
+      { framework: fw, step: stepNum, total_steps: totalNum, previous_steps: previousSteps },
+      p.ai ?? {},
+    );
+    const emailId = nanoid(12);
+    const createdAt = new Date().toISOString();
+    const record = {
+      id: emailId,
+      campaign_id,
+      lead_id,
+      to_email: lead.email,
+      to_name: lead.name,
+      subject: draft.subject,
+      body_text: draft.body_text,
+      body_html: draft.body_html,
+      sender_name: typeof sender_name === "string" ? sender_name : null,
+      sequence_position: stepNum,
+      sequence_total: totalNum,
+      framework: fw,
+      status: "drafted",
+      created_at: createdAt,
+      updated_at: createdAt,
+    };
+    await writeJson(es, `${campaign_id}/${createdAt}-${emailId}`, record);
+    // Persist the sender context + default framework on the campaign (re-read: a job may have updated it meanwhile).
+    const fresh = (await readJson<CampaignRecord>(cs, campaign_id)) ?? campaign;
+    await writeJson(cs, campaign_id, {
+      ...fresh,
+      default_sender_name: (typeof sender_name === "string" && sender_name) || (fresh.default_sender_name as string | undefined) || null,
+      default_sender_company: (typeof sender_company === "string" && sender_company) || (fresh.default_sender_company as string | undefined) || null,
+      default_sender_offer: (typeof sender_offer === "string" && sender_offer) || (fresh.default_sender_offer as string | undefined) || null,
+      default_framework: fw,
+      default_sequence_total: totalNum,
+      emails_generated: (fresh.emails_generated as number ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    });
+    return { ok: true, data: record };
+  } catch (err) {
+    if (err instanceof GeminiError) {
+      const status = err.kind === "daily_quota" || err.kind === "rate_limited" ? 429 : err.kind === "unavailable" ? 503 : err.kind === "timeout" ? 504 : 502;
+      return draftFail(status, err.message, err.kind, err.retryAfterS);
+    }
+    return draftFail(500, err instanceof Error ? err.message : "Draft failed");
+  }
+}
+
+// ── Background jobs (run by netlify/functions/ai-background.ts) ───────────────
+// A normal Netlify function is cut off after about 26 s, far less than a drafting
+// run or a slow Gemini answer needs. The app starts a job with a quick action that
+// validates and records it, then POSTs the same parameters to the background
+// function, which returns at once and keeps working for up to 15 minutes.
+
+const JOB_STALE_MS = 4 * 60_000; // no progress for this long: treat a running job as interrupted
+const JOB_MAX_MS = 13 * 60_000; // stay well inside the 15-minute background limit
+
+type PlannedPair = { lead: Record<string, unknown> & { id: string; name?: string }; step: number };
+
+/** Which (lead, step) drafts a run would create: leads with a real address that are not skipped, excluded, contacted elsewhere or already drafted. */
+async function planDraftPairs(campaign_id: string, framework: unknown, hints?: unknown): Promise<{ pairs: PlannedPair[]; totalSteps: number; fw: "one-off" | "pas" | "aida" | "sdr" }> {
+  const campaign = await readJson<CampaignRecord>(store(OUTREACH_CAMPAIGNS), campaign_id);
+  if (!campaign) throw new Error("campaign not found");
+  const fw = typeof framework === "string" && ["pas", "aida", "sdr"].includes(framework) ? (framework as "pas" | "aida" | "sdr") : "one-off";
+  const totalSteps = fw === "one-off" ? 1 : 3;
+  const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
+  // Leads added seconds ago may not be in the list yet: the page sends the ones it already has.
+  if (Array.isArray(hints)) {
+    for (const h of hints as Array<Record<string, unknown>>) {
+      if (h && typeof h.id === "string" && h.campaign_id === campaign_id && !leads.some((l) => l.id === h.id)) leads.push(h as Record<string, unknown> & { id: string });
+    }
+  }
+  const emails = await listJson<{ lead_id: string; sequence_position?: number }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
+  const have = new Set(emails.map((e) => `${e.lead_id}__${e.sequence_position ?? 1}`));
+  const ctx = campaignSkipCtx(campaign);
+  const contacts = await loadContacts();
+  const pairs: PlannedPair[] = [];
+  for (const l of leads) {
+    const email = l.email as string | null | undefined;
+    if (!email || isJunkEmail(email) || l.do_not_contact) continue;
+    if (leadSkipReason(l as Parameters<typeof leadSkipReason>[0], ctx) || contactBlock(contacts, email, campaign_id)) continue;
+    for (let step = 1; step <= totalSteps; step++) if (!have.has(`${l.id}__${step}`)) pairs.push({ lead: l, step });
+  }
+  // All step 1 first, then step 2, then step 3: later steps refer back to earlier ones.
+  pairs.sort((a, b) => a.step - b.step || a.lead.id.localeCompare(b.lead.id));
+  return { pairs, totalSteps, fw };
+}
+
+async function patchJob(campaign_id: string, patch: Record<string, unknown>): Promise<void> {
+  const cs = store(OUTREACH_CAMPAIGNS);
+  const c = await readJson<CampaignRecord>(cs, campaign_id);
+  if (!c) return;
+  await writeJson(cs, campaign_id, { ...c, job: { ...(c.job as object | undefined), ...patch, progress_at: new Date().toISOString() }, updated_at: new Date().toISOString() });
+}
+
+export type DraftJobParams = {
+  campaign_id: string;
+  sender_name?: string;
+  sender_company?: string;
+  sender_offer?: string;
+  framework?: string;
+  leads?: unknown;
+};
+
+/** The drafting job: one email at a time with a pause between (free Gemini tier: 15 requests/minute), progress written after each. */
+export async function runDraftJob(p: DraftJobParams): Promise<void> {
+  const { campaign_id } = p;
+  const cs = store(OUTREACH_CAMPAIGNS);
+  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
+  if (!campaign?.job || campaign.job.kind !== "generate" || campaign.job.status !== "running") return; // nothing was started
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const t0 = Date.now();
+  let done = 0;
+  let made = 0;
+  let stopped: string | null = null;
+  const failures: Array<{ name: string; error: string }> = [];
+  try {
+    const { pairs, totalSteps, fw } = await planDraftPairs(campaign_id, p.framework, p.leads);
+    const contacts = await loadContacts();
+    for (let i = 0; i < pairs.length && !stopped; i++) {
+      if (Date.now() - t0 > JOB_MAX_MS) {
+        stopped = `Time limit reached after ${made} draft${made === 1 ? "" : "s"}. Click Generate emails again to continue.`;
+        break;
+      }
+      const { lead, step } = pairs[i];
+      if (i > 0) await sleep(4500);
+      for (let attempt = 1; ; attempt++) {
+        const r = await draftOne({
+          campaign_id,
+          lead_id: lead.id,
+          sender_name: p.sender_name,
+          sender_company: p.sender_company,
+          sender_offer: p.sender_offer,
+          framework: fw,
+          step,
+          total_steps: totalSteps,
+          leadHint: lead,
+          ai: BACKGROUND_AI,
+          contacts,
+        });
+        if (r.ok) { made++; break; }
+        if (r.code === "daily_quota") { stopped = `${r.error} ${made} draft${made === 1 ? "" : "s"} were made before it stopped.`; break; }
+        if ((r.code === "rate_limited" || r.code === "unavailable") && attempt < 4) { await sleep(Math.min(60, r.retry_after ?? 10) * 1000 + 500); continue; }
+        failures.push({ name: String(lead.name ?? lead.id), error: r.error });
+        break;
+      }
+      if (!stopped) { done++; await patchJob(campaign_id, { done, made }); }
+    }
+  } catch (err) {
+    stopped = err instanceof Error ? err.message : "Drafting failed";
+  }
+  await patchJob(campaign_id, {
+    status: stopped ? "stopped" : "done",
+    done,
+    made,
+    finished_at: new Date().toISOString(),
+    message: stopped ?? (failures.length ? `${failures.length} failed. Click Generate emails again to retry just those.` : undefined),
+    failures: failures.length ? failures : undefined,
+  });
+}
+
+export async function runPreviewJob(p: { id: string; query: string; max_results?: number }): Promise<void> {
+  const ss = store(OUTREACH_SETTINGS);
+  const key = `preview/${p.id}`;
+  try {
+    const geminiKey = await readServiceKey("gemini");
+    if (!geminiKey) throw new GeminiError("Gemini key not configured — open Settings and add it first.", "auth", 400);
+    const structured = await previewIcpWithGemini(geminiKey, p.query, p.max_results, BACKGROUND_AI);
+    await writeJson(ss, key, { status: "done", result: structured, finished_at: new Date().toISOString() });
+  } catch (err) {
+    await writeJson(ss, key, {
+      status: "error",
+      error: err instanceof Error ? err.message : "Preview failed",
+      code: err instanceof GeminiError ? err.kind : undefined,
+      finished_at: new Date().toISOString(),
+    });
+  }
 }
 
 export const handler: Handler = async (event) => {
@@ -1378,6 +1696,44 @@ export const handler: Handler = async (event) => {
         }
       }
 
+      case "outreach.preview.start": {
+        // Same as outreach.preview, but the slow Gemini call runs in the background function
+        // (up to 60 s, one retry). The page then polls outreach.preview.result.
+        const { query } = params as Record<string, unknown>;
+        if (typeof query !== "string" || !query.trim()) return fail(400, "query required");
+        if (!(await readServiceKey("gemini"))) return fail(400, "Gemini key not configured — open Settings and add it first.");
+        const id = nanoid(10);
+        await writeJson(store(OUTREACH_SETTINGS), `preview/${id}`, { status: "running", started_at: new Date().toISOString() });
+        return ok({ id });
+      }
+
+      case "outreach.preview.result": {
+        const { id } = params as Record<string, unknown>;
+        if (typeof id !== "string" || !/^[\w-]{4,40}$/.test(id)) return fail(400, "id required");
+        const rec = await readJson<Record<string, unknown>>(store(OUTREACH_SETTINGS), `preview/${id}`);
+        return rec ? ok(rec) : fail(404, "preview not found");
+      }
+
+      case "outreach.draft.start": {
+        // Validates and records a drafting job; the page then POSTs the same parameters to the
+        // ai-background function, which does the slow work and writes progress to campaign.job.
+        const { campaign_id, framework, leads } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
+        if (!(await readServiceKey("gemini"))) return fail(400, "Gemini key not configured");
+        const cs = store(OUTREACH_CAMPAIGNS);
+        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        if (!campaign) return fail(404, "campaign not found");
+        const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
+        if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
+          return failCode(409, "A job is already running for this campaign. Wait for it to finish.", "job_running");
+        }
+        const plan = await planDraftPairs(campaign_id, framework, leads);
+        if (plan.pairs.length === 0) return fail(400, "Nothing to draft: every eligible lead already has a draft, or all were skipped.");
+        const now = new Date().toISOString();
+        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "generate", status: "running", total: plan.pairs.length, done: 0, made: 0, started_at: now, progress_at: now }, updated_at: now });
+        return ok({ total: plan.pairs.length, started_at: now });
+      }
+
       case "outreach.campaign.create": {
         const { name, query, structured_query, description } = params as Record<string, unknown>;
         if (typeof name !== "string" || !name.trim()) return fail(400, "name required");
@@ -1662,19 +2018,42 @@ export const handler: Handler = async (event) => {
       case "outreach.leads.list": {
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
-        const rows = await listJson<{ created_at?: string; name?: string; email?: string | null; website?: string | null; address?: string | null; is_test?: boolean; raw?: unknown }>(
+        const rows = await listJson<{ created_at?: string; name?: string; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; is_test?: boolean; raw?: unknown }>(
           store(OUTREACH_LEADS),
           `${campaign_id}/`,
         );
         rows.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1));
-        // Flag leads we will not email-find / draft for (.gov/.edu, chains,
-        // out-of-state). Computed here, so older campaigns are covered too.
-        const campLoc = (await readJson<{ structured_query?: { location?: string } | null }>(store(OUTREACH_CAMPAIGNS), campaign_id))?.structured_query?.location;
-        const annotated = rows.map((r) => {
-          const why = leadSkipReason(r, campLoc);
+        // Flag leads we will not email-find / draft for: excluded by you, .gov/.edu,
+        // chains, out-of-state, wrong trade, bounced earlier, already contacted from
+        // another campaign. Computed here, so older campaigns are covered too.
+        const camp = await readJson<CampaignRecord>(store(OUTREACH_CAMPAIGNS), campaign_id);
+        const ctx = campaignSkipCtx(camp);
+        const contacts = await loadContacts();
+        const annotated = rows.map((r0) => {
+          const r = withoutJunkEmail(r0);
+          const why = leadSkipReason(r, ctx) ?? (r.email ? contactBlock(contacts, r.email, campaign_id) : null);
           return why ? { ...r, skip_reason: why.message, skip_code: why.code } : r;
         });
         return ok(annotated.slice(0, typeof limit === "number" ? limit : 500));
+      }
+
+      case "outreach.leads.update": {
+        // Per-lead flags the user controls. Today: excluded (true = never draft this lead).
+        const { campaign_id, lead_id, excluded } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id || typeof lead_id !== "string" || !lead_id) return fail(400, "campaign_id and lead_id required");
+        if (typeof excluded !== "boolean") return fail(400, "excluded (true/false) required");
+        const ls = store(OUTREACH_LEADS);
+        let key = "";
+        let lead: Record<string, unknown> | null = null;
+        const { blobs } = await ls.list({ prefix: `${campaign_id}/` });
+        for (const b of blobs) {
+          const row = await readJson<Record<string, unknown>>(ls, b.key);
+          if (row?.id === lead_id) { lead = row; key = b.key; break; }
+        }
+        if (!lead) return fail(404, "lead not found");
+        const updated = { ...lead, excluded, excluded_at: excluded ? new Date().toISOString() : null, updated_at: new Date().toISOString() };
+        await writeJson(ls, key, updated);
+        return ok(updated);
       }
 
       case "outreach.leads.count": {
@@ -1788,12 +2167,13 @@ export const handler: Handler = async (event) => {
           }
         }
         if (!lead || !storeKey) return fail(404, "lead not found");
-        if (lead.email) return ok({ ...lead, already_had_email: true, enriched: false });
+        if (lead.email && !isJunkEmail(lead.email as string)) return ok({ ...lead, already_had_email: true, enriched: false });
+        // A placeholder address (johndoe@email.com ...) counts as no email: drop it and look again.
+        if (lead.email) lead = { ...lead, email: null, junk_email: lead.email };
         const website = lead.website as string | undefined;
         // Mark every attempt so a progress counter can survive a page reload.
         const checkedAt = new Date().toISOString();
-        const campaignLoc = (await readJson<{ structured_query?: { location?: string } | null }>(store(OUTREACH_CAMPAIGNS), campaign_id))?.structured_query?.location;
-        const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], campaignLoc);
+        const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], campaignSkipCtx(await readJson<CampaignRecord>(store(OUTREACH_CAMPAIGNS), campaign_id)));
         if (skip && skip.code !== "gov_edu_email") {
           await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
           return ok({ ...lead, enriched: false, reason: skip.message });
@@ -1825,159 +2205,15 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.generate_one": {
-        // Drafts exactly one email for one lead at one sequence step. Lets
-        // the UI loop through (lead × step) combinations client-side and
-        // show a live "Drafting step 2 of 3 for lead 5 of 20" counter —
-        // instead of one slow server-side batch that blows Netlify's 26s
-        // cap on >~10 leads. Agents can call this in a loop for polite
-        // pacing. For sequences (framework != one-off), the handler
-        // fetches previously-generated steps for continuity.
-        const {
-          campaign_id,
-          lead_id,
-          sender_name,
-          sender_company,
-          sender_offer,
-          framework,
-          step,
-          total_steps,
-          lead: leadHint,
-        } = params as Record<string, unknown>;
+        // Drafts exactly one email for one lead at one sequence step (see draftOne).
+        // Kept for agents that loop with their own pacing. The app itself drafts in
+        // the background (outreach.draft.start + the ai-background function).
+        const { campaign_id, lead_id, sender_name, sender_company, sender_offer, framework, step, total_steps, lead: leadHint } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         if (typeof lead_id !== "string" || !lead_id) return fail(400, "lead_id required");
-        const geminiKey = await readServiceKey("gemini");
-        if (!geminiKey) return fail(400, "Gemini key not configured");
-
-        const cs = store(OUTREACH_CAMPAIGNS);
-        const campaign = await readJson<Record<string, unknown>>(cs, campaign_id);
-        if (!campaign) return fail(404, "campaign not found");
-
-        // Normalize framework + step inputs. Default = one-off at step 1.
-        const fw = typeof framework === "string" && ["pas", "aida", "sdr"].includes(framework) ? (framework as "pas" | "aida" | "sdr") : "one-off";
-        const stepNum = typeof step === "number" && step >= 1 && step <= 5 ? Math.floor(step) : 1;
-        const totalNum = typeof total_steps === "number" && total_steps >= 1 && total_steps <= 5 ? Math.floor(total_steps) : fw === "one-off" ? 1 : 3;
-
-        // Find the lead (iterate — scale here is in the hundreds).
-        const leadsStore = store(OUTREACH_LEADS);
-        const { blobs } = await leadsStore.list({ prefix: `${campaign_id}/` });
-        let lead: Record<string, unknown> | null = null;
-        for (const b of blobs) {
-          const row = await readJson<Record<string, unknown>>(leadsStore, b.key);
-          if ((row as { id?: string } | null)?.id === lead_id) {
-            lead = row;
-            break;
-          }
-        }
-        // A lead added seconds ago may not show up in the store's list yet (Blobs lists
-        // can lag about a minute). The page then sends the lead it already has; it is
-        // used only for this fallback, and only if it is for this very lead and campaign.
-        if (!lead && leadHint && typeof leadHint === "object") {
-          const hint = leadHint as Record<string, unknown>;
-          if (hint.id === lead_id && hint.campaign_id === campaign_id) lead = hint;
-        }
-        if (!lead) return fail(404, "lead not found");
-        if (!lead.email) return fail(400, "lead has no email address — cannot draft");
-        if (lead.do_not_contact) return fail(400, "lead is marked do-not-contact — no email will be drafted");
-        {
-          const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], (campaign.structured_query as { location?: string } | null)?.location);
-          if (skip) return failCode(400, `${skip.message} — no draft created`, "skipped_lead");
-        }
-        {
-          const mail = emailKey(lead.email as string);
-          const flagged = (await listJson<{ email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).some((l) => l.do_not_contact && emailKey(l.email) === mail);
-          if (flagged) return fail(400, "this email address asked not to be contacted — no draft created");
-        }
-
-        // Check if a draft already exists for this (lead, step) and short-circuit.
-        // Previously we dedupe'd on lead alone which broke sequences (step 2 would
-        // be skipped because step 1 already existed).
-        const es = store(OUTREACH_EMAILS);
-        const existingEmails = await listJson<{ id: string; lead_id: string; sequence_position?: number }>(
-          es,
-          `${campaign_id}/`,
-        );
-        const existing = existingEmails.find(
-          (e) => e.lead_id === lead_id && (e.sequence_position ?? 1) === stepNum,
-        );
-        if (existing) return ok({ ...existing, skipped: true });
-
-        // For steps >1, pull prior steps for this lead so Gemini can reference
-        // them implicitly in the follow-up draft.
-        const previousSteps = existingEmails
-          .filter((e) => e.lead_id === lead_id && (e.sequence_position ?? 1) < stepNum)
-          .map((e) => {
-            const full = e as unknown as { sequence_position?: number; subject?: string; body_text?: string };
-            return {
-              step: full.sequence_position ?? 1,
-              subject: full.subject ?? "",
-              body_text: full.body_text ?? "",
-            };
-          })
-          .sort((a, b) => a.step - b.step);
-
-        try {
-          const draft = await generateEmailDraft(
-            geminiKey,
-            {
-              name: lead.name as string | undefined,
-              contact_name: lead.contact_name as string | undefined,
-              company: lead.company as string | undefined,
-              website: lead.website as string | undefined,
-              category: lead.category as string | undefined,
-              address: lead.address as string | undefined,
-              notes: lead.notes as string | undefined,
-              is_test: lead.is_test === true,
-            },
-            {
-              sender_name: typeof sender_name === "string" ? sender_name : undefined,
-              sender_company: typeof sender_company === "string" ? sender_company : undefined,
-              sender_offer: typeof sender_offer === "string" ? sender_offer : undefined,
-              campaign_query: campaign.query as string,
-            },
-            {
-              framework: fw,
-              step: stepNum,
-              total_steps: totalNum,
-              previous_steps: previousSteps,
-            },
-          );
-          const emailId = nanoid(12);
-          const createdAt = new Date().toISOString();
-          const record = {
-            id: emailId,
-            campaign_id,
-            lead_id,
-            to_email: lead.email,
-            to_name: lead.name,
-            subject: draft.subject,
-            body_text: draft.body_text,
-            body_html: draft.body_html,
-            sender_name: typeof sender_name === "string" ? sender_name : null,
-            sequence_position: stepNum,
-            sequence_total: totalNum,
-            framework: fw,
-            status: "drafted",
-            created_at: createdAt,
-            updated_at: createdAt,
-          };
-          await writeJson(es, `${campaign_id}/${createdAt}-${emailId}`, record);
-          // Persist the sender context + default framework on the campaign
-          // so send + future generates can pick them up.
-          await writeJson(cs, campaign_id, {
-            ...campaign,
-            default_sender_name: (typeof sender_name === "string" && sender_name) || (campaign.default_sender_name as string | undefined) || null,
-            default_sender_company: (typeof sender_company === "string" && sender_company) || (campaign.default_sender_company as string | undefined) || null,
-            default_sender_offer: (typeof sender_offer === "string" && sender_offer) || (campaign.default_sender_offer as string | undefined) || null,
-            default_framework: fw,
-            default_sequence_total: totalNum,
-            emails_generated: (campaign.emails_generated as number ?? 0) + 1,
-            updated_at: new Date().toISOString(),
-          });
-          return ok(record);
-        } catch (err) {
-          if (err instanceof GeminiError) return geminiFail(err);
-          return fail(500, err instanceof Error ? err.message : "Draft failed");
-        }
+        const r = await draftOne({ campaign_id, lead_id, sender_name, sender_company, sender_offer, framework, step, total_steps, leadHint });
+        if (r.ok) return ok(r.data);
+        return r.code ? failCode(r.status, r.error, r.code, r.retry_after ? { retry_after: r.retry_after } : {}) : fail(r.status, r.error);
       }
 
       case "outreach.emails.create": {
@@ -2087,10 +2323,11 @@ export const handler: Handler = async (event) => {
           store(OUTREACH_LEADS),
           `${campaign_id}/`,
         );
-        const loc = (campaign.structured_query as { location?: string } | null)?.location;
+        const ctx = campaignSkipCtx(campaign as CampaignRecord);
+        const contactsIdx = await loadContacts();
         const es = store(OUTREACH_EMAILS);
         const already = new Set((await listJson<{ lead_id: string }>(es, `${campaign_id}/`)).map((e) => e.lead_id));
-        const sendable = leads.filter((l) => l.email && !l.do_not_contact && !leadSkipReason(l, loc) && !already.has(l.id));
+        const sendable = leads.filter((l) => l.email && !l.do_not_contact && !leadSkipReason(l, ctx) && !contactBlock(contactsIdx, l.email, campaign_id) && !already.has(l.id));
         if (sendable.length === 0) return fail(400, "No leads with email addresses that still need a draft");
 
         // Paced: one lead at a time with a gap (the free tier allows 15 requests a
@@ -2177,19 +2414,23 @@ export const handler: Handler = async (event) => {
         const dncLeads = (await listJson<{ id: string; email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).filter((l) => l.do_not_contact);
         const dncIds = new Set(dncLeads.map((l) => l.id));
         const dncMail = new Set(dncLeads.map((l) => emailKey(l.email)).filter((e): e is string => !!e));
-        const annotated = rows.map((r) =>
-          r.status === "drafted" && ((r.lead_id && dncIds.has(r.lead_id)) || dncMail.has(emailKey(r.to_email) ?? ""))
-            ? { ...r, blocked_do_not_contact: true }
-            : r,
-        );
+        const contactsIdx = await loadContacts();
+        const annotated = rows.map((r) => {
+          if (r.status !== "drafted") return r;
+          if ((r.lead_id && dncIds.has(r.lead_id)) || dncMail.has(emailKey(r.to_email) ?? "")) return { ...r, blocked_do_not_contact: true };
+          const block = contactBlock(contactsIdx, r.to_email, campaign_id);
+          return block ? { ...r, blocked_contact: block.message.replace(/^Skipped: /, "") } : r;
+        });
         return ok(annotated.slice(0, typeof limit === "number" ? limit : 500));
       }
 
       case "outreach.emails.update": {
         // Lets the UI tweak a drafted email (subject/body) before send. Only
         // drafts are editable — a sent email is a record of what went out.
-        const { campaign_id, email_id, subject, body_text, body_html } = params as Record<string, string>;
+        const { campaign_id, email_id, subject, body_text, body_html, to_email } = params as Record<string, string>;
         if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
+        const newTo = to_email === undefined ? undefined : cleanEmail(to_email);
+        if (to_email !== undefined && (!newTo || isJunkEmail(newTo))) return fail(400, "that is not a valid email address");
         if (subject !== undefined && !String(subject).trim()) return fail(400, "subject cannot be empty");
         if (body_text !== undefined && !String(body_text).trim()) return fail(400, "body cannot be empty");
         const es = store(OUTREACH_EMAILS);
@@ -2205,6 +2446,7 @@ export const handler: Handler = async (event) => {
             const updated = {
               ...row,
               ...(subject ? { subject: String(subject).trim() } : {}),
+              ...(newTo && newTo !== row.to_email ? { to_email: newTo, original_to_email: (row.original_to_email as string | undefined) ?? row.to_email } : {}),
               ...(body_text ? { body_text } : {}),
               ...(nextHtml ? { body_html: nextHtml } : {}),
               edited: true,
@@ -2364,10 +2606,14 @@ export const handler: Handler = async (event) => {
         const dncLeadIds = new Set(allLeads.filter((l) => l.do_not_contact).map((l) => l.id));
         const dncEmails = new Set(allLeads.filter((l) => l.do_not_contact).map((l) => emailKey(l.email)).filter((e): e is string => !!e));
         const isDnc = (e: { lead_id: string; to_email: string }) => dncLeadIds.has(e.lead_id) || dncEmails.has(emailKey(e.to_email) ?? "");
+        // Never send to an address that bounced earlier, or that was emailed from another campaign.
+        const contactsIdx = await loadContacts();
+        const contactBlocked = (e: { to_email: string }) => contactBlock(contactsIdx, e.to_email, campaign_id);
 
         const eligible = allEmails.filter((e) => {
           if (e.status !== "drafted") return false;
           if (isDnc(e)) return false;
+          if (contactBlocked(e)) return false;
           if (selectedIds) return selectedIds.has(e.id);
           if (targetStep !== null) {
             if ((e.sequence_position ?? 1) !== targetStep) return false;
@@ -2379,10 +2625,11 @@ export const handler: Handler = async (event) => {
         // Oldest first, then cap to the requested batch size.
         eligible.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? -1 : (a.created_at ?? "") > (b.created_at ?? "") ? 1 : 0));
         const toSend = batchLimit ? eligible.slice(0, batchLimit) : eligible;
-        const queuedBefore = allEmails.filter((e) => e.status === "drafted" && !isDnc(e)).length;
+        const queuedBefore = allEmails.filter((e) => e.status === "drafted" && !isDnc(e) && !contactBlocked(e)).length;
+        const skippedContacted = allEmails.filter((e) => e.status === "drafted" && !isDnc(e) && contactBlocked(e) && (!selectedIds || selectedIds.has(e.id))).map((e) => ({ email_id: e.id, to_email: e.to_email, reason: contactBlocked(e)!.message.replace(/^Skipped: /, "") }));
 
         if (toSend.length === 0) {
-          return ok({ sent: 0, total: 0, queued: queuedBefore, errors: [], skipped_do_not_contact: allEmails.filter((e) => e.status === "drafted" && isDnc(e)).length });
+          return ok({ sent: 0, total: 0, queued: queuedBefore, errors: [], skipped_do_not_contact: allEmails.filter((e) => e.status === "drafted" && isDnc(e)).length, skipped_contacted: skippedContacted });
         }
 
         const settings = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
@@ -2403,6 +2650,7 @@ export const handler: Handler = async (event) => {
         }
 
         let sent = 0;
+        const sentLeadIds = new Set<string>();
         const errors: Array<{ email_id: string; error: string }> = [];
         for (const em of toSend) {
           try {
@@ -2443,9 +2691,24 @@ export const handler: Handler = async (event) => {
               }
             }
             sent++;
+            // Remember the address so it is never emailed again from another campaign.
+            sentLeadIds.add(em.lead_id);
+            try { await noteSent(em.to_email, campaign_id); } catch { /* the email is sent; bookkeeping must not turn that into an error */ }
           } catch (err) {
             errors.push({ email_id: em.id, error: err instanceof Error ? err.message : "unknown" });
           }
+        }
+
+        // Mark the leads we just emailed as contacted (one pass over the campaign's leads).
+        if (sentLeadIds.size > 0) {
+          try {
+            const ls = store(OUTREACH_LEADS);
+            const { blobs } = await ls.list({ prefix: `${campaign_id}/` });
+            for (const b of blobs) {
+              const row = await readJson<Record<string, unknown>>(ls, b.key);
+              if (row && typeof row.id === "string" && sentLeadIds.has(row.id)) await writeJson(ls, b.key, { ...row, contacted_at: new Date().toISOString() });
+            }
+          } catch { /* best effort */ }
         }
 
         const queuedAfter = Math.max(0, queuedBefore - sent);
@@ -2465,7 +2728,7 @@ export const handler: Handler = async (event) => {
           summary: `Sent ${sent} of ${toSend.length} emails for "${campaign.name}" (${queuedAfter} still queued)`,
           details: { campaign_id, sent, queued: queuedAfter, errors: errors.length, inbox: inbox.inbox_id },
         });
-        return ok({ sent, total: toSend.length, queued: queuedAfter, errors, inbox });
+        return ok({ sent, total: toSend.length, queued: queuedAfter, errors, inbox, skipped_contacted: skippedContacted });
       }
 
       // ── INBOX (AgentMail inbound replies) ─────────────────────────
