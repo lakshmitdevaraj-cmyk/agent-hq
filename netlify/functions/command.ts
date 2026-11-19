@@ -1004,9 +1004,12 @@ type SiteCheckResult = { fields: Record<string, unknown>; emails: string[]; fetc
  * signals with evidence, social links, owner with evidence, hours wording, fit
  * flags, gap score. Pure apart from the optional Gemini owner fallback.
  */
-async function analyzeSite(lead: Record<string, unknown>, pages: Page[], via: "raw" | "browser", started = Date.now()): Promise<SiteCheckResult> {
+async function analyzeSite(lead: Record<string, unknown>, pages: Page[], viaIn: "raw" | "browser", started = Date.now()): Promise<SiteCheckResult> {
+  let via = viaIn;
   const checkedAt = new Date().toISOString();
   const { signals, sources, evidence } = detectSignals(pages);
+  // A plain re-check never throws away what a real browser already saw on this lead.
+  if (via === "raw" && (lead.site_check as { via?: string } | null | undefined)?.via === "browser") via = "browser";
   if (via === "browser") {
     // The browser only looks at a few pages: anything the earlier plain check found on other pages is kept.
     const prior = (lead.site_check ?? {}) as Record<string, unknown>;
@@ -2959,8 +2962,9 @@ export const handler: Handler = async (event) => {
           return ok({ ...lead, enriched: false, reason: skip.message });
         }
         if (!lead.website) {
-          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, ...noWebsiteFields(lead, checkedAt) });
-          return ok({ ...lead, enriched: false, reason: "no website to scrape" });
+          const noSite = { ...lead, enrich_checked_at: checkedAt, ...noWebsiteFields(lead, checkedAt) };
+          await writeJson(leadsStore, storeKey, noSite);
+          return ok({ ...noSite, enriched: false, reason: "no website to scrape" });
         }
         try {
           const res = await checkLeadSite(lead);
