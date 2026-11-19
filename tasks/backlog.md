@@ -9,4 +9,4 @@
 ## Notes from batch 5
 - John Moore Services (and other sites) answer 403 to automated visits: the check reports "website did not load" and moves on. We do not disguise the request.
 - Owner found only by the Gemini fallback is stored as low confidence (shown for review, not used in greetings). Retype it on the lead to confirm.
-- Re-check of an old campaign refreshes gap/social/owner only; it never fills an email for a lead that already has one.
+- Re-check of an old campaign refreshes gap/social/owner only; it only fills an email for a lead that has none (never replaces one).

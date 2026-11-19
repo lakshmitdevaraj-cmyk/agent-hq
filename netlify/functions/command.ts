@@ -21,7 +21,7 @@ import {
   isAutoReply,
 } from "./lib/outreach";
 import {
-  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, reachAnotherWay,
+  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName,
   type Page, type Owner,
 } from "./lib/sitecheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
@@ -2244,7 +2244,7 @@ export const handler: Handler = async (event) => {
             gap_score: typeof l.gap_score === "number" ? l.gap_score : null, gap_reasons: Array.isArray(l.gap_reasons) ? l.gap_reasons : [],
             checked_at: (sc.checked_at as string | undefined) ?? null, site_error: (sc.error as string | undefined) ?? null,
             site_check: l.site_check ?? null, social, hours_summary: h?.summary ?? null,
-            email_status, emailed_at: em?.sent_at ?? contactedAt, skip_code: undefined as string | undefined,
+            email_status, emailed_at: em?.sent_at ?? contactedAt,
           };
         });
         rows.sort((a, b) => (b.gap_score ?? -1) - (a.gap_score ?? -1) || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
