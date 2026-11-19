@@ -24,10 +24,10 @@ import {
   SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing,
   type Page, type Owner,
 } from "./lib/sitecheck";
-import { pickAngle, pickOpeningStyle, cityOf, checkModelDraft, type ModelDraft, type Fact } from "./lib/angle";
+import { pickAngle, pickOpeningStyle, cityOf, checkModelDraft, callsOnly, type AngleCode, type ModelDraft, type Fact } from "./lib/angle";
 import { DRAFT_SYSTEM_PROMPT, OPENING_STYLE_HELP, REVIEW_SYSTEM_PROMPT } from "./lib/prompts";
 import { evidenceFor, codeReview, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
-import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead } from "./lib/browsercheck";
+import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 
 function slugify(s: string): string {
@@ -425,7 +425,7 @@ async function testServiceKey(name: ServiceKey, key: string, model?: string, ext
       const st = await readOutreachSettings();
       const cfg = { key, base_url: (extra.base_url?.trim() || st.second_ai_base_url?.trim() || DEFAULT_SECOND_AI.base_url).replace(/\/+$/, ""), model: model || st.second_ai_model?.trim() || DEFAULT_SECOND_AI.model };
       try {
-        await secondAiGenerate(cfg, { system: 'Reply with JSON only: {"ok": true}', user: "ping", temperature: 0, maxTokens: 20 }, { timeoutMs: 15_000, budgetMs: 15_000 });
+        await secondAiGenerate(cfg, { system: 'Reply with JSON only: {"ok": true}', user: "ping", temperature: 0, maxTokens: 20 }, { timeoutMs: 22_000, budgetMs: 22_000 });
         return { ok: true, message: `Second AI provider verified (${cfg.model} at ${cfg.base_url})` };
       } catch (err) {
         if (err instanceof GeminiError && (err.kind === "rate_limited" || err.kind === "daily_quota")) return { ok: true, message: `Second AI provider accepted the key (${cfg.model}), but it is at its limit right now.` };
@@ -440,7 +440,7 @@ async function testServiceKey(name: ServiceKey, key: string, model?: string, ext
       try {
         await geminiGenerate(
           { contents: [{ role: "user", parts: [{ text: "Reply with the single word: ok" }] }], generationConfig: { maxOutputTokens: 16, temperature: 0 } },
-          { key, model: usedModel, budgetMs: 12_000 },
+          { key, model: usedModel, budgetMs: 22_000, timeoutMs: 22_000 },
         );
         return { ok: true, message: `Gemini key verified (model ${usedModel})` };
       } catch (err) {
@@ -635,7 +635,7 @@ type SequenceContext = {
 
 async function generateEmailDraft(
   _geminiKey: string | null,
-  lead: { name?: string; contact_name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean; rating?: number | null; reviews_count?: number | null; gap_reasons?: string[]; hours_summary?: string | null },
+  lead: { name?: string; contact_name?: string; owner_name?: string | null; owner_confidence?: string | null; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean; rating?: number | null; reviews_count?: number | null; gap_reasons?: string[]; hours_summary?: string | null },
   senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string; any_trade?: boolean },
   sequence: SequenceContext = {},
   ai: GeminiAiOpts = {},
@@ -714,7 +714,7 @@ async function generateEmailDraft(
 // ── New first-email path: code picks the fact and angle, a small model writes ──
 
 type FirstEmailLead = {
-  name?: string; contact_name?: string; address?: string; category?: string; is_test?: boolean;
+  name?: string; contact_name?: string; address?: string; category?: string; is_test?: boolean; website?: string | null; owner_name?: string | null; owner_confidence?: string | null;
   rating?: number | null; reviews_count?: number | null; raw?: unknown; site_check?: Record<string, unknown> | null;
 };
 type FirstEmailMeta = { written_by: string; fact_used: number | null; draft_facts: Fact[]; angle: string; opening_style: string; gap_note: string | null; check_reasons: string[] };
@@ -753,7 +753,7 @@ async function generateFirstEmail(
       fact_used: typeof o.fact_used === "number" ? o.fact_used : null,
       opening_style: String(o.opening_style ?? style),
     };
-    failures = md.body ? checkModelDraft(md, plan.facts.length) : ["the body is empty"];
+    failures = md.body ? checkModelDraft(md, plan.facts.length, { callsOnly: callsOnly(plan.angle.code) }) : ["the body is empty"];
     if (failures.length === 0) break;
   }
   const draft = normalizeDraft({ subject: md.subject || "Quick question", body_text: md.body, body_html: textToHtml(md.body) }, greetingFor(lead), { firstEmail: true });
@@ -772,7 +772,7 @@ type ReviewOutcome = {
   rewritten?: { subject: string; body_text: string; body_html: string; original: { subject: string; body_text: string; body_html: string } };
 };
 
-type ReviewableEmail = { subject: string; body_text: string; body_html: string; sequence_position?: number; fact_used?: number | null; draft_facts?: Fact[]; check_reasons?: string[] };
+type ReviewableEmail = { subject: string; body_text: string; body_html: string; sequence_position?: number; fact_used?: number | null; draft_facts?: Fact[]; check_reasons?: string[]; angle?: string };
 
 /**
  * Checks one draft against the lead's saved evidence. Code-only checks come first (a wrong
@@ -809,7 +809,7 @@ async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<str
     if (v.problem === "wording" && v.rewrite) {
       const body_text = normalizeDraft({ subject: v.rewrite.subject, body_text: v.rewrite.body, body_html: "" }, greeting, { firstEmail: (email.sequence_position ?? 1) <= 1 }).body_text;
       const subject = v.rewrite.subject;
-      const codeFails = (email.sequence_position ?? 1) <= 1 ? checkModelDraft({ subject, body: body_text, fact_used: email.fact_used ?? null, opening_style: "" }, email.draft_facts?.length ?? (typeof email.fact_used === "number" ? 1 : 0)) : [];
+      const codeFails = (email.sequence_position ?? 1) <= 1 ? checkModelDraft({ subject, body: body_text, fact_used: email.fact_used ?? null, opening_style: "" }, email.draft_facts?.length ?? (typeof email.fact_used === "number" ? 1 : 0), { callsOnly: callsOnly((email.angle ?? "") as AngleCode) }) : [];
       if (codeFails.length === 0) {
         const second = await ask(subject, body_text);
         if (second.verdict.status === "ready" && extra.length === 0) {
@@ -925,6 +925,12 @@ async function getApifyRunStatus(
     defaultDatasetId: data.data?.defaultDatasetId ?? null,
     statusMessage: data.data?.statusMessage ?? null,
   };
+}
+
+async function getApifyLog(apifyKey: string, runId: string): Promise<string> {
+  const r = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/log?token=${encodeURIComponent(apifyKey)}`);
+  if (!r.ok) return "";
+  return (await r.text()).slice(-20000);
 }
 
 async function getApifyDatasetItems(
@@ -1401,6 +1407,8 @@ export async function draftOne(p: {
         {
           name: lead.name as string | undefined,
           contact_name: lead.contact_name as string | undefined,
+          owner_name: lead.owner_name as string | undefined,
+          owner_confidence: lead.owner_confidence as string | undefined,
           company: lead.company as string | undefined,
           website: lead.website as string | undefined,
           category: lead.category as string | undefined,
@@ -1519,11 +1527,35 @@ async function planDraftPairs(campaign_id: string, framework: unknown, hints?: u
   return { pairs, totalSteps, fw };
 }
 
+// What this run has already written to campaign.job. Blobs reads can be a little stale, so a patch
+// is merged onto this memory too; otherwise a stale read could wipe the run's earlier progress.
+const jobMemo = new Map<string, Record<string, unknown>>();
+
 async function patchJob(campaign_id: string, patch: Record<string, unknown>): Promise<void> {
   const cs = store(OUTREACH_CAMPAIGNS);
   const c = await readJson<CampaignRecord>(cs, campaign_id);
   if (!c) return;
-  await writeJson(cs, campaign_id, { ...c, job: { ...(c.job as object | undefined), ...patch, progress_at: new Date().toISOString() }, updated_at: new Date().toISOString() });
+  const memo = { ...(jobMemo.get(campaign_id) ?? {}), ...patch };
+  jobMemo.set(campaign_id, memo);
+  await writeJson(cs, campaign_id, { ...c, job: { ...(c.job as object | undefined), ...memo, progress_at: new Date().toISOString() }, updated_at: new Date().toISOString() });
+}
+
+/**
+ * The page records the job and then calls the background function straight away, so the function can
+ * read the campaign before the new job is visible (Blobs reads are eventually consistent) and used to
+ * exit without doing anything. Wait up to ~30 s for the matching running job to appear.
+ */
+async function waitForJob(campaign_id: string, kind: string): Promise<boolean> {
+  const cs = store(OUTREACH_CAMPAIGNS);
+  for (let i = 0; i < 20; i++) {
+    const c = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
+    if (c?.job && c.job.kind === kind && c.job.status === "running") {
+      jobMemo.set(campaign_id, { ...(c.job as Record<string, unknown>) });
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return false;
 }
 
 export type DraftJobParams = {
@@ -1539,8 +1571,7 @@ export type DraftJobParams = {
 export async function runDraftJob(p: DraftJobParams): Promise<void> {
   const { campaign_id } = p;
   const cs = store(OUTREACH_CAMPAIGNS);
-  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
-  if (!campaign?.job || campaign.job.kind !== "generate" || campaign.job.status !== "running") return; // nothing was started
+  if (!(await waitForJob(campaign_id, "generate"))) return; // nothing was started
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const t0 = Date.now();
   let done = 0;
@@ -1602,11 +1633,20 @@ export async function runDraftJob(p: DraftJobParams): Promise<void> {
 
 type BrowserCtx = ReturnType<typeof campaignSkipCtx>;
 
+/** No usable email, but a way to reach them another way (Facebook, LinkedIn, Instagram, WhatsApp, contact form, phone). */
+function hasOtherChannel(lead: Record<string, unknown>): boolean {
+  const so = (lead.social ?? {}) as Record<string, unknown>;
+  const sc = (lead.site_check ?? {}) as Record<string, unknown>;
+  return !!(so.linkedin_company || so.linkedin_person || so.facebook || so.instagram || sc.whatsapp_url || sc.contact_form_url || (typeof lead.phone === "string" && lead.phone.trim()));
+}
+
 function browserEligible(lead: Record<string, unknown>, ctx: BrowserCtx, forced: boolean): boolean {
   if (!lead.website || typeof lead.website !== "string" || !siteBase(lead.website)) return false;
   if (forced) return true;
   const email = lead.email as string | null | undefined;
-  if (!email || isJunkEmail(email) || lead.do_not_contact || lead.excluded || lead.is_test) return false;
+  if (lead.do_not_contact || lead.excluded || lead.is_test) return false;
+  // Leads with an email come first (see planBrowserCheck); then leads we can only reach another way.
+  if (!(email && !isJunkEmail(email)) && !hasOtherChannel(lead)) return false;
   if (leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], ctx)) return false;
   const sc = (lead.site_check ?? {}) as { needs_browser?: boolean; via?: string };
   return sc.needs_browser === true && sc.via !== "browser";
@@ -1621,6 +1661,9 @@ async function planBrowserCheck(campaign_id: string, leadId?: string): Promise<{
   const done = new Set(campaign.browser_checked_ids ?? []);
   const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
   let picked = leads.filter((l) => (leadId ? l.id === leadId : true) && browserEligible(l, ctx, !!leadId));
+  // Leads with a usable email first, then the "reach another way" ones, so the cap goes to emailable leads first.
+  const hasEmail = (l: Record<string, unknown>) => (l.email && !isJunkEmail(l.email as string) ? 0 : 1);
+  picked = picked.map((l, i) => ({ l, i })).sort((a, b) => hasEmail(a.l) - hasEmail(b.l) || a.i - b.i).map((x) => x.l);
   // New leads count against the cap; one already browser-checked in this campaign can be re-checked for free.
   const remaining = Math.max(0, cap - done.size);
   let room = remaining;
@@ -1638,8 +1681,7 @@ async function patchLeadFields(campaign_id: string, lead_id: string, patch: Reco
 export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[] }): Promise<void> {
   const { campaign_id } = p;
   const cs = store(OUTREACH_CAMPAIGNS);
-  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
-  if (!campaign?.job || campaign.job.kind !== "browsercheck" || campaign.job.status !== "running") return;
+  if (!(await waitForJob(campaign_id, "browsercheck"))) return;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const t0 = Date.now();
   let done = 0;
@@ -1679,7 +1721,12 @@ export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[]
       }
       if (["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status)) break;
     }
-    if (!datasetId) throw new Error(`The browser run ended without results (${status}).`);
+    let runMessage: string | null = null;
+    try { runMessage = (await getApifyRunStatus(apify, runId)).statusMessage; } catch { /* diagnostics only */ }
+    let tail = "";
+    try { tail = logTail(await getApifyLog(apify, runId)); } catch { /* diagnostics only */ }
+    await patchJob(campaign_id, { apify_status: status, apify_message: runMessage ?? undefined, log_tail: tail || undefined });
+    if (!datasetId) throw new Error(`The browser run ended without results (${status}).${runMessage ? ` ${runMessage}` : ""}`);
     const items = await getApifyDatasetItems(apify, datasetId, 600);
     const byLead = pagesByLead(items);
     const checkedIds = new Set(((await readJson<{ browser_checked_ids?: string[] }>(cs, campaign_id))?.browser_checked_ids) ?? []);
@@ -1698,7 +1745,8 @@ export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[]
     }
     const fresh = await readJson<Record<string, unknown>>(cs, campaign_id);
     if (fresh) await writeJson(cs, campaign_id, { ...fresh, browser_checked_ids: [...checkedIds] });
-    if (status !== "SUCCEEDED") stopped = `The browser run ended early (${status}). Leads without results stay marked "needs browser check".`;
+    if (status !== "SUCCEEDED") stopped = `The browser run ended early (${status}${runMessage ? `: ${runMessage}` : ""}). Leads without results stay marked "needs browser check".`;
+    else if (leads.every((l) => !byLead.get(l.id)?.length)) stopped = `The browser could not open the websites (run ${status}${runMessage ? `: ${runMessage}` : ""}). Leads stay marked "needs browser check"; drafting still works.`;
   } catch (err) {
     stopped = err instanceof Error ? err.message : "Browser check failed";
   }
@@ -1724,8 +1772,7 @@ async function planReview(campaign_id: string, emailIds?: string[]): Promise<Arr
 export async function runReviewJob(p: { campaign_id: string; email_ids?: string[] }): Promise<void> {
   const { campaign_id } = p;
   const cs = store(OUTREACH_CAMPAIGNS);
-  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
-  if (!campaign?.job || campaign.job.kind !== "review" || campaign.job.status !== "running") return;
+  if (!(await waitForJob(campaign_id, "review"))) return;
   const t0 = Date.now();
   let done = 0;
   let stopped: string | null = null;
@@ -2526,13 +2573,23 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.delete": {
+        // Removes the campaign, all its leads and its unsent drafts. Emails that were already sent stay as history.
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
+        const leadsStore = store(OUTREACH_LEADS);
+        const emailsStore = store(OUTREACH_EMAILS);
+        let leadsDeleted = 0;
+        let draftsDeleted = 0;
+        let sentKept = 0;
+        for (const b of (await leadsStore.list({ prefix: `${id}/` })).blobs) { await leadsStore.delete(b.key); leadsDeleted++; }
+        for (const b of (await emailsStore.list({ prefix: `${id}/` })).blobs) {
+          const em = await readJson<{ status?: string }>(emailsStore, b.key);
+          if (em && em.status !== "drafted") { sentKept++; continue; }
+          await emailsStore.delete(b.key);
+          draftsDeleted++;
+        }
         await store(OUTREACH_CAMPAIGNS).delete(id);
-        // Note: we leave leads/emails orphaned on purpose. A cleanup
-        // sweeper can GC them later if we want. For now the listing queries
-        // by campaign_id prefix, so orphans are invisible.
-        return ok({ id, deleted: true });
+        return ok({ id, deleted: true, leads_deleted: leadsDeleted, drafts_deleted: draftsDeleted, sent_kept: sentKept });
       }
 
       case "outreach.campaign.run": {
@@ -3405,25 +3462,34 @@ export const handler: Handler = async (event) => {
         const modelKeys: Array<["draft_model" | "review_model" | "helper_model", "draft" | "review" | "helper"]> = [["draft_model", "draft"], ["review_model", "review"], ["helper_model", "helper"]];
         // The old single "gemini_model" field now sets the Drafting model.
         if (p.gemini_model !== undefined && p.draft_model === undefined) p.draft_model = p.gemini_model;
+        // The tests run side by side (one slow model must not eat the others' time: functions stop at ~26 s).
+        // A model that fails its test is NOT saved, but every other change still is, and the answer says which failed.
+        const todo: Array<{ field: "draft_model" | "review_model" | "helper_model"; v: string; test: Promise<{ ok: boolean; message: string }> | null }> = [];
         for (const [field, role] of modelKeys) {
           const v = text(field, 80);
           if (v === null) return fail(400, `${field} must be a string`);
           if (v === undefined || v === (current[field] ?? "")) continue;
           const usesSecond = next[`${role}_provider` as const] === "second";
           const chosen = v || (role === "review" ? DEFAULT_REVIEW_MODEL : DEFAULT_GEMINI_MODEL);
+          let test: Promise<{ ok: boolean; message: string }> | null = null;
           if (usesSecond) {
             // With the second provider the model name is the second provider's model.
-            if (skey && v) { const t = await testServiceKey("ai2", skey, chosen, { base_url: next.second_ai_base_url }); if (!t.ok) return fail(400, t.message); }
+            if (skey && v) test = testServiceKey("ai2", skey, chosen, { base_url: next.second_ai_base_url });
           } else if (gkey) {
-            const t = await testServiceKey("gemini", gkey, chosen);
-            if (!t.ok) return fail(400, t.message);
+            test = testServiceKey("gemini", gkey, chosen);
           }
-          next[field] = v;
-          if (field === "draft_model") next.gemini_model = v; // keep the legacy field in step
+          todo.push({ field, v, test });
         }
+        const modelErrors: Array<{ field: string; model: string; message: string }> = [];
+        const results = await Promise.all(todo.map((t) => t.test ?? Promise.resolve({ ok: true, message: "" })));
+        todo.forEach((t, i) => {
+          if (!results[i].ok) { modelErrors.push({ field: t.field, model: t.v, message: results[i].message }); return; }
+          next[t.field] = t.v;
+          if (t.field === "draft_model") next.gemini_model = t.v; // keep the legacy field in step
+        });
         next.updated_at = new Date().toISOString();
         await writeJson(store(OUTREACH_SETTINGS), "settings", next);
-        return ok(await settingsView(next));
+        return ok({ ...(await settingsView(next)), model_errors: modelErrors });
       }
 
       case "outreach.emails.send": {

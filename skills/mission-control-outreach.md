@@ -108,8 +108,8 @@ Gate 2 (real emails to real people). Everything else is autonomous.
 - `outreach.campaign.run` — **fires Apify**. Blocks 30s–3min. Writes
   one lead record per result. Only call after Gate 1.
   params: `{ id }`
-- `outreach.campaign.delete` — removes the campaign record. Leads &
-  emails remain in storage but become unreachable via the UI.
+- `outreach.campaign.delete` — deletes the campaign, ALL its leads and its
+  unsent drafts (permanent; confirm with the human first). Sent emails stay as history.
   params: `{ id }`
 
 ### Leads
@@ -238,7 +238,7 @@ cold strangers.
   to approve a send; poll `outreach.campaign.get` `job` (kind `review`).
 - `outreach.browsercheck.plan` / `outreach.browsercheck.start` —
   `{ campaign_id, lead_id? }`: real-browser website check for leads about to
-  be emailed (costs Apify credits; ALWAYS show the plan's estimated cost to
+  be emailed or reached another way (costs Apify credits; ALWAYS show the plan's estimated cost to
   the human first). If it fails, drafts are still written but never mention a
   website gap. Facts carry evidence (`site_check.evidence`, `owner_evidence`).
 - Settings: three models (`draft_model`, `review_model`, `helper_model`, each

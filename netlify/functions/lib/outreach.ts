@@ -113,14 +113,22 @@ export function normalizeDraft<T extends { subject: string; body_text: string; b
   };
 }
 
+const BUSINESS_WORDS = /\b(air|hvac|heating|cooling|plumbing|electric\w*|roofing|services?|experts?|pros?|company|co\.?|inc\.?|llc|usa|group|solutions|mechanical|conditioning|a\/c|ac)\b/i;
+
 /**
  * The greeting for a lead, or null when no person's first name is known (the
  * draft then opens with "Hi there,"). A business name is never used: scraped
  * leads only have a business name, so they get "Hi there,". A first name comes
  * from an explicit `contact_name`, or from a test lead's person-like name.
  */
-export function greetingFor(lead: { name?: string | null; contact_name?: string | null; is_test?: boolean }): string | null {
-  const personal = (lead.contact_name ?? "").trim() || (lead.is_test ? (lead.name ?? "").trim() : "");
+export function greetingFor(lead: { name?: string | null; contact_name?: string | null; is_test?: boolean; website?: string | null; owner_name?: string | null; owner_confidence?: string | null }): string | null {
+  // The code, never the model, decides who is greeted. Only a confirmed owner (high confidence, or typed in by
+  // the user) is used; a weak match ("low") or a business name always gives "Hi there,".
+  if (lead.owner_name && lead.owner_confidence && lead.owner_confidence !== "high") return null;
+  // A test lead's own name stands for a person only when it is not a business: leads copied from a real
+  // website (they have one) are named after the business, so greeting them by name would be wrong.
+  const testName = lead.is_test && !(lead.website ?? "").trim() && !BUSINESS_WORDS.test(lead.name ?? "") ? (lead.name ?? "").trim() : "";
+  const personal = (lead.contact_name ?? "").trim() || testName;
   if (!personal || /@/.test(personal)) return null;
   // A test lead added without a name gets its email's local part as the name
   // (e.g. "shiftforge.ai+t4") — not something to greet.

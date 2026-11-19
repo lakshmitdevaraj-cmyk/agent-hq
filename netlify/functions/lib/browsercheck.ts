@@ -38,13 +38,32 @@ export function browserInput(sites: Array<{ lead_id: string; base: string }>): R
     startUrls,
     pageFunction: BROWSER_PAGE_FUNCTION,
     proxyConfiguration: { useApifyProxy: true },
-    maxRequestsPerCrawl: startUrls.length,
+    // Do NOT wait for the network to go idle: sites with chat widgets and trackers (GoDaddy and others)
+    // never go idle, so every page timed out. The page function waits a few seconds for late widgets itself.
+    waitUntil: "domcontentloaded",
+    maxPagesPerCrawl: startUrls.length,
     maxConcurrency: 5,
     headless: true,
     ignoreSslErrors: true,
     maxRequestRetries: 1,
-    pageLoadTimeoutSecs: 40,
+    pageLoadTimeoutSecs: 30,
+    pageFunctionTimeoutSecs: 40,
+    downloadMedia: false, // images, fonts and video are not needed to see which scripts load
+    downloadCss: false,
+    maxScrollHeightPixels: 0,
   };
+}
+
+/** The few log lines worth showing on the banner: errors and failures, newest last, cleaned up and short. */
+export function logTail(log: string, maxLines = 6, maxChars = 700): string {
+  const lines = log
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*/, "").replace(/token=[^&\s]+/gi, "token=…").trim())
+    .filter(Boolean);
+  const bad = lines.filter((l) => /error|fail|timeout|exceeded|blocked|denied|refused/i.test(l));
+  const picked = (bad.length > 0 ? bad : lines).slice(-maxLines);
+  return picked.join("\n").slice(-maxChars);
 }
 
 /** Dataset items -> pages per lead (homepage first, one page per URL). */
