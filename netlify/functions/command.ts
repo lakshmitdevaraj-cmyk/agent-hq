@@ -21,7 +21,7 @@ import {
   isAutoReply,
 } from "./lib/outreach";
 import {
-  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName,
+  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck,
   type Page, type Owner,
 } from "./lib/sitecheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
@@ -692,21 +692,14 @@ async function geminiOwnerFallback(text: string, businessName: string, ai: Gemin
 
 type SiteCheckResult = { fields: Record<string, unknown>; emails: string[]; fetched: number; tried: string[] };
 
-async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
-  const started = Date.now();
+/**
+ * Turns fetched pages (plain download OR browser-rendered) into the lead fields:
+ * signals with evidence, social links, owner with evidence, hours wording, fit
+ * flags, gap score. Pure apart from the optional Gemini owner fallback.
+ */
+async function analyzeSite(lead: Record<string, unknown>, pages: Page[], via: "raw" | "browser", started = Date.now()): Promise<SiteCheckResult> {
   const checkedAt = new Date().toISOString();
-  const base = typeof lead.website === "string" ? siteBase(lead.website) : null;
-  const tried: string[] = [];
-  if (!base) return { fields: { site_check: { checked_at: checkedAt, error: "no website" } }, emails: [], fetched: 0, tried };
-  const urls = SITE_CHECK_PATHS.map((p) => new URL(p, base).toString());
-  tried.push(...urls);
-  const got = await Promise.all(urls.map((u) => fetchPage(u)));
-  // Several paths can redirect to the same page: keep each page once.
-  const seen = new Set<string>();
-  const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
-  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load (it may block automated visits)" } }, emails: [], fetched: 0, tried };
-
-  const { signals, sources } = detectSignals(pages);
+  const { signals, sources, evidence } = detectSignals(pages);
   const { social, sources: socialSources } = extractSocial(pages);
   const emails: string[] = [];
   for (const p of pages) for (const e of extractEmailsFromHtml(p.html)) if (!emails.includes(e) && !isGovEduEmail(e)) emails.push(e);
@@ -718,13 +711,30 @@ async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckRe
     if (about) {
       const n = await geminiOwnerFallback(pageText(about.html), name ?? "this business", { budgetMs: 8000, timeoutMs: 8000 });
       // The model's answer is never trusted as much as a pattern match: low confidence, shown for review only.
-      if (n) owner = { name: n, source_url: about.url, confidence: "low", how: "AI reading of the About page" };
+      if (n) owner = { name: n, source_url: about.url, confidence: "low", how: "AI reading of the About page", evidence: "Found by an AI reading of the About page; not confirmed by a clear sentence." };
     }
   }
 
-  const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals);
+  const wording = siteHoursWording(pages);
+  const fit = fitFlags(pages, typeof lead.website === "string" ? lead.website : null);
+  const nb = via === "browser" ? { needs: false, reason: null } : needsBrowserCheck(pages, signals);
+  const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals, { hoursUsable: wording.hours_usable });
   const fields: Record<string, unknown> = {
-    site_check: { checked_at: checkedAt, ...signals, pages_checked: pages.length, sources: { ...sources, ...socialSources } },
+    site_check: {
+      checked_at: checkedAt,
+      via,
+      ...signals,
+      pages_checked: pages.length,
+      sources: { ...sources, ...socialSources },
+      evidence,
+      hours_usable: wording.hours_usable,
+      advertises_emergency: wording.advertises_emergency,
+      hours_evidence: wording.evidence,
+      needs_browser: nb.needs,
+      needs_browser_reason: nb.reason,
+      not_home_service: fit.not_home_service,
+      lead_gen_listing: fit.lead_gen_listing,
+    },
     social,
     gap_score: gap.score,
     gap_reasons: gap.reasons,
@@ -732,14 +742,37 @@ async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckRe
   // An owner the user typed in is never overwritten by a re-check.
   if (lead.owner_source !== "manual") {
     if (owner) {
-      Object.assign(fields, { owner_name: owner.name, owner_source_url: owner.source_url, owner_confidence: owner.confidence, owner_source: owner.how });
+      Object.assign(fields, { owner_name: owner.name, owner_source_url: owner.source_url, owner_confidence: owner.confidence, owner_source: owner.how, owner_evidence: owner.evidence });
       // Only a high-confidence owner is used to greet the lead ("Hi Dana").
       fields.contact_name = owner.confidence === "high" ? owner.name : null;
-    } else if (lead.owner_name) {
-      // Nothing found this time: keep what we had.
+    } else if (lead.owner_name && lead.owner_confidence !== "high") {
+      // An older guess that this check can no longer confirm (could be a retired founder): drop it.
+      Object.assign(fields, { owner_name: null, owner_confidence: null, owner_source: null, owner_source_url: null, owner_evidence: null, contact_name: null });
     }
   }
-  return { fields, emails, fetched: pages.length, tried };
+  return { fields, emails, fetched: pages.length, tried: [] };
+}
+
+async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
+  const started = Date.now();
+  const checkedAt = new Date().toISOString();
+  const base = typeof lead.website === "string" ? siteBase(lead.website) : null;
+  const tried: string[] = [];
+  if (!base) {
+    const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
+    return { fields: { site_check: { checked_at: checkedAt, error: "no website" }, gap_score: g.score, gap_reasons: g.reasons }, emails: [], fetched: 0, tried };
+  }
+  const urls = SITE_CHECK_PATHS.map((p) => new URL(p, base).toString());
+  tried.push(...urls);
+  const got = await Promise.all(urls.map((u) => fetchPage(u)));
+  // A homepage that did not load gets one more, slower try (many sites are just slow).
+  if (!got[0]) got[0] = await fetchPage(urls[0], 12000);
+  // Several paths can redirect to the same page: keep each page once.
+  const seen = new Set<string>();
+  const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
+  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load (it may block automated visits)", needs_browser: true, needs_browser_reason: "The site did not load for a plain download; a browser may open it" } }, emails: [], fetched: 0, tried };
+  const res = await analyzeSite(lead, pages, "raw", started);
+  return { ...res, tried };
 }
 
 /** Best address from a list: role-based business addresses first. */
@@ -2371,12 +2404,16 @@ export const handler: Handler = async (event) => {
           return ok({ ...lead, enriched: false, reason: skip.message });
         }
         if (!lead.website) {
-          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, site_check: { checked_at: checkedAt, error: "no website" } });
+          const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
+          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, site_check: { checked_at: checkedAt, error: "no website" }, gap_score: g.score, gap_reasons: g.reasons });
           return ok({ ...lead, enriched: false, reason: "no website to scrape" });
         }
         try {
           const res = await checkLeadSite(lead);
-          const updated: Record<string, unknown> = { ...lead, ...res.fields, enrich_checked_at: checkedAt, updated_at: new Date().toISOString() };
+          // Re-read the lead right before writing: a check takes seconds, and a reply, a
+          // do-not-contact flag or an edit made meanwhile must not be overwritten.
+          const fresh = (await findLeadRow(campaign_id, lead_id))?.lead ?? lead;
+          const updated: Record<string, unknown> = { ...fresh, ...(lead.junk_email && !lead.email ? { email: null, junk_email: lead.junk_email } : {}), ...res.fields, enrich_checked_at: checkedAt, updated_at: new Date().toISOString() };
           let enriched = false;
           const skipEmail = !!skip && skip.code === "gov_edu_email";
           if (!hadEmail && !skipEmail) {
