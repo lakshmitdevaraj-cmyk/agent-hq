@@ -64,7 +64,7 @@ export default function Prospects() {
     });
     // Sort by gap score (unchecked leads last either way).
     return [...f].sort((a, b) => {
-      const x = a.gap_score, y = b.gap_score;
+      const x = a.gap_score ?? null, y = b.gap_score ?? null;
       if (x === null && y === null) return a.name.localeCompare(b.name);
       if (x === null) return 1;
       if (y === null) return -1;
