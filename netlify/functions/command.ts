@@ -21,9 +21,10 @@ import {
   isAutoReply,
 } from "./lib/outreach";
 import {
-  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck,
+  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing,
   type Page, type Owner,
 } from "./lib/sitecheck";
+import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 
 function slugify(s: string): string {
@@ -120,6 +121,7 @@ type OutreachSettings = {
   default_sender_company?: string;
   default_sender_offer?: string;
   sending_inbox_id?: string; // AgentMail inbox all NEW sends use (blank = the first inbox, as before)
+  browser_check_cap?: number; // most leads per campaign the Apify browser check may open (default 25)
   reply_alert_email?: string; // where a short "new reply" note is sent (blank = off)
   updated_at?: string;
 };
@@ -700,6 +702,16 @@ type SiteCheckResult = { fields: Record<string, unknown>; emails: string[]; fetc
 async function analyzeSite(lead: Record<string, unknown>, pages: Page[], via: "raw" | "browser", started = Date.now()): Promise<SiteCheckResult> {
   const checkedAt = new Date().toISOString();
   const { signals, sources, evidence } = detectSignals(pages);
+  if (via === "browser") {
+    // The browser only looks at a few pages: anything the earlier plain check found on other pages is kept.
+    const prior = (lead.site_check ?? {}) as Record<string, unknown>;
+    const priorEv = (prior.evidence ?? {}) as Record<string, string>;
+    for (const k of ["chat_widget", "booking_tool", "whatsapp_url", "contact_form_url"] as const) {
+      if (!signals[k] && typeof prior[k] === "string") { (signals as Record<string, unknown>)[k] = prior[k]; if (priorEv[k]) evidence[k] = priorEv[k]; }
+    }
+    if (!signals.has_contact_form && prior.has_contact_form === true) signals.has_contact_form = true;
+    if (signals.booking_tool) signals.request_form = false;
+  }
   const { social, sources: socialSources } = extractSocial(pages);
   const emails: string[] = [];
   for (const p of pages) for (const e of extractEmailsFromHtml(p.html)) if (!emails.includes(e) && !isGovEduEmail(e)) emails.push(e);
@@ -717,7 +729,7 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], via: "r
 
   const wording = siteHoursWording(pages);
   const fit = fitFlags(pages, typeof lead.website === "string" ? lead.website : null);
-  const nb = via === "browser" ? { needs: false, reason: null } : needsBrowserCheck(pages, signals);
+  const nb: { needs: boolean; reason: string | null } = via === "browser" ? { needs: false, reason: null } : needsBrowserCheck(pages, signals);
   const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals, { hoursUsable: wording.hours_usable });
   const fields: Record<string, unknown> = {
     site_check: {
@@ -745,7 +757,7 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], via: "r
       Object.assign(fields, { owner_name: owner.name, owner_source_url: owner.source_url, owner_confidence: owner.confidence, owner_source: owner.how, owner_evidence: owner.evidence });
       // Only a high-confidence owner is used to greet the lead ("Hi Dana").
       fields.contact_name = owner.confidence === "high" ? owner.name : null;
-    } else if (lead.owner_name && lead.owner_confidence !== "high") {
+    } else if (via === "raw" && lead.owner_name && lead.owner_confidence !== "high") {
       // An older guess that this check can no longer confirm (could be a retired founder): drop it.
       Object.assign(fields, { owner_name: null, owner_confidence: null, owner_source: null, owner_source_url: null, owner_evidence: null, contact_name: null });
     }
@@ -753,15 +765,22 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], via: "r
   return { fields, emails, fetched: pages.length, tried: [] };
 }
 
+/** A lead with no website: "No website" is the biggest gap; a trade-keyword-stuffed name with few reviews is flagged as a possible lead-gen listing. */
+function noWebsiteFields(lead: Record<string, unknown>, checkedAt: string): Record<string, unknown> {
+  const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
+  return {
+    site_check: { checked_at: checkedAt, error: "no website", lead_gen_listing: looksLikeLeadGenListing(lead as { name?: string; website?: string; reviews_count?: number }) },
+    gap_score: g.score,
+    gap_reasons: g.reasons,
+  };
+}
+
 async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
   const started = Date.now();
   const checkedAt = new Date().toISOString();
   const base = typeof lead.website === "string" ? siteBase(lead.website) : null;
   const tried: string[] = [];
-  if (!base) {
-    const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
-    return { fields: { site_check: { checked_at: checkedAt, error: "no website" }, gap_score: g.score, gap_reasons: g.reasons }, emails: [], fetched: 0, tried };
-  }
+  if (!base) return { fields: noWebsiteFields(lead, checkedAt), emails: [], fetched: 0, tried };
   const urls = SITE_CHECK_PATHS.map((p) => new URL(p, base).toString());
   tried.push(...urls);
   const got = await Promise.all(urls.map((u) => fetchPage(u)));
@@ -1252,6 +1271,118 @@ export async function runDraftJob(p: DraftJobParams): Promise<void> {
     message: stopped ?? (failures.length ? `${failures.length} failed. Click Generate emails again to retry just those.` : undefined),
     failures: failures.length ? failures : undefined,
   });
+}
+
+
+// ── Browser check (Apify playwright-scraper) ──────────────────────────
+// Chat and booking widgets on site builders (GoDaddy, Wix, ...) load with JavaScript, so a
+// plain download can miss them. For leads that will really be emailed, one Apify run opens
+// their pages in a real browser; the same detectors then read the rendered pages.
+// Runs in the ai-background function (start, poll, finish); progress is written to campaign.job.
+
+type BrowserCtx = ReturnType<typeof campaignSkipCtx>;
+
+function browserEligible(lead: Record<string, unknown>, ctx: BrowserCtx, forced: boolean): boolean {
+  if (!lead.website || typeof lead.website !== "string" || !siteBase(lead.website)) return false;
+  if (forced) return true;
+  const email = lead.email as string | null | undefined;
+  if (!email || isJunkEmail(email) || lead.do_not_contact || lead.excluded || lead.is_test) return false;
+  if (leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], ctx)) return false;
+  const sc = (lead.site_check ?? {}) as { needs_browser?: boolean; via?: string };
+  return sc.needs_browser === true && sc.via !== "browser";
+}
+
+async function planBrowserCheck(campaign_id: string, leadId?: string): Promise<{ lead_ids: string[]; names: string[]; leads: number; pages: number; est_usd: number; cap: number; used: number; remaining: number }> {
+  const campaign = await readJson<CampaignRecord & { browser_checked_ids?: string[] }>(store(OUTREACH_CAMPAIGNS), campaign_id);
+  if (!campaign) throw new Error("campaign not found");
+  const ctx = campaignSkipCtx(campaign);
+  const settings = await readOutreachSettings();
+  const cap = Math.max(1, Math.min(200, settings.browser_check_cap ?? BROWSER_DEFAULT_CAP));
+  const done = new Set(campaign.browser_checked_ids ?? []);
+  const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
+  let picked = leads.filter((l) => (leadId ? l.id === leadId : true) && browserEligible(l, ctx, !!leadId));
+  // New leads count against the cap; one already browser-checked in this campaign can be re-checked for free.
+  const remaining = Math.max(0, cap - done.size);
+  let room = remaining;
+  picked = picked.filter((l) => { if (done.has(l.id)) return true; if (room <= 0) return false; room--; return true; });
+  const est = estimateBrowserCost(picked.length);
+  return { lead_ids: picked.map((l) => l.id), names: picked.map((l) => String(l.name ?? l.id)), leads: picked.length, pages: est.pages, est_usd: est.usd, cap, used: done.size, remaining };
+}
+
+async function patchLeadFields(campaign_id: string, lead_id: string, patch: Record<string, unknown>): Promise<void> {
+  const found = await findLeadRow(campaign_id, lead_id);
+  if (!found) return;
+  await writeJson(store(OUTREACH_LEADS), found.key, { ...found.lead, ...patch, updated_at: new Date().toISOString() });
+}
+
+export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[] }): Promise<void> {
+  const { campaign_id } = p;
+  const cs = store(OUTREACH_CAMPAIGNS);
+  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
+  if (!campaign?.job || campaign.job.kind !== "browsercheck" || campaign.job.status !== "running") return;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const t0 = Date.now();
+  let done = 0;
+  let stopped: string | null = null;
+  try {
+    const apify = await readServiceKey("apify");
+    if (!apify) throw new Error("Apify key not configured");
+    const leads: Array<Record<string, unknown> & { id: string }> = [];
+    for (const id of p.lead_ids) {
+      const f = await findLeadRow(campaign_id, id);
+      if (f) leads.push(f.lead as Record<string, unknown> & { id: string });
+    }
+    const sites = leads.map((l) => ({ lead_id: l.id, base: siteBase(String(l.website))?.toString() ?? "" })).filter((x) => x.base);
+    if (sites.length === 0) throw new Error("No lead with a usable website");
+    const r = await fetch(`https://api.apify.com/v2/acts/${BROWSER_ACTOR}/runs?token=${encodeURIComponent(apify)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(browserInput(sites)) });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(r.status === 402 || /credit|limit|usage/i.test(txt) ? "Apify has no credit left for a browser check. Drafting still works; gaps just will not be mentioned for these leads." : `Apify browser run could not start (${r.status}): ${txt.slice(0, 160)}`);
+    }
+    const started = (await r.json()) as { data?: { id?: string } };
+    const runId = started.data?.id;
+    if (!runId) throw new Error("Apify did not return a run id");
+    await patchJob(campaign_id, { message: "The browser is opening the websites…", run_id: runId });
+    let datasetId: string | null = null;
+    let status = "RUNNING";
+    while (Date.now() - t0 < JOB_MAX_MS) {
+      await sleep(7000);
+      const st = await getApifyRunStatus(apify, runId);
+      status = st.status;
+      datasetId = st.defaultDatasetId ?? datasetId;
+      if (datasetId) {
+        try {
+          const items = await getApifyDatasetItems(apify, datasetId, 500);
+          done = new Set(items.map((i) => i.lead_id).filter((x): x is string => typeof x === "string")).size;
+          await patchJob(campaign_id, { done });
+        } catch { /* progress only */ }
+      }
+      if (["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status)) break;
+    }
+    if (!datasetId) throw new Error(`The browser run ended without results (${status}).`);
+    const items = await getApifyDatasetItems(apify, datasetId, 600);
+    const byLead = pagesByLead(items);
+    const checkedIds = new Set(((await readJson<{ browser_checked_ids?: string[] }>(cs, campaign_id))?.browser_checked_ids) ?? []);
+    for (const lead of leads) {
+      const pages = byLead.get(lead.id);
+      const nowIso = new Date().toISOString();
+      if (pages && pages.length > 0) {
+        const res = await analyzeSite(lead, pages, "browser");
+        await patchLeadFields(campaign_id, lead.id, { ...res.fields, browser_checked_at: nowIso });
+        checkedIds.add(lead.id);
+      } else {
+        // Keep the plain result, but say it is still uncertain so drafting and the reviewer do not trust gaps.
+        const sc = (lead.site_check ?? {}) as Record<string, unknown>;
+        await patchLeadFields(campaign_id, lead.id, { site_check: { ...sc, needs_browser: true, needs_browser_reason: "The browser check could not open this site", browser_error: "no pages loaded", browser_attempted_at: nowIso } });
+      }
+    }
+    const fresh = await readJson<Record<string, unknown>>(cs, campaign_id);
+    if (fresh) await writeJson(cs, campaign_id, { ...fresh, browser_checked_ids: [...checkedIds] });
+    if (status !== "SUCCEEDED") stopped = `The browser run ended early (${status}). Leads without results stay marked "needs browser check".`;
+  } catch (err) {
+    stopped = err instanceof Error ? err.message : "Browser check failed";
+  }
+  await patchJob(campaign_id, { status: stopped ? "stopped" : "done", done, finished_at: new Date().toISOString(), message: stopped ?? undefined });
 }
 
 export async function runPreviewJob(p: { id: string; query: string; max_results?: number }): Promise<void> {
@@ -1884,6 +2015,36 @@ export const handler: Handler = async (event) => {
         return rec ? ok(rec) : fail(404, "preview not found");
       }
 
+      case "outreach.browsercheck.plan": {
+        // How many leads a browser check would open and what it would cost (an estimate), shown before anything starts.
+        const { campaign_id, lead_id } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
+        try {
+          return ok(await planBrowserCheck(campaign_id, typeof lead_id === "string" ? lead_id : undefined));
+        } catch (err) {
+          return fail(404, err instanceof Error ? err.message : "campaign not found");
+        }
+      }
+
+      case "outreach.browsercheck.start": {
+        // Records the job; the page then POSTs { task: "browsercheck", params: { campaign_id, lead_ids } } to ai-background.
+        const { campaign_id, lead_id } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
+        if (!(await readServiceKey("apify"))) return fail(400, "Apify key not configured. Add it in Settings to use the browser check.");
+        const cs = store(OUTREACH_CAMPAIGNS);
+        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        if (!campaign) return fail(404, "campaign not found");
+        const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
+        if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
+          return failCode(409, "A job is already running for this campaign. Wait for it to finish.", "job_running");
+        }
+        const plan = await planBrowserCheck(campaign_id, typeof lead_id === "string" ? lead_id : undefined);
+        if (plan.leads === 0) return fail(400, plan.remaining <= 0 && plan.used > 0 ? `The browser check limit for this campaign (${plan.cap} leads) is reached. You can raise it in Settings.` : "No lead needs a browser check right now.");
+        const now = new Date().toISOString();
+        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "browsercheck", status: "running", total: plan.leads, done: 0, started_at: now, progress_at: now, message: "Starting the browser…" }, updated_at: now });
+        return ok({ ...plan, started_at: now });
+      }
+
       case "outreach.draft.start": {
         // Validates and records a drafting job; the page then POSTs the same parameters to the
         // ai-background function, which does the slow work and writes progress to campaign.job.
@@ -2404,8 +2565,7 @@ export const handler: Handler = async (event) => {
           return ok({ ...lead, enriched: false, reason: skip.message });
         }
         if (!lead.website) {
-          const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
-          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, site_check: { checked_at: checkedAt, error: "no website" }, gap_score: g.score, gap_reasons: g.reasons });
+          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, ...noWebsiteFields(lead, checkedAt) });
           return ok({ ...lead, enriched: false, reason: "no website to scrape" });
         }
         try {
@@ -2744,6 +2904,7 @@ export const handler: Handler = async (event) => {
           default_sender_offer: rec.default_sender_offer ?? "",
           sending_inbox_id: rec.sending_inbox_id ?? "",
           reply_alert_email: rec.reply_alert_email ?? "",
+          browser_check_cap: rec.browser_check_cap ?? BROWSER_DEFAULT_CAP,
         });
       }
 

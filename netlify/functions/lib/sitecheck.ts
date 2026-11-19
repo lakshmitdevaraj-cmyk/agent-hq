@@ -51,6 +51,8 @@ const CHAT_WIDGETS: Array<[string, RegExp]> = [
   ["Gorgias", /config\.gorgias\.chat|gorgias-chat/i],
   ["Wix Chat", /wix-chat|wixchat|ascend\.wix\.com\/chat/i],
   ["GoHighLevel chat", /widgets\.leadconnectorhq\.com\/chat-widget|chat-widget\.leadconnectorhq|leadconnector[^"'\s]*chat/i],
+  ["Broadly", /broadly\.com\/(?:widget|webchat)|webchat\.broadly|broadly-widget/i],
+  ["Kenect", /kenect\.com|webchat\.kenect|kenect-widget/i],
   ["Smith.ai", /smith\.ai\/widget|widget\.smith\.ai/i],
   ["Hatch", /hatch\.co\/(?:widget|chat)|webchat\.hatch/i],
   ["Signpost", /signpost\.com\/(?:widget|chat)|webchat\.signpost/i],
@@ -408,7 +410,7 @@ const CURRENT_VERBS = "(?:purchased|bought|acquired|took over|now owns|now runs|
 type Pat = { rx: RegExp; how: string; confidence: "high" | "low"; founderOnly?: boolean; current?: boolean };
 const OWNER_PATTERNS: Pat[] = [
   // Someone who bought / took over the business is the CURRENT owner, whoever founded it.
-  { rx: new RegExp(`${NAME}\\s+${CURRENT_VERBS}`, "g"), how: "bought/took over", confidence: "high", current: true },
+  { rx: new RegExp(`${NAME}(?:,[^,.]{1,70},)?\\s+${CURRENT_VERBS}`, "g"), how: "bought/took over", confidence: "high", current: true },
   { rx: new RegExp(`(?:[Pp]urchased|[Aa]cquired|[Bb]ought|[Tt]aken over)(?:\\s+in\\s+\\d{4})?\\s+by\\s+${NAME}\\b`, "g"), how: "purchased by", confidence: "high", current: true },
   { rx: new RegExp(`(?:[Oo]wned|[Rr]un|[Oo]perated)(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "owned by", confidence: "high" },
   { rx: new RegExp(`(?:[Ff]ounded|[Ss]tarted|[Ee]stablished)(?:\\s+in\\s+\\d{4})?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "founded by", confidence: "low", founderOnly: true },
@@ -420,7 +422,7 @@ const OWNER_PATTERNS: Pat[] = [
 ];
 
 /** Words that say a person is NOT the current owner. */
-const FORMER = /\b(retired|retiring|retirement|former(?:ly)?|previous|past owner|original owner|sold the (?:company|business)|sold (?:it|his|her|their)|stepped down|passed (?:away|the torch)|handed (?:over|down)|was (?:the )?(?:owner|founder|president)|originally (?:founded|started)|late)\b/i;
+const FORMER = /\b(retired|retiring|retirement|former(?:ly)?|previous|past owner|original owner|sold the (?:company|business)|sold (?:it|his|her|their)|stepped down|passed (?:away|the torch)|handed (?:over|down)|was (?:the )?(?:owner|founder|president)|originally (?:founded|started)|the late)\b/i;
 
 function sentenceAround(text: string, idx: number, len: number): string {
   const before = text.slice(Math.max(0, idx - 260), idx);
@@ -437,7 +439,7 @@ function isFormer(text: string, m: RegExpExecArray, name: string): boolean {
   const pos = m.index + m[0].indexOf(name);
   const before = text.slice(Math.max(0, pos - 50), pos);
   const after = text.slice(pos + name.length, pos + name.length + 80);
-  if (new RegExp(`^\\s*,?\\s*${CURRENT_VERBS}`, "i").test(after)) return false;
+  if (new RegExp(`^(?:,[^,.]{1,70},)?\\s*,?\\s*${CURRENT_VERBS}`, "i").test(after)) return false;
   const cutAfter = after.split(/[.!?]/)[0];
   return FORMER.test(before) || FORMER.test(cutAfter);
 }
@@ -633,4 +635,13 @@ export function reachAnotherWay(lead: { social?: Partial<Social> | null; site_ch
   if (so.linkedin_person) out.push({ kind: "linkedin_person", url: so.linkedin_person });
   if (sc?.whatsapp_url) out.push({ kind: "whatsapp", url: sc.whatsapp_url });
   return out;
+}
+
+/** No website, a name stuffed with "<trade> Repair/Crew/Experts" and almost no reviews: often a lead-gen / fake listing. Label only. */
+export function looksLikeLeadGenListing(lead: { name?: string | null; website?: string | null; reviews_count?: number | null }): string | null {
+  if (lead.website && lead.website.trim()) return null;
+  const name = lead.name ?? "";
+  if (typeof lead.reviews_count === "number" && lead.reviews_count >= 10) return null;
+  if (/(?:emergency|hvac|\bac\b|a\/c|air conditioning|plumb\w*|heating|roofing)\s+(?:repair|crew|experts?|pros?)\b/i.test(name)) return "No website, a name stuffed with trade keywords, and few reviews";
+  return null;
 }
