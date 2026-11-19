@@ -71,7 +71,8 @@ export function extractAnchors(html: string, base: string): Anchor[] {
   let m: RegExpExecArray | null;
   while ((m = rx.exec(html))) {
     const raw = (m[1] ?? m[2] ?? "").trim().replace(/&amp;/g, "&");
-    if (!raw || raw.startsWith("#") || /^(?:mailto|tel|javascript):/i.test(raw)) continue;
+    // "#book" style links are kept: a "Book online" button often opens a booking pop-up.
+    if (!raw || /^(?:mailto|tel|javascript):/i.test(raw)) continue;
     let href: string;
     try {
       href = new URL(raw, base).toString();
@@ -184,6 +185,9 @@ export function extractSocial(pages: Page[]): { social: Social; sources: Record<
 
 // ── Owner / founder ───────────────────────────────────────────────────
 
+/** A founder page can honour someone who has died ("In memoriam", "the late ..."): never greet them. */
+const DECEASED = /in memoriam|in loving memory|passed away|the late\b|rest in peace|\bR\.?I\.?P\b|deceased|\(\s*19\d\d\s*[-–]\s*(?:19|20)\d\d\s*\)/i;
+
 export type Owner = { name: string; source_url: string; confidence: "high" | "low"; how: string };
 
 const NAME_STOP = new Set([
@@ -248,10 +252,12 @@ export function pageText(html: string): string {
 
 const NAME = "([A-Z][a-z]+(?:['-][A-Z][a-z]+)?(?:\\s+[A-Z]\\.)?\\s+[A-Z][a-z]+(?:['-][A-Z][a-z]+)?)";
 const ROLE = "(?:[Oo]wner|[Ff]ounder|[Cc]o-?[Ff]ounder|[Pp]resident|CEO)";
+// "Owner", "Owner and President", "Founder / CEO": a heading that may stack several titles.
+const ROLES = `${ROLE}(?:\\s*(?:and|&|/|,)\\s*(?:${ROLE}|[Oo]perator|[Gg]eneral [Mm]anager))*`;
 const OWNER_PATTERNS: Array<{ rx: RegExp; how: string; confidence: "high" | "low" }> = [
   { rx: new RegExp(`(?:[Ff]ounded|[Oo]wned|[Ss]tarted|[Ee]stablished|[Rr]un|[Oo]perated)(?:\\s+in\\s+\\d{4})?(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "founded/owned by", confidence: "high" },
-  { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?${ROLE}\\b`, "g"), how: "name, owner/founder", confidence: "high" },
-  { rx: new RegExp(`\\b${ROLE}(?:\\s*[:\\-–—|]\\s*|\\s+)${NAME}`, "g"), how: "owner: name", confidence: "high" },
+  { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?${ROLES}\\b`, "g"), how: "name, owner/founder", confidence: "high" },
+  { rx: new RegExp(`\\b${ROLES}(?:\\s*[:\\-–—|.]\\s*|\\s+)${NAME}`, "g"), how: "owner: name", confidence: "high" },
   { rx: new RegExp(`\\b[Mm]eet\\s+(?:the\\s+owner,?\\s+|our\\s+(?:owner|founder),?\\s+)?${NAME}`, "g"), how: "meet name", confidence: "low" },
 ];
 
@@ -267,6 +273,7 @@ function ldPeople(html: string): Array<{ name: string; role: string }> {
     const type = String(o["@type"] ?? "");
     if (/Person/i.test(type) && typeof o.name === "string") {
       const job = typeof o.jobTitle === "string" ? o.jobTitle : "";
+      if (DECEASED.test(`${job} ${typeof o.description === "string" ? o.description : ""}`)) return;
       if (role || /owner|founder|president|ceo/i.test(job)) out.push({ name: o.name, role: role || job });
     }
     for (const k of ["founder", "founders", "owner"]) if (o[k]) walk(o[k], k);
@@ -299,6 +306,7 @@ export function findOwner(pages: Page[], businessName?: string | null): Owner | 
       while ((m = pat.rx.exec(text))) {
         const name = m[1].replace(/\s+/g, " ").trim();
         if (!validPersonName(name, businessName)) continue;
+        if (DECEASED.test(text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 160))) continue;
         if (pat.confidence === "high") return { name, source_url: p.url, confidence: "high", how: pat.how };
         low ??= { name, source_url: p.url, confidence: "low", how: pat.how };
         break;

@@ -5,3 +5,8 @@
 - Deleting a draft then sending right away may still send it.
 - Editing a lead's email then drafting may use the old address.
 - Idea: send the page's known state with draft/send requests (as done for the exclude tick), recheck drafts at send time.
+
+## Notes from batch 5
+- John Moore Services (and other sites) answer 403 to automated visits: the check reports "website did not load" and moves on. We do not disguise the request.
+- Owner found only by the Gemini fallback is stored as low confidence (shown for review, not used in greetings). Retype it on the lead to confirm.
+- Re-check of an old campaign refreshes gap/social/owner only; it never fills an email for a lead that already has one.

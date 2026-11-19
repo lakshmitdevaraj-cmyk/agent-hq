@@ -704,7 +704,7 @@ async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckRe
   // Several paths can redirect to the same page: keep each page once.
   const seen = new Set<string>();
   const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
-  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load" } }, emails: [], fetched: 0, tried };
+  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load (it may block automated visits)" } }, emails: [], fetched: 0, tried };
 
   const { signals, sources } = detectSignals(pages);
   const { social, sources: socialSources } = extractSocial(pages);
