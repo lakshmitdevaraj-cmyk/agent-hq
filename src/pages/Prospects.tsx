@@ -6,7 +6,7 @@ import GlassCard from "@/components/GlassCard";
 import { OwnerField, SiteDetails } from "@/components/SiteDetails";
 import { call } from "@/lib/api";
 import { GapBadge, LinkIcons, leadLinks, reachAnotherWay, shortDate } from "@/lib/leadInfo";
-import { STATUS_LABEL, areaOf, downloadCsv, prospectsToCsv, type EmailState, type Prospect } from "@/lib/prospects";
+import { HAS_OPTIONS, REVIEW_LABEL, STATUS_LABEL, areaOf, downloadCsv, fitLabels, hasChannel, prospectsToCsv, type HasKey, type EmailState, type Prospect } from "@/lib/prospects";
 
 const HIGH_GAP = 60;
 const STATUS_TONE: Record<EmailState, string> = {
@@ -25,7 +25,8 @@ export default function Prospects() {
   const [err, setErr] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showTests, setShowTests] = useState(false);
-  const [hasLinkedin, setHasLinkedin] = useState(false);
+  const [hasAny, setHasAny] = useState<HasKey[]>([]);
+  const [reviewF, setReviewF] = useState("");
   const [reachOnly, setReachOnly] = useState(false);
   const [highGap, setHighGap] = useState(false);
   const [noReply, setNoReply] = useState(false);
@@ -53,7 +54,8 @@ export default function Prospects() {
 
   const shown = useMemo(() => {
     const f = base.filter((r) => {
-      if (hasLinkedin && !(r.social?.linkedin_company || r.social?.linkedin_person)) return false;
+      if (hasAny.length > 0 && !hasAny.some((k) => hasChannel(r, k))) return false;
+      if (reviewF && (r.review_status ?? "") !== reviewF) return false;
       if (reachOnly && !(!r.email && reachAnotherWay(r).length > 0)) return false;
       if (highGap && !((r.gap_score ?? -1) >= HIGH_GAP)) return false;
       if (noReply && r.email_status !== "emailed") return false;
@@ -70,7 +72,7 @@ export default function Prospects() {
       if (y === null) return -1;
       return asc ? x - y : y - x;
     });
-  }, [base, hasLinkedin, reachOnly, highGap, noReply, campaign, niche, area, asc]);
+  }, [base, hasAny, reviewF, reachOnly, highGap, noReply, campaign, niche, area, asc]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const patchRow = (id: string, patch: Record<string, unknown>) => setRows((prev) => prev.map((r) => (r.id === id ? ({ ...r, ...patch } as Prospect) : r)));
@@ -94,7 +96,16 @@ export default function Prospects() {
 
       <GlassCard className="mb-5">
         <div className="flex flex-wrap items-center gap-2">
-          <button className={chip(hasLinkedin)} onClick={() => setHasLinkedin(!hasLinkedin)}>Has LinkedIn</button>
+          <span className="text-[11px] text-white/50 font-bold">Has:</span>
+          {HAS_OPTIONS.map((o) => (
+            <button key={o.key} className={chip(hasAny.includes(o.key))} onClick={() => setHasAny(hasAny.includes(o.key) ? hasAny.filter((x) => x !== o.key) : [...hasAny, o.key])}>{o.label}</button>
+          ))}
+          <select className={selectCls} value={reviewF} onChange={(e) => setReviewF(e.target.value)} aria-label="Draft review">
+            <option value="">Any draft review</option>
+            <option value="ready">Draft ready</option>
+            <option value="check">Draft needs check</option>
+            <option value="blocked">Draft blocked</option>
+          </select>
           <button className={chip(reachOnly)} onClick={() => setReachOnly(!reachOnly)}>No email, but form or social</button>
           <button className={chip(highGap)} onClick={() => setHighGap(!highGap)}>High gap ({HIGH_GAP}+)</button>
           <button className={chip(noReply)} onClick={() => setNoReply(!noReply)}>Emailed, no reply</button>
@@ -135,6 +146,7 @@ export default function Prospects() {
                   <th className="py-2 pr-3 font-bold">Area</th>
                   <th className="py-2 pr-3 font-bold"><button onClick={() => setAsc(!asc)} className="uppercase font-bold" title="Sort by gap score">Gap {asc ? "▲" : "▼"}</button></th>
                   <th className="py-2 pr-3 font-bold">Email</th>
+                  <th className="py-2 pr-3 font-bold">Draft</th>
                   <th className="py-2 font-bold">Links</th>
                 </tr>
               </thead>
@@ -143,6 +155,7 @@ export default function Prospects() {
                   <tr key={r.id} onClick={() => setSelectedId(r.id)} className={`border-b border-white/[0.06] hover:bg-white/[0.05] cursor-pointer ${selectedId === r.id ? "bg-primary/[0.07]" : ""}`}>
                     <td className="py-2 pr-3 text-white font-medium max-w-[220px] truncate">
                       {r.name}{r.is_test && <span className="ml-1.5 text-[9px] text-accent">TEST</span>}
+                      {fitLabels(r).map((t) => <span key={t} title={t} className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-300">{t.includes("lead-gen") ? "Check: lead-gen?" : "Check: not home service?"}</span>)}
                       {!r.email && reachAnotherWay(r).length > 0 && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-purple/15 border border-purple/40 text-purple">Reach another way</span>}
                     </td>
                     <td className="py-2 pr-3 text-white/70">{r.owner_name ? `${r.owner_name}${r.owner_confidence === "low" ? " ?" : ""}` : <span className="text-white/30">-</span>}</td>
@@ -154,6 +167,9 @@ export default function Prospects() {
                     <td className="py-2 pr-3"><GapBadge score={r.gap_score} reasons={r.gap_reasons} /></td>
                     <td className="py-2 pr-3">
                       <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-mono ${STATUS_TONE[r.email_status]}`}>{STATUS_LABEL[r.email_status]}</span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      {r.review_status ? <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-mono ${r.review_status === "ready" ? "border-green-500/40 text-green-300 bg-green-500/10" : r.review_status === "blocked" ? "border-red-500/40 text-red-300 bg-red-500/10" : "border-amber-500/40 text-amber-300 bg-amber-500/10"}`}>{REVIEW_LABEL[r.review_status]}</span> : <span className="text-white/30">-</span>}
                     </td>
                     <td className="py-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1"><LinkIcons items={leadLinks(r)} size={11} /></div>

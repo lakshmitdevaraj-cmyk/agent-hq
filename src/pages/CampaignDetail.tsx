@@ -26,6 +26,9 @@ import {
   X,
   MoreHorizontal,
   Radar,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
 } from "lucide-react";
 import { OwnerField, SiteDetails } from "@/components/SiteDetails";
 import { GapBadge, LinkIcons, foundSocialText, leadLinks, ownerText, reachAnotherWay, shortDate, type LeadInfo } from "@/lib/leadInfo";
@@ -72,7 +75,7 @@ type Campaign = {
 // campaign so its progress survives page reloads and navigation. Progress
 // itself is derived from the data (drafts / leads stamped since started_at).
 type Job = {
-  kind: "generate" | "enrich" | "sitecheck";
+  kind: "generate" | "enrich" | "sitecheck" | "browsercheck" | "review";
   resume?: boolean; // continue a stopped website check: keep its original start time
   status: "running" | "done" | "stopped";
   total: number;
@@ -130,6 +133,12 @@ type EmailRow = {
   framework?: Framework | null;
   source?: string; // "agent_drafted" when injected via emails.create
   edited?: boolean;
+  review_status?: "ready" | "check" | "blocked"; // the AI reviewer's verdict (older drafts: "check", not reviewed yet)
+  review_reasons?: string[];
+  reviewed_by?: string | null; // model that reviewed it, "you", or "code checks"
+  written_by?: string | null; // model that wrote it
+  review_history?: Array<{ at: string; subject: string; body_text: string }>; // originals kept when the reviewer reworded a draft
+  blocked_lead_skipped?: boolean; // its lead was skipped: this draft will never be sent
   sent_at?: string;
   blocked_do_not_contact?: boolean; // recipient said no: this draft will never be sent
   blocked_contact?: string; // "already contacted in another campaign" / "bounced earlier": will not be sent
@@ -162,6 +171,7 @@ export default function CampaignDetail() {
   // Which job THIS tab is driving right now (so the banner can tell "running"
   // from "interrupted": a job left 'running' by a closed tab).
   const [localJob, setLocalJob] = useState<"generate" | "enrich" | "sitecheck" | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<"all" | "ready" | "check" | "blocked">("all");
   const [localDone, setLocalDone] = useState<number | null>(null);
   const [leadMenu, setLeadMenu] = useState<string | null>(null);
   useEffect(() => {
@@ -172,7 +182,7 @@ export default function CampaignDetail() {
   }, [leadMenu]);
   // Batch sending: how many queued drafts to send per click (oldest first).
   const [sendCount, setSendCount] = useState("5");
-  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number; skipped: number } | null>(null);
+  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number; skipped: number; notReady: number; blocked: number; excluded: number } | null>(null);
   const [editDraft, setEditDraft] = useState<EmailRow | null>(null);
   // Drafts ticked for "Send selected" (overrides the batch size).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -240,10 +250,17 @@ export default function CampaignDetail() {
   // Tick / untick a lead for drafting. Optimistic, rolled back if the server refuses.
   async function setLeadExcluded(leadId: string, excluded: boolean) {
     if (!id) return;
+    // Skipping a lead that already has unsent drafts: offer to delete them (a draft for a skipped lead is never sent either way).
+    const drafts = excluded ? emails.filter((e) => e.lead_id === leadId && e.status === "drafted").length : 0;
+    const deleteDrafts = drafts > 0 && confirm(`This lead already has ${drafts} unsent draft${drafts === 1 ? "" : "s"}.\n\nOK = skip the lead AND delete the draft${drafts === 1 ? "" : "s"}.\nCancel = just skip the lead (the draft stays but will never be sent).`);
+    if (deleteDrafts) {
+      for (const e of emails) if (e.lead_id === leadId && e.status === "drafted") noteDeleted("email", e.id);
+      setEmails((prev) => prev.filter((e) => !(e.lead_id === leadId && e.status === "drafted")));
+    }
     noteExcluded(leadId, excluded);
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded } : l)));
     try {
-      await call("outreach.leads.update", { campaign_id: id, lead_id: leadId, excluded });
+      await call("outreach.leads.update", { campaign_id: id, lead_id: leadId, excluded, ...(deleteDrafts ? { delete_drafts: true } : {}) });
     } catch (e) {
       noteExcluded(leadId, !excluded);
       setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded: !excluded } : l)));
@@ -306,14 +323,18 @@ export default function CampaignDetail() {
     return Math.min(Math.max(Number.isFinite(n) && n >= 1 ? n : 1, 1), Math.max(queued, 1));
   }
 
-  const selectedDrafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && selectedIds.has(e.id)).length;
+  const unsendable = (e: EmailRow) => !!(e.blocked_do_not_contact || e.blocked_contact || e.blocked_lead_skipped || (e.review_status ?? "check") === "blocked");
+  const selectedDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && selectedIds.has(e.id)).length;
+  const readyDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "ready").length;
+  const checkDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "check").length;
+  const blockedDrafts = emails.filter((e) => e.status === "drafted" && (e.review_status ?? "check") === "blocked").length;
 
   async function runSend(params: Record<string, unknown>, limit: number) {
     setBusyAction("send");
     setErr(null);
     try {
-      const res = await call<{ sent: number; queued: number; errors: unknown[]; skipped_contacted?: unknown[] }>("outreach.emails.send", { campaign_id: id, limit, ...params });
-      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0, skipped: res.skipped_contacted?.length ?? 0 });
+      const res = await call<{ sent: number; queued: number; errors: unknown[]; skipped_contacted?: unknown[]; skipped_not_ready?: number; skipped_blocked?: number; skipped_excluded?: number }>("outreach.emails.send", { campaign_id: id, limit, ...params });
+      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0, skipped: res.skipped_contacted?.length ?? 0, notReady: res.skipped_not_ready ?? 0, blocked: res.skipped_blocked ?? 0, excluded: res.skipped_excluded ?? 0 });
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Send failed");
@@ -334,23 +355,25 @@ export default function CampaignDetail() {
   // Sends exactly the ticked drafts, ignoring the batch size.
   async function sendSelected() {
     if (!id) return;
-    const picked = emails.filter((e) => e.status === "drafted" && !e.blocked_contact && !e.blocked_do_not_contact && selectedIds.has(e.id));
+    const picked = emails.filter((e) => e.status === "drafted" && !unsendable(e) && selectedIds.has(e.id));
     if (picked.length === 0) return;
     const list = picked.map((e) => e.to_email).join("\n");
-    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.\n\n${list}`)) return;
-    await runSend({ email_ids: picked.map((e) => e.id) }, picked.length);
+    const needCheck = picked.filter((e) => (e.review_status ?? "check") === "check").length;
+    const warn = needCheck > 0 ? `\n\n${needCheck} of these ${needCheck === 1 ? "has" : "have"} NOT passed the AI check yet ("Check this"). Send ${needCheck === 1 ? "it" : "them"} anyway?` : "";
+    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.${warn}\n\n${list}`)) return;
+    await runSend({ email_ids: picked.map((e) => e.id), ...(needCheck > 0 ? { allow_check: true } : {}) }, picked.length);
     setSelectedIds(new Set());
   }
 
   async function sendAll() {
     if (!id) return;
-    const drafted = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length;
+    const drafted = readyDrafts;
     if (drafted === 0) {
-      alert("No drafted emails to send. Generate drafts first.");
+      alert(checkDrafts + blockedDrafts > 0 ? "No drafts are ready to send. Only drafts that passed the AI check ('Ready') are sent. Click 'Review all' in the Emails list, or tick drafts and use 'Send selected'." : "No drafted emails to send. Generate drafts first.");
       return;
     }
     const n = batchSize(drafted);
-    if (!confirm(`Send ${n} of ${drafted} queued emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.`)) return;
+    if (!confirm(`Send ${n} of ${drafted} ready emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.${checkDrafts + blockedDrafts > 0 ? `\n\n${checkDrafts + blockedDrafts} draft${checkDrafts + blockedDrafts === 1 ? "" : "s"} that did not pass the AI check will not be sent.` : ""}`)) return;
     await runSend({}, n);
   }
 
@@ -359,10 +382,10 @@ export default function CampaignDetail() {
   async function sendStep(step: number) {
     if (!id) return;
     const draftsAtStep = emails.filter(
-      (e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && (e.sequence_position ?? 1) === step,
+      (e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "ready" && (e.sequence_position ?? 1) === step,
     ).length;
     if (draftsAtStep === 0) {
-      alert(`No drafted emails at step ${step}.`);
+      alert(`No ready drafts at step ${step}. Only drafts that passed the AI check are sent; use "Review all" in the Emails list.`);
       return;
     }
     const n = batchSize(draftsAtStep);
@@ -396,6 +419,50 @@ export default function CampaignDetail() {
       setEmails((prev) => prev.filter((e) => e.id !== email.id));
     } catch (e) {
       alert(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  // AI reviewer: checks every draft that is not "ready" yet (or just the given ones). Runs in the background.
+  async function startReview(emailIds?: string[]) {
+    if (!id) return;
+    setErr(null);
+    try {
+      await call("outreach.emails.review.start", { campaign_id: id, ...(emailIds ? { email_ids: emailIds } : {}) });
+      await callBackground("review", { campaign_id: id, ...(emailIds ? { email_ids: emailIds } : {}) });
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not start the review");
+    }
+  }
+
+  async function markReady(email: EmailRow) {
+    if (!id) return;
+    try {
+      await call("outreach.emails.update", { campaign_id: id, email_id: email.id, review_status: "ready" });
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not mark it ready");
+    }
+  }
+
+  // Browser check: opens the sites in a real browser (Apify) because chat/booking widgets on site builders
+  // load with JavaScript. Shows the estimated cost first. Drafting never waits for it.
+  async function startBrowserCheck(leadId?: string) {
+    if (!id) return;
+    setErr(null);
+    try {
+      const plan = await call<{ lead_ids: string[]; names: string[]; leads: number; pages: number; est_usd: number; cap: number; used: number; remaining: number }>("outreach.browsercheck.plan", { campaign_id: id, ...(leadId ? { lead_id: leadId } : {}) });
+      if (plan.leads === 0) {
+        alert(plan.remaining <= 0 && plan.used > 0 ? `The browser check limit for this campaign (${plan.cap} leads) is reached. You can raise it in Settings.` : "No website needs a browser check right now.");
+        return;
+      }
+      const names = plan.names.slice(0, 6).join(", ") + (plan.names.length > 6 ? `, and ${plan.names.length - 6} more` : "");
+      if (!confirm(`Check ${plan.leads} website${plan.leads === 1 ? "" : "s"} in a real browser?\n\n${names}\n\nThis uses your Apify account: about ${plan.pages} pages, estimated cost about $${plan.est_usd.toFixed(2)}. It takes a few minutes and runs in the background. (Limit for this campaign: ${plan.cap} leads, ${plan.used} used.)`)) return;
+      await call("outreach.browsercheck.start", { campaign_id: id, ...(leadId ? { lead_id: leadId } : {}) });
+      await callBackground("browsercheck", { campaign_id: id, lead_ids: plan.lead_ids });
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not start the browser check");
     }
   }
 
@@ -496,8 +563,8 @@ export default function CampaignDetail() {
         }
       }
     }
-    // Drafting runs on the server and reports its own count; other jobs are derived from the data.
-    if (job.kind === "generate" && typeof job.done === "number") {
+    // Drafting, reviewing and the browser check run on the server and report their own count; other jobs are derived from the data.
+    if ((job.kind === "generate" || job.kind === "browsercheck" || job.kind === "review") && typeof job.done === "number") {
       done = job.done;
       lastActivity = Date.parse(job.progress_at ?? job.started_at);
     }
@@ -505,11 +572,11 @@ export default function CampaignDetail() {
     done = Math.min(done, job.total);
     // 'running' with no loop in this tab (or no server progress) for a while = interrupted.
     // A server-side draft waits up to ~60 s per Gemini call plus a retry, so give it 4 minutes.
-    const serverJob = job.kind === "generate";
+    const serverJob = job.kind === "generate" || job.kind === "browsercheck" || job.kind === "review";
     const interrupted =
       job.status === "running" &&
       (serverJob || localJob !== job.kind) &&
-      Date.now() - lastActivity > (serverJob ? 240_000 : 120_000);
+      Date.now() - lastActivity > (job.kind === "browsercheck" ? 900_000 : serverJob ? 240_000 : 120_000);
     return { job, done, found, interrupted };
   }, [campaign?.job, emails, leads, localJob, localDone]);
 
@@ -624,7 +691,9 @@ export default function CampaignDetail() {
       {/* Persistent job progress — stays until the job finishes (survives reloads) */}
       {jobView && (() => {
         const { job, done, found, interrupted } = jobView;
-        const noun = job.kind === "generate" ? "drafts" : job.kind === "sitecheck" ? "checked" : "sites checked";
+        const noun = job.kind === "generate" ? "drafts" : job.kind === "review" ? "drafts reviewed" : job.kind === "browsercheck" ? "sites opened in the browser" : job.kind === "sitecheck" ? "checked" : "sites checked";
+        const title = job.kind === "generate" ? "Drafting" : job.kind === "review" ? "Reviewing drafts" : job.kind === "browsercheck" ? "Browser check" : job.kind === "sitecheck" ? "Checking websites" : "Finding emails";
+        const again = job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "review" ? "Click Review all to carry on." : job.kind === "browsercheck" ? "Click Check in browser to try again." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Find emails to continue.";
         const running = job.status === "running" && !interrupted;
         const tone = running
           ? "border-primary/40 bg-primary/10 text-primary"
@@ -638,9 +707,9 @@ export default function CampaignDetail() {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold">
                   {running
-                    ? `${job.kind === "generate" ? "Drafting" : job.kind === "sitecheck" ? "Checking websites" : "Finding emails"}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}`
+                    ? `${title}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}${job.message && job.kind === "browsercheck" ? ` · ${job.message}` : ""}`
                     : interrupted
-                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" ? "It stopped making progress." : "The tab driving it was closed."} ${job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Find emails to continue."}`
+                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" || job.kind === "review" || job.kind === "browsercheck" ? "It stopped making progress." : "The tab driving it was closed."} ${again}`
                       : job.status === "stopped"
                         ? `Stopped at ${done} of ${job.total} ${noun}. ${job.message ?? ""}`
                         : `Finished: ${done} of ${job.total} ${noun}. ${job.message ?? ""}`}
@@ -780,7 +849,7 @@ export default function CampaignDetail() {
             onClick={sendAll}
             busy={busyAction === "send"}
             label="Send campaign"
-            sublabel={counters && counters.sent > 0 ? `${counters.sent} sent · ${counters.drafts} queued` : "Sends the batch size below, oldest first"}
+            sublabel={counters && counters.sent > 0 ? `${counters.sent} sent · ${readyDrafts} ready to send` : "Sends the ready drafts, oldest first, up to the batch size"}
             icon={<Send size={16} />}
             tint="accent"
           />
@@ -806,9 +875,14 @@ export default function CampaignDetail() {
           <span className="text-sm text-white/80 font-mono" data-testid="send-summary">
             {counters?.sent ?? 0} sent, {counters?.drafts ?? 0} still queued
           </span>
+          {(counters?.drafts ?? 0) > 0 && (
+            <span className="text-xs font-mono text-white/60">
+              <span className="text-green-300">{readyDrafts} ready</span> · <span className="text-amber-300">{checkDrafts} check this</span> · <span className="text-red-300">{blockedDrafts} blocked</span>
+            </span>
+          )}
           {lastSend && (
             <span className="text-xs text-white/50 font-mono">
-              last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}{lastSend.skipped > 0 ? `, ${lastSend.skipped} skipped (already contacted or bounced)` : ""}
+              last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}{lastSend.skipped > 0 ? `, ${lastSend.skipped} skipped (already contacted or bounced)` : ""}{lastSend.notReady > 0 ? `, ${lastSend.notReady} not sent (not checked yet)` : ""}{lastSend.blocked > 0 ? `, ${lastSend.blocked} blocked` : ""}{lastSend.excluded > 0 ? `, ${lastSend.excluded} for skipped leads` : ""}
             </span>
           )}
           <button
@@ -823,7 +897,7 @@ export default function CampaignDetail() {
               Clear selection
             </button>
           )}
-          <span className="text-[11px] text-white/40 ml-auto">Tick drafts in the Emails list to pick exactly which to send; otherwise oldest go first.</span>
+          <span className="text-[11px] text-white/40 ml-auto">"Send" only sends drafts that passed the AI check. Tick drafts to send exact ones (a "check this" draft asks you to confirm first).</span>
         </div>
       )}
 
@@ -986,6 +1060,22 @@ export default function CampaignDetail() {
                 </button>
               );
             })()}
+            {(() => {
+              const needing = leads.filter((l) => l.email && !l.excluded && !l.do_not_contact && !l.is_test && !l.skip_reason && l.site_check?.needs_browser && l.site_check?.via !== "browser").length;
+              const running = campaign.job?.kind === "browsercheck" && campaign.job.status === "running";
+              if (needing === 0 && !running) return null;
+              return (
+                <button
+                  onClick={() => void startBrowserCheck()}
+                  disabled={running}
+                  title="Some websites load their chat and booking tools with JavaScript, so a plain look can miss them. This opens them in a real browser (Apify) before you write to them. You see the estimated cost first."
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
+                >
+                  {running ? <Loader2 size={13} className="animate-spin" /> : <Radar size={13} />}
+                  {running ? "Browser check running…" : `Check in browser (${needing})`}
+                </button>
+              );
+            })()}
             <button
               onClick={() => setTestModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/40 text-accent text-xs font-bold tracking-wide transition"
@@ -1063,6 +1153,7 @@ export default function CampaignDetail() {
                         </span>
                       ))}
                       <GapBadge score={l.gap_score} reasons={l.gap_reasons} />
+                      <FitLabels lead={l} />
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-white/50 font-mono mt-0.5 flex-wrap">
                       {l.email && <span className="text-white/70">{l.email}</span>}
@@ -1118,6 +1209,11 @@ export default function CampaignDetail() {
                               {l.excluded ? "Include this lead" : "Skip this lead"}
                             </button>
                           )}
+                          {l.website && !l.is_test && (
+                            <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void startBrowserCheck(l.id); }}>
+                              Re-check in browser
+                            </button>
+                          )}
                           {l.skip_code === "other_trade" && (
                             <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, true); }}>
                               Include anyway (different trade)
@@ -1145,6 +1241,27 @@ export default function CampaignDetail() {
           <Mail size={16} className="text-purple" />
           <h3 className="font-display text-sm tracking-widest uppercase text-white/75 font-bold">Emails</h3>
           <span className="text-xs font-mono text-white/50">({emails.length})</span>
+          {emails.some((e) => e.status === "drafted") && (
+            <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+              {(["all", "ready", "check", "blocked"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setReviewFilter(f)}
+                  className={`px-2 py-1 rounded-md border text-[11px] font-semibold transition ${reviewFilter === f ? "bg-primary/20 border-primary/50 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white"}`}
+                >
+                  {f === "all" ? "All" : f === "ready" ? `Ready (${readyDrafts})` : f === "check" ? `Check this (${checkDrafts})` : `Blocked (${blockedDrafts})`}
+                </button>
+              ))}
+              <button
+                onClick={() => void startReview()}
+                disabled={campaign.job?.status === "running"}
+                title="The AI checker reads each draft against what we found on the lead's website and marks it Ready, Check this or Blocked."
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-[11px] font-bold transition disabled:opacity-50"
+              >
+                <ShieldCheck size={11} /> Review all
+              </button>
+            </div>
+          )}
         </div>
         {emails.length === 0 ? (
           <div className="text-center py-10 text-white/50 text-sm">
@@ -1153,7 +1270,7 @@ export default function CampaignDetail() {
         ) : (
           <>
             <div className="space-y-2">
-              {emails.map((e) => {
+              {emails.filter((e) => reviewFilter === "all" || (e.status === "drafted" && (e.review_status ?? "check") === reviewFilter)).map((e) => {
                 const pos = e.sequence_position ?? 1;
                 const total = e.sequence_total ?? 1;
                 const showStep = total > 1;
@@ -1164,7 +1281,7 @@ export default function CampaignDetail() {
                     className="rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] p-3 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && (
+                      {e.status === "drafted" && !unsendable(e) && (
                         <input
                           type="checkbox"
                           checked={selectedIds.has(e.id)}
@@ -1187,6 +1304,12 @@ export default function CampaignDetail() {
                       <span className="text-xs text-white/50 font-mono">to</span>
                       <span className="text-sm text-white font-medium truncate">{e.to_email}</span>
                       <StatusPill status={e.status} />
+                      {e.status === "drafted" && <ReviewBadge status={e.review_status ?? "check"} />}
+                      {e.blocked_lead_skipped && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/20 text-white/70 text-[10px] font-bold tracking-wider uppercase" title="You skipped this lead, so this draft will never be sent.">
+                          Lead skipped
+                        </span>
+                      )}
                       {e.blocked_contact && (
                         <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-bold tracking-wider uppercase" title="This draft will not be sent.">
                           {/bounced/i.test(e.blocked_contact) ? "Bounced earlier" : "Already contacted"}
@@ -1205,6 +1328,23 @@ export default function CampaignDetail() {
                       <div className="ml-auto flex items-center gap-1" onClick={(ev) => ev.stopPropagation()}>
                         {e.status === "drafted" && (
                           <>
+                            {(e.review_status ?? "check") !== "ready" && (
+                              <button
+                                onClick={() => void markReady(e)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-300 text-[11px] font-semibold transition"
+                                title="I have read it myself: mark it ready to send"
+                              >
+                                <Check size={11} /> Mark ready
+                              </button>
+                            )}
+                            <button
+                              onClick={() => void startReview([e.id])}
+                              disabled={campaign.job?.status === "running"}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple/10 hover:bg-purple/20 border border-purple/30 text-purple text-[11px] font-semibold transition disabled:opacity-40"
+                              title="Run the AI check on this draft again"
+                            >
+                              <ShieldCheck size={11} /> Review again
+                            </button>
                             <button
                               onClick={() => setEditDraft(e)}
                               className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-[11px] font-semibold transition"
@@ -1226,6 +1366,17 @@ export default function CampaignDetail() {
                     </div>
                     <p className="text-sm font-semibold text-white mb-0.5">{e.subject}</p>
                     <p className="text-xs text-white/55 line-clamp-2 whitespace-pre-wrap">{e.body_text}</p>
+                    {e.status === "drafted" && (e.review_reasons?.length ?? 0) > 0 && (e.review_status ?? "check") !== "ready" && (
+                      <ul className={`mt-1.5 text-[11px] list-disc pl-5 ${(e.review_status ?? "check") === "blocked" ? "text-red-300/90" : "text-amber-300/90"}`}>
+                        {e.review_reasons!.map((r, i) => <li key={i}>{r}</li>)}
+                      </ul>
+                    )}
+                    {e.status === "drafted" && (e.review_status ?? "check") === "ready" && (e.review_reasons?.length ?? 0) > 0 && (
+                      <p className="mt-1 text-[11px] text-green-300/80">{e.review_reasons![0]}</p>
+                    )}
+                    {e.status === "drafted" && (e.written_by || e.reviewed_by) && (
+                      <p className="mt-1 text-[10px] text-white/35 font-mono">{e.written_by ? `written by ${e.written_by}` : ""}{e.written_by && e.reviewed_by ? " · " : ""}{e.reviewed_by ? `checked by ${e.reviewed_by}` : ""}</p>
+                    )}
                   </div>
                 );
               })}
@@ -1291,6 +1442,38 @@ export default function CampaignDetail() {
 
 // ──────────────────────────────────────────────────────────────────────
 // Sub-components
+
+function ReviewBadge({ status }: { status: "ready" | "check" | "blocked" }) {
+  const map = {
+    ready: { label: "Ready", cls: "bg-green-500/15 border-green-500/40 text-green-300", Icon: ShieldCheck },
+    check: { label: "Check this", cls: "bg-amber-500/15 border-amber-500/40 text-amber-300", Icon: ShieldAlert },
+    blocked: { label: "Blocked", cls: "bg-red-500/15 border-red-500/40 text-red-300", Icon: ShieldX },
+  }[status];
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-wider uppercase ${map.cls}`}>
+      <map.Icon size={10} /> {map.label}
+    </span>
+  );
+}
+
+/** Warning labels from the website check. They only inform; you decide. */
+function FitLabels({ lead }: { lead: Lead }) {
+  const sc = lead.site_check;
+  const items: Array<{ text: string; title: string }> = [];
+  if (sc?.not_home_service) items.push({ text: "Check: may not be a home-service business", title: sc.not_home_service });
+  if (sc?.lead_gen_listing) items.push({ text: "Check: may be a lead-gen listing", title: sc.lead_gen_listing });
+  if (sc?.needs_browser && sc.via !== "browser") items.push({ text: "Needs browser check", title: sc.needs_browser_reason ?? "Chat and booking tools may load with JavaScript" });
+  else if (sc?.via === "browser") items.push({ text: "Browser-checked", title: "Facts come from a real browser check" });
+  return (
+    <>
+      {items.map((i) => (
+        <span key={i.text} title={i.title} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${i.text === "Browser-checked" ? "bg-green-500/10 border-green-500/30 text-green-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"}`}>
+          {i.text}
+        </span>
+      ))}
+    </>
+  );
+}
 
 function ActionButton({
   onClick,
@@ -1638,6 +1821,16 @@ function GenerateEmailsModal({
               <span className="font-mono text-amber-300">{skippedExcluded}</span>
             </div>
           )}
+          {(() => {
+            const needing = leadsWithEmail.filter((l) => l.site_check?.needs_browser && l.site_check?.via !== "browser").length;
+            if (needing === 0) return null;
+            return (
+              <div className="text-[11px] text-amber-300/90 pt-1">
+                {needing} lead{needing === 1 ? "" : "s"} still need a browser check, so their emails are written without mentioning a website gap. Close this and click "Check in browser" first if you want the gap included. Drafting never waits for it.
+              </div>
+            );
+          })()}
+          <div className="text-[11px] text-white/45 pt-1">Every draft is checked by the AI reviewer after it is written. Only drafts marked Ready are sent by "Send".</div>
           {skippedQuality > 0 && (
             <div className="flex justify-between text-xs">
               <span className="text-amber-300/80">Chains, other trades, already contacted, bounced, .gov/.edu and out-of-state leads (skipped)</span>

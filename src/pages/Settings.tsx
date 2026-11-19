@@ -6,6 +6,12 @@ import OnboardingWizard from "@/components/OnboardingWizard";
 import { call } from "@/lib/api";
 
 type ServiceKey = "gemini" | "apify" | "agentmail";
+type Role = "draft" | "review" | "helper";
+const ROLES: { key: Role; title: string; hint: string }[] = [
+  { key: "draft", title: "Drafting", hint: "Writes the emails." },
+  { key: "review", title: "Reviewer", hint: "Checks every draft before it can be sent." },
+  { key: "helper", title: "Helper", hint: "Small jobs: owner lookup, audience preview." },
+];
 
 type ServiceStatus = {
   configured: boolean;
@@ -207,6 +213,11 @@ function SendingSettings() {
 type OutreachDefaults = {
   gemini_model: string;
   default_gemini_model: string;
+  draft_model: string; review_model: string; helper_model: string;
+  default_draft_model: string; default_review_model: string; default_helper_model: string;
+  draft_provider: "gemini" | "second"; review_provider: "gemini" | "second"; helper_provider: "gemini" | "second";
+  second_ai_base_url: string; second_ai_model: string; second_ai_configured: boolean;
+  browser_check_cap: number;
   default_sender_name: string;
   default_sender_company: string;
   default_sender_offer: string;
@@ -229,7 +240,7 @@ function OutreachDefaultsSettings() {
 
   if (!form || !saved) return null;
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
-  const set = (k: keyof OutreachDefaults, v: string) => setForm({ ...form, [k]: v });
+  const set = (k: keyof OutreachDefaults, v: string | number) => setForm({ ...form, [k]: v });
   const input = "mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60";
   const label = "text-xs font-bold tracking-wider uppercase text-white/60";
 
@@ -239,7 +250,9 @@ function OutreachDefaultsSettings() {
     setMsg(null);
     try {
       const r = await call<OutreachDefaults>("outreach.settings.set", {
-        gemini_model: form.gemini_model,
+        draft_model: form.draft_model, review_model: form.review_model, helper_model: form.helper_model,
+        draft_provider: form.draft_provider, review_provider: form.review_provider, helper_provider: form.helper_provider,
+        browser_check_cap: Number(form.browser_check_cap),
         default_sender_name: form.default_sender_name,
         default_sender_company: form.default_sender_company,
         default_sender_offer: form.default_sender_offer,
@@ -260,13 +273,32 @@ function OutreachDefaultsSettings() {
       <h3 className="font-display text-lg font-bold text-white mb-1">Drafting defaults</h3>
       <p className="text-sm text-white/65 mb-3">
         These prefill the "Generate emails" form for every campaign (a campaign's own saved sender details win).
-        Changing the Gemini model runs a real test call first, so a wrong name fails here, not mid-campaign.
+        Changing a model runs a real test call first, so a wrong name fails here, not mid-campaign.
       </p>
       <div className="grid gap-3">
+        {ROLES.map((r) => {
+          const mk = `${r.key}_model` as keyof OutreachDefaults;
+          const pk = `${r.key}_provider` as keyof OutreachDefaults;
+          const dk = `default_${r.key}_model` as keyof OutreachDefaults;
+          const second = form[pk] === "second";
+          return (
+            <div key={r.key}>
+              <label htmlFor={`m-${r.key}`} className={label}>{r.title} model <span className="normal-case font-normal text-white/40">· {r.hint}</span></label>
+              <div className="flex gap-2">
+                <select aria-label={`${r.title} provider`} value={String(form[pk])} onChange={(e) => set(pk, e.target.value)} className={`${input} !w-40`}>
+                  <option value="gemini">Gemini</option>
+                  <option value="second" disabled={!form.second_ai_configured}>Second provider{form.second_ai_configured ? "" : " (not set)"}</option>
+                </select>
+                <input id={`m-${r.key}`} value={second ? form.second_ai_model : String(form[mk])} disabled={second} onChange={(e) => set(mk, e.target.value)} className={input} />
+              </div>
+              <div className="text-[11px] text-white/45 mt-1">{second ? "Uses the model set in the Second AI provider card below." : `Default: ${String(form[dk])}`}</div>
+            </div>
+          );
+        })}
         <div>
-          <label htmlFor="g-model" className={label}>Gemini model</label>
-          <input id="g-model" value={form.gemini_model} onChange={(e) => set("gemini_model", e.target.value)} className={input} />
-          <div className="text-[11px] text-white/45 mt-1">Default: {form.default_gemini_model}</div>
+          <label htmlFor="b-cap" className={label}>Browser check limit per campaign</label>
+          <input id="b-cap" type="number" min={0} max={200} value={form.browser_check_cap} onChange={(e) => set("browser_check_cap", e.target.value === "" ? 0 : Number(e.target.value))} className={`${input} !w-32`} />
+          <div className="text-[11px] text-white/45 mt-1">Most leads each campaign can be re-checked in a real browser (Apify credits). Each check is about half a cent per page; you see the estimate before it starts.</div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -292,6 +324,87 @@ function OutreachDefaultsSettings() {
           {busy && <Loader2 size={12} className="animate-spin" />} {busy ? "Testing and saving…" : "Save"}
         </button>
         {msg && <span className={`text-xs ${msg.ok ? "text-white/60" : "text-red-300"}`}>{msg.text}</span>}
+      </div>
+    </GlassCard>
+  );
+}
+
+function SecondProviderSettings() {
+  const [form, setForm] = useState<{ base: string; model: string; configured: boolean; masked: string | null } | null>(null);
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function load() {
+    try {
+      const [o, c] = await Promise.all([call<OutreachDefaults>("outreach.settings.get"), call<ConfigStatus & Record<string, ServiceStatus>>("config.status")]);
+      setForm({ base: o.second_ai_base_url, model: o.second_ai_model, configured: o.second_ai_configured, masked: (c as Record<string, ServiceStatus>).ai2?.masked ?? null });
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { void load(); }, []);
+  if (!form) return null;
+  const input = "mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60";
+  const label = "text-xs font-bold tracking-wider uppercase text-white/60";
+
+  async function save() {
+    if (!form) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await call("outreach.settings.set", { second_ai_base_url: form.base, second_ai_model: form.model });
+      if (key.trim()) await call("config.set", { service: "ai2", key: key.trim() });
+      else if (form.configured) await call("config.test", { service: "ai2" });
+      setKey("");
+      await load();
+      setMsg({ ok: true, text: "Saved and tested: it works." });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Save failed" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    if (!confirm("Remove the second provider key? Any model set to use it goes back to Gemini.")) return;
+    setBusy(true);
+    try {
+      await call("config.clear", { service: "ai2" });
+      await call("outreach.settings.set", { draft_provider: "gemini", review_provider: "gemini", helper_provider: "gemini" });
+      await load();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Failed" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <GlassCard className="mt-6">
+      <h3 className="font-display text-lg font-bold text-white mb-1">Second AI provider <span className="text-xs font-normal text-white/45">(optional)</span></h3>
+      <p className="text-sm text-white/65 mb-3">
+        Any OpenAI-compatible service (DeepSeek by default). If Gemini is busy or out of quota, drafting and reviewing fall back to this one automatically.
+        You can also pick it as the Drafting, Reviewer or Helper model above. A fallback never makes an unreviewed draft "ready".
+      </p>
+      <div className="grid gap-3">
+        <div>
+          <label htmlFor="a2-url" className={label}>Base URL</label>
+          <input id="a2-url" value={form.base} onChange={(e) => setForm({ ...form, base: e.target.value })} className={input} />
+        </div>
+        <div>
+          <label htmlFor="a2-model" className={label}>Model</label>
+          <input id="a2-model" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className={input} />
+        </div>
+        <div>
+          <label htmlFor="a2-key" className={label}>API key {form.configured && <span className="normal-case font-mono text-white/45">· saved {form.masked}</span>}</label>
+          <input id="a2-key" type="password" autoComplete="off" placeholder={form.configured ? "Leave empty to keep the saved key" : "Paste key"} value={key} onChange={(e) => setKey(e.target.value)} className={input} />
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mt-3">
+        <button onClick={save} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40">
+          {busy && <Loader2 size={12} className="animate-spin" />} {busy ? "Testing…" : "Save and test"}
+        </button>
+        {form.configured && <button onClick={remove} disabled={busy} className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-semibold"><Trash2 size={12} /></button>}
+        {msg && <span className={`text-xs ${msg.ok ? "text-green-300" : "text-red-300"}`}>{msg.text}</span>}
       </div>
     </GlassCard>
   );
@@ -572,6 +685,7 @@ export default function Settings() {
       </div>
 
       <OutreachDefaultsSettings />
+      <SecondProviderSettings />
       <SendingSettings />
       <MoveSiteSettings />
       <FooterSettings />

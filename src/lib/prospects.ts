@@ -19,7 +19,42 @@ export type Prospect = LeadInfo & {
   hours_summary: string | null;
   checked_at: string | null;
   owner_source?: string | null;
+  review_status?: "ready" | "check" | "blocked" | null;
 };
+
+export type HasKey = "linkedin" | "facebook" | "instagram" | "whatsapp" | "form" | "email" | "phone";
+export const HAS_OPTIONS: { key: HasKey; label: string }[] = [
+  { key: "linkedin", label: "LinkedIn" },
+  { key: "facebook", label: "Facebook" },
+  { key: "instagram", label: "Instagram" },
+  { key: "whatsapp", label: "WhatsApp" },
+  { key: "form", label: "Contact form" },
+  { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
+];
+
+export function hasChannel(r: Prospect, k: HasKey): boolean {
+  const so = r.social ?? {};
+  switch (k) {
+    case "linkedin": return !!(so.linkedin_company || so.linkedin_person);
+    case "facebook": return !!so.facebook;
+    case "instagram": return !!so.instagram;
+    case "whatsapp": return !!r.site_check?.whatsapp_url;
+    case "form": return !!r.site_check?.contact_form_url;
+    case "email": return !!r.email;
+    case "phone": return !!r.phone;
+  }
+}
+
+export const REVIEW_LABEL: Record<string, string> = { ready: "Ready", check: "Check", blocked: "Blocked" };
+
+/** Warning labels from the website check (empty when nothing looks off). */
+export function fitLabels(r: Prospect): string[] {
+  const out: string[] = [];
+  if (r.site_check?.not_home_service) out.push("Check: may not be a home-service business");
+  if (r.site_check?.lead_gen_listing) out.push("Check: may be a lead-gen listing");
+  return out;
+}
 
 export const STATUS_LABEL: Record<EmailState, string> = {
   not_emailed: "Not emailed",
@@ -47,14 +82,14 @@ const csvCell = (v: unknown): string => {
 };
 
 export function prospectsToCsv(rows: Prospect[]): string {
-  const head = ["Business", "Owner", "Owner confidence", "Campaign", "Niche", "Area", "Address", "Email", "Phone", "Gap score", "Gap reasons", "Email status", "Emailed on", "Website", "LinkedIn company", "LinkedIn person", "Facebook", "Instagram", "WhatsApp", "Contact form", "Yelp", "Nextdoor", "Google reviews", "Google Maps"];
+  const head = ["Business", "Owner", "Owner confidence", "Campaign", "Niche", "Area", "Address", "Email", "Phone", "Gap score", "Gap reasons", "Email status", "Draft review", "Warnings", "Emailed on", "Website", "LinkedIn company", "LinkedIn person", "Facebook", "Instagram", "WhatsApp", "Contact form", "Yelp", "Nextdoor", "Google reviews", "Google Maps"];
   const lines = [head.map(csvCell).join(",")];
   for (const r of rows) {
     const so = r.social ?? {};
     lines.push(
       [
         r.name, r.owner_name, r.owner_confidence, r.campaign_name, r.category, areaOf(r.address), r.address, r.email, r.phone,
-        r.gap_score, (r.gap_reasons ?? []).join("; "), STATUS_LABEL[r.email_status], r.emailed_at ? r.emailed_at.slice(0, 10) : "", r.website,
+        r.gap_score, (r.gap_reasons ?? []).join("; "), STATUS_LABEL[r.email_status], r.review_status ? REVIEW_LABEL[r.review_status] : "", fitLabels(r).join("; "), r.emailed_at ? r.emailed_at.slice(0, 10) : "", r.website,
         so.linkedin_company, so.linkedin_person, so.facebook, so.instagram, r.site_check?.whatsapp_url, r.site_check?.contact_form_url,
         so.yelp, so.nextdoor, so.google_reviews, r.maps_url,
       ].map(csvCell).join(","),
