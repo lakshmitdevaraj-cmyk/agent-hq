@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { connectLambda } from "@netlify/blobs";
 import { nanoid } from "nanoid";
-import { store, readJson, writeJson, listJson } from "./lib/blobs";
+import { store, readJson, writeJson, listJson, listJsonFast } from "./lib/blobs";
 import { getOrCreateApiKey, identifyApiKey, createAgentKey, hasApiKey, rotateApiKey } from "./lib/auth";
 import {
   appendFooter,
@@ -18,7 +18,12 @@ import {
   cleanEmail,
   isJunkEmail,
   extractEmailsFromHtml,
+  isAutoReply,
 } from "./lib/outreach";
+import {
+  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, reachAnotherWay,
+  type Page, type Owner,
+} from "./lib/sitecheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 
 function slugify(s: string): string {
@@ -114,6 +119,8 @@ type OutreachSettings = {
   default_sender_name?: string;
   default_sender_company?: string;
   default_sender_offer?: string;
+  sending_inbox_id?: string; // AgentMail inbox all NEW sends use (blank = the first inbox, as before)
+  reply_alert_email?: string; // where a short "new reply" note is sent (blank = off)
   updated_at?: string;
 };
 
@@ -318,10 +325,15 @@ async function agentmailFetch(key: string, path: string, init: RequestInit = {})
 
 type AgentMailInbox = { inbox_id: string; email?: string; display_name?: string };
 
-async function getOrCreateCampaignInbox(key: string, campaignName: string): Promise<AgentMailInbox> {
-  // Try to list inboxes first — if we have one already, reuse it. Most
-  // attendees will only ever have one default inbox on free tier. We pick
-  // the first one. If none exists, create a default.
+async function getOrCreateCampaignInbox(key: string, campaignName: string, preferredId?: string): Promise<AgentMailInbox> {
+  // A sending inbox chosen in Settings wins. If it has been deleted we stop with a clear
+  // message instead of quietly sending from a different address.
+  if (preferredId) {
+    const r = await agentmailFetch(key, `/inboxes/${encodeURIComponent(preferredId)}`);
+    if (r.ok) return (await r.json()) as AgentMailInbox;
+    throw new Error(`The sending inbox chosen in Settings (${preferredId}) could not be found in AgentMail (${r.status}). Pick another one in Settings.`);
+  }
+  // Otherwise reuse the first inbox on the account (most accounts only have one); create one if none exists.
   const listR = await agentmailFetch(key, "/inboxes?limit=10");
   if (listR.ok) {
     const body = (await listR.json()) as { inboxes?: AgentMailInbox[] };
@@ -421,9 +433,12 @@ Cross-framework continuity rule:
 const DRAFT_FIRST_EMAIL_RULE = `This is the FIRST email. Never use "Re:" in the subject, never write "following up", "as I mentioned" or any reference to an earlier message.`;
 
 /** The system prompt: the sequence section only for sequences; the first-email rule for one-offs and step 1. */
-export function buildDraftPrompt(isSequence: boolean, step = 1): string {
+const DRAFT_FACTS_RULE = `FACTS RULE: the recipient section may include "Website gaps", rating, review count and opening hours that we observed. Mention AT MOST ONE specific gap, and only if it is listed there and relevant; phrase it as something you noticed ("I could not find an online booking option on your site"), never as an accusation. Never invent facts, numbers or tools. If nothing useful is listed, do not mention any gap. Do not list several gaps.`;
+const DRAFT_ANY_TRADE_RULE = `TRADE-NEUTRAL: the recipient may be any home-service business. Do not assume or name a specific trade (HVAC, plumbing, roofing...) unless the Category line says so; say "your business" or "your customers".`;
+
+export function buildDraftPrompt(isSequence: boolean, step = 1, extras: { facts?: boolean; anyTrade?: boolean } = {}): string {
   const first = !isSequence || step <= 1;
-  return [DRAFT_BASE_PROMPT, isSequence ? DRAFT_SEQUENCE_PROMPT : "", first ? DRAFT_FIRST_EMAIL_RULE : ""].filter(Boolean).join("\n\n");
+  return [DRAFT_BASE_PROMPT, isSequence ? DRAFT_SEQUENCE_PROMPT : "", first ? DRAFT_FIRST_EMAIL_RULE : "", extras.facts ? DRAFT_FACTS_RULE : "", extras.anyTrade ? DRAFT_ANY_TRADE_RULE : ""].filter(Boolean).join("\n\n");
 }
 
 type EmailDraft = { subject: string; body_text: string; body_html: string };
@@ -437,8 +452,8 @@ type SequenceContext = {
 
 async function generateEmailDraft(
   geminiKey: string,
-  lead: { name?: string; contact_name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean },
-  senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string },
+  lead: { name?: string; contact_name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean; rating?: number | null; reviews_count?: number | null; gap_reasons?: string[]; hours_summary?: string | null },
+  senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string; any_trade?: boolean },
   sequence: SequenceContext = {},
   ai: GeminiAiOpts = {},
 ): Promise<EmailDraft> {
@@ -450,10 +465,14 @@ async function generateEmailDraft(
     lead.category ? `Category: ${lead.category}` : null,
     lead.address ? `Location: ${lead.address}` : null,
     lead.website ? `Website: ${lead.website}` : null,
+    typeof lead.rating === "number" ? `Google rating: ${lead.rating}${typeof lead.reviews_count === "number" ? ` (${lead.reviews_count} reviews)` : ""}` : null,
+    lead.hours_summary ? `Opening hours: ${lead.hours_summary}` : null,
+    lead.gap_reasons && lead.gap_reasons.length > 0 ? `Website gaps we observed (pick at most one): ${lead.gap_reasons.join("; ")}` : null,
     lead.notes ? `Notes: ${lead.notes}` : null,
   ]
     .filter(Boolean)
     .join("\n");
+  const hasFacts = !!(lead.gap_reasons?.length || lead.hours_summary || typeof lead.rating === "number");
 
   const senderSummary = [
     senderContext.sender_name ? `Sender name: ${senderContext.sender_name}` : null,
@@ -482,7 +501,7 @@ async function generateEmailDraft(
   }
 
   const body = {
-    systemInstruction: { role: "system", parts: [{ text: buildDraftPrompt(!!isSequence, sequence.step ?? 1) }] },
+    systemInstruction: { role: "system", parts: [{ text: buildDraftPrompt(!!isSequence, sequence.step ?? 1, { facts: hasFacts, anyTrade: senderContext.any_trade === true }) }] },
     contents: [
       {
         role: "user",
@@ -615,52 +634,118 @@ async function getApifyDatasetItems(
   return (await r.json()) as Array<Record<string, unknown>>;
 }
 
-// Enrichment — find a contact email by scraping the lead's website.
-// Apify's Google Maps actor only rarely returns emails (most businesses
-// list phone + website on Google, not email). We fetch a handful of
-// well-known contact pages and regex out email addresses. Fails open
-// — if no email is found we just return null.
-async function findEmailFromWebsite(website: string): Promise<{ email: string | null; tried: string[] }> {
-  const tried: string[] = [];
-  let base: URL;
-  try {
-    base = new URL(website);
-  } catch {
-    return { email: null, tried };
-  }
-  // Only try a handful of paths — keeps each call well under Netlify's
-  // 26s cap even when pages are slow.
-  const paths = ["", "/contact", "/contact-us"];
-  const found: string[] = [];
+// ── Website check ─────────────────────────────────────────────────────
+// One pass per lead: fetch the homepage, contact pages and About pages (in
+// parallel, 6 s each, so the whole pass stays well inside Netlify's ~26 s cap),
+// then read automation signals, social/contact LINKS (we never fetch LinkedIn
+// or Facebook), the owner's name and any email address from the HTML.
 
-  for (const path of paths) {
-    const url = new URL(path, base).toString();
-    tried.push(url);
+async function fetchPage(url: string, ms = 6000): Promise<Page | null> {
+  try {
+    const r = await fetch(url, {
+      signal: AbortSignal.timeout(ms),
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ShiftForgeHQ/1.0)", Accept: "text/html,application/xhtml+xml" },
+      redirect: "follow",
+    });
+    if (!r.ok) return null;
+    const type = r.headers.get("content-type") ?? "";
+    if (type && !/html|xml|text/i.test(type)) return null;
+    return { url: r.url || url, html: (await r.text()).slice(0, 700_000) };
+  } catch {
+    return null;
+  }
+}
+
+function siteBase(website: string): URL | null {
+  const w = website.trim();
+  for (const candidate of [w, `https://${w}`]) {
     try {
-      const r = await fetch(url, {
-        signal: AbortSignal.timeout(6000),
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; ShiftForgeHQ/1.0)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        redirect: "follow",
-      });
-      if (!r.ok) continue;
-      // Forms, scripts and placeholder attributes are ignored; junk/placeholder
-      // addresses (example.com, hex ids, johndoe@email.com ...) are dropped.
-      for (const e of extractEmailsFromHtml(await r.text())) if (!found.includes(e)) found.push(e);
-      if (found.length > 0) break; // Stop once we've got a hit.
-    } catch {
-      continue;
+      const u = new URL(candidate);
+      if (/^https?:$/.test(u.protocol) && u.hostname.includes(".")) return u;
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+/** Gemini fallback: a name only when the About text clearly names the owner/founder; the answer must appear in the text. */
+async function geminiOwnerFallback(text: string, businessName: string, ai: GeminiAiOpts): Promise<string | null> {
+  const key = await readServiceKey("gemini");
+  if (!key || text.length < 80) return null;
+  try {
+    const data = await geminiGenerate(
+      {
+        systemInstruction: { role: "system", parts: [{ text: 'You read the About page text of a small business. Reply with JSON {"owner": string|null}. Give a name ONLY when the text clearly names the owner or founder of this business as a person. Never guess; return null for staff lists without a role, testimonials, reviewers or company names.' }] },
+        contents: [{ role: "user", parts: [{ text: `Business: ${businessName}\n\nAbout text:\n${text.slice(0, 3500)}` }] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      },
+      { key, ...ai },
+    );
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const name = (JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim()) as { owner?: unknown }).owner;
+    if (typeof name !== "string") return null;
+    const clean = name.replace(/\s+/g, " ").trim();
+    return validPersonName(clean, businessName) && text.includes(clean) ? clean : null;
+  } catch {
+    return null; // fallback only: never fail the check because of it
+  }
+}
+
+type SiteCheckResult = { fields: Record<string, unknown>; emails: string[]; fetched: number; tried: string[] };
+
+async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
+  const started = Date.now();
+  const checkedAt = new Date().toISOString();
+  const base = typeof lead.website === "string" ? siteBase(lead.website) : null;
+  const tried: string[] = [];
+  if (!base) return { fields: { site_check: { checked_at: checkedAt, error: "no website" } }, emails: [], fetched: 0, tried };
+  const urls = SITE_CHECK_PATHS.map((p) => new URL(p, base).toString());
+  tried.push(...urls);
+  const got = await Promise.all(urls.map((u) => fetchPage(u)));
+  // Several paths can redirect to the same page: keep each page once.
+  const seen = new Set<string>();
+  const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
+  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load" } }, emails: [], fetched: 0, tried };
+
+  const { signals, sources } = detectSignals(pages);
+  const { social, sources: socialSources } = extractSocial(pages);
+  const emails: string[] = [];
+  for (const p of pages) for (const e of extractEmailsFromHtml(p.html)) if (!emails.includes(e) && !isGovEduEmail(e)) emails.push(e);
+
+  const name = typeof lead.name === "string" ? lead.name : null;
+  let owner: Owner | null = findOwner(pages, name);
+  if (!owner && Date.now() - started < 14_000) {
+    const about = pages.find((p) => /about|story|team|owner/i.test(p.url));
+    if (about) {
+      const n = await geminiOwnerFallback(pageText(about.html), name ?? "this business", { budgetMs: 8000, timeoutMs: 8000 });
+      // The model's answer is never trusted as much as a pattern match: low confidence, shown for review only.
+      if (n) owner = { name: n, source_url: about.url, confidence: "low", how: "AI reading of the About page" };
     }
   }
 
-  const cleaned = found.filter((e) => !isGovEduEmail(e));
-  if (cleaned.length === 0) return { email: null, tried };
+  const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals);
+  const fields: Record<string, unknown> = {
+    site_check: { checked_at: checkedAt, ...signals, pages_checked: pages.length, sources: { ...sources, ...socialSources } },
+    social,
+    gap_score: gap.score,
+    gap_reasons: gap.reasons,
+  };
+  // An owner the user typed in is never overwritten by a re-check.
+  if (lead.owner_source !== "manual") {
+    if (owner) {
+      Object.assign(fields, { owner_name: owner.name, owner_source_url: owner.source_url, owner_confidence: owner.confidence, owner_source: owner.how });
+      // Only a high-confidence owner is used to greet the lead ("Hi Dana").
+      fields.contact_name = owner.confidence === "high" ? owner.name : null;
+    } else if (lead.owner_name) {
+      // Nothing found this time: keep what we had.
+    }
+  }
+  return { fields, emails, fetched: pages.length, tried };
+}
 
-  // Prefer role-based business addresses over individual ones.
-  const preferred = cleaned.find((e) => /^(info|contact|hello|hi|admin|sales|office|reception|enquiries|inquiries|support)@/i.test(e));
-  return { email: preferred ?? cleaned[0], tried };
+/** Best address from a list: role-based business addresses first. */
+function pickBestEmail(emails: string[]): string | null {
+  const preferred = emails.find((e) => /^(info|contact|hello|hi|admin|sales|office|reception|enquiries|inquiries|support)@/i.test(e));
+  return preferred ?? emails[0] ?? null;
 }
 
 function extractLeadFromApify(raw: Record<string, unknown>): {
@@ -811,9 +896,48 @@ async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxRes
 type CampaignRecord = Record<string, unknown> & { query?: string; structured_query?: { location?: string; searchTerms?: string[] } | null };
 
 /** What leadSkipReason needs to know about a campaign: where it searches and for which trade. */
-function campaignSkipCtx(c: CampaignRecord | null | undefined): { location: string | null; query: string } {
+function campaignSkipCtx(c: CampaignRecord | null | undefined): { location: string | null; query: string; anyTrade: boolean } {
   const sq = c?.structured_query;
-  return { location: sq?.location ?? null, query: [c?.query ?? "", ...(Array.isArray(sq?.searchTerms) ? sq!.searchTerms! : [])].join(" ") };
+  return { location: sq?.location ?? null, query: [c?.query ?? "", ...(Array.isArray(sq?.searchTerms) ? sq!.searchTerms! : [])].join(" "), anyTrade: c?.any_trade === true };
+}
+
+/**
+ * Counters and status come from the emails themselves. The stored counters were bumped by
+ * whichever handler wrote the campaign record last (send, webhooks, draft jobs), and those
+ * writes overwrote each other (e.g. 7 sent emails still showing "ready" and 0 sent).
+ */
+function deriveCampaign<T extends Record<string, unknown>>(c: T, emails: Array<{ status?: string; click_count?: number }>): T {
+  if (emails.length === 0) return c;
+  const sent = emails.filter((e) => e.status && e.status !== "drafted").length;
+  const queued = emails.length - sent;
+  const out: Record<string, unknown> = {
+    ...c,
+    emails_generated: emails.length,
+    emails_sent: sent,
+    emails_delivered: emails.filter((e) => ["delivered", "clicked", "replied"].includes(e.status ?? "")).length,
+    emails_clicked: emails.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
+    emails_replied: emails.filter((e) => e.status === "replied").length,
+    emails_bounced: emails.filter((e) => ["bounced", "complained", "failed"].includes(e.status ?? "")).length,
+  };
+  const st = c.status as string | undefined;
+  const sendingNow = st === "sending" && Date.now() - Date.parse((c.updated_at as string) ?? "") < 5 * 60_000;
+  if (!sendingNow && (st === "ready" || st === "sending" || st === "completed" || st === "failed") && sent > 0) out.status = queued > 0 ? "ready" : "completed";
+  return out as T;
+}
+
+async function campaignEmails(id: string): Promise<Array<{ status?: string; click_count?: number }>> {
+  return listJsonFast<{ status?: string; click_count?: number }>(store(OUTREACH_EMAILS), `${id}/`);
+}
+
+/** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
+async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
+  const ls = store(OUTREACH_LEADS);
+  const { blobs } = await ls.list({ prefix: `${campaign_id}/` });
+  for (const b of blobs) {
+    const row = await readJson<Record<string, unknown>>(ls, b.key);
+    if (row?.id === lead_id) return { key: b.key, lead: row };
+  }
+  return null;
 }
 
 /** A scraped address that is only a placeholder counts as "no email" (so Find emails tries again). */
@@ -923,12 +1047,17 @@ export async function draftOne(p: {
         address: lead.address as string | undefined,
         notes: lead.notes as string | undefined,
         is_test: lead.is_test === true,
+        rating: typeof lead.rating === "number" ? lead.rating : null,
+        reviews_count: typeof lead.reviews_count === "number" ? lead.reviews_count : null,
+        gap_reasons: Array.isArray(lead.gap_reasons) ? (lead.gap_reasons as string[]).filter((r) => /chat|booking|whatsapp|contact form/i.test(r)) : [],
+        hours_summary: hoursInfo(lead.raw)?.summary ?? null,
       },
       {
         sender_name: typeof sender_name === "string" ? sender_name : undefined,
         sender_company: typeof sender_company === "string" ? sender_company : undefined,
         sender_offer: typeof sender_offer === "string" ? sender_offer : undefined,
         campaign_query: campaign.query as string,
+        any_trade: campaign.any_trade === true,
       },
       { framework: fw, step: stepNum, total_steps: totalNum, previous_steps: previousSteps },
       p.ai ?? {},
@@ -1778,9 +1907,9 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.list": {
-        const all = await listJson<{ created_at: string }>(store(OUTREACH_CAMPAIGNS));
+        const all = await listJsonFast<{ id: string; created_at: string }>(store(OUTREACH_CAMPAIGNS));
         all.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        return ok(all);
+        return ok(await Promise.all(all.map(async (c) => deriveCampaign(c as Record<string, unknown>, await campaignEmails(c.id)))));
       }
 
       case "outreach.campaign.get": {
@@ -1788,7 +1917,7 @@ export const handler: Handler = async (event) => {
         if (!id) return fail(400, "id required");
         const record = await readJson(store(OUTREACH_CAMPAIGNS), id);
         if (!record) return fail(404, "campaign not found");
-        return ok(record);
+        return ok(deriveCampaign(record as Record<string, unknown>, await campaignEmails(id)));
       }
 
       case "outreach.campaign.update": {
@@ -2046,22 +2175,78 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.leads.update": {
-        // Per-lead flags the user controls. Today: excluded (true = never draft this lead).
-        const { campaign_id, lead_id, excluded } = params as Record<string, unknown>;
+        // Per-lead things you control (send only the ones you want to change):
+        //   excluded (true = never draft this lead), trade_override (true = include although
+        //   it looks like a different trade), owner_name (your own entry; "" clears it).
+        const { campaign_id, lead_id, excluded, trade_override, owner_name } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id || typeof lead_id !== "string" || !lead_id) return fail(400, "campaign_id and lead_id required");
-        if (typeof excluded !== "boolean") return fail(400, "excluded (true/false) required");
-        const ls = store(OUTREACH_LEADS);
-        let key = "";
-        let lead: Record<string, unknown> | null = null;
-        const { blobs } = await ls.list({ prefix: `${campaign_id}/` });
-        for (const b of blobs) {
-          const row = await readJson<Record<string, unknown>>(ls, b.key);
-          if (row?.id === lead_id) { lead = row; key = b.key; break; }
+        if (excluded !== undefined && typeof excluded !== "boolean") return fail(400, "excluded must be true or false");
+        if (trade_override !== undefined && typeof trade_override !== "boolean") return fail(400, "trade_override must be true or false");
+        if (owner_name !== undefined && typeof owner_name !== "string") return fail(400, "owner_name must be text");
+        if (excluded === undefined && trade_override === undefined && owner_name === undefined) return fail(400, "nothing to update");
+        const found = await findLeadRow(campaign_id, lead_id);
+        if (!found) return fail(404, "lead not found");
+        const now = new Date().toISOString();
+        const updated: Record<string, unknown> = { ...found.lead, updated_at: now };
+        if (excluded !== undefined) Object.assign(updated, { excluded, excluded_at: excluded ? now : null });
+        if (trade_override !== undefined) updated.trade_override = trade_override;
+        if (owner_name !== undefined) {
+          const n = owner_name.replace(/\s+/g, " ").trim().slice(0, 80);
+          if (!n) {
+            Object.assign(updated, { owner_name: null, owner_confidence: null, owner_source: null, owner_source_url: null, contact_name: null });
+          } else {
+            // A name you type is trusted: it is used in greetings and never overwritten by a re-check.
+            Object.assign(updated, { owner_name: n, owner_confidence: "high", owner_source: "manual", owner_source_url: null, contact_name: n });
+          }
         }
-        if (!lead) return fail(404, "lead not found");
-        const updated = { ...lead, excluded, excluded_at: excluded ? new Date().toISOString() : null, updated_at: new Date().toISOString() };
-        await writeJson(ls, key, updated);
+        await writeJson(store(OUTREACH_LEADS), found.key, updated);
         return ok(updated);
+      }
+
+      case "outreach.prospects.list": {
+        // Every lead across all campaigns in one slim list (no raw Apify blob), for the Prospects page.
+        const [leads, emails, campaigns] = await Promise.all([
+          listJsonFast<Record<string, unknown>>(store(OUTREACH_LEADS)),
+          listJsonFast<{ lead_id?: string; status?: string; sent_at?: string; created_at?: string }>(store(OUTREACH_EMAILS)),
+          listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
+        ]);
+        const campName = new Map(campaigns.map((c) => [c.id, c.name ?? c.query ?? c.id]));
+        // Per lead: strongest email state and when we last emailed it.
+        const byLead = new Map<string, { replied: boolean; bounced: boolean; sent: boolean; sent_at: string | null }>();
+        for (const e of emails) {
+          if (!e.lead_id) continue;
+          const cur = byLead.get(e.lead_id) ?? { replied: false, bounced: false, sent: false, sent_at: null };
+          const st = e.status ?? "drafted";
+          if (st === "replied") cur.replied = true;
+          if (["bounced", "complained", "failed"].includes(st)) cur.bounced = true;
+          if (st !== "drafted") {
+            cur.sent = true;
+            const at = e.sent_at ?? e.created_at ?? null;
+            if (at && (!cur.sent_at || at > cur.sent_at)) cur.sent_at = at;
+          }
+          byLead.set(e.lead_id, cur);
+        }
+        const rows = leads.map((l) => {
+          const em = byLead.get(l.id as string);
+          const contactedAt = (l.contacted_at as string | undefined) ?? null;
+          const email_status = l.do_not_contact ? "do_not_contact" : em?.bounced ? "bounced" : em?.replied ? "replied" : em?.sent || contactedAt ? "emailed" : "not_emailed";
+          const h = hoursInfo(l.raw);
+          const social = (l.social as Record<string, string | null> | undefined) ?? {};
+          const sc = (l.site_check as Record<string, unknown> | undefined) ?? {};
+          return {
+            id: l.id, campaign_id: l.campaign_id ?? null, campaign_name: campName.get(l.campaign_id as string) ?? null,
+            name: l.name, category: l.category ?? null, address: l.address ?? null, email: l.email && !isJunkEmail(l.email as string) ? l.email : null,
+            phone: l.phone ?? null, website: l.website ?? null, maps_url: l.maps_url ?? null, rating: l.rating ?? null, reviews_count: l.reviews_count ?? null,
+            is_test: l.is_test === true, created_at: l.created_at ?? null,
+            owner_name: l.owner_name ?? null, owner_confidence: l.owner_confidence ?? null, owner_source: l.owner_source ?? null, owner_source_url: l.owner_source_url ?? null,
+            gap_score: typeof l.gap_score === "number" ? l.gap_score : null, gap_reasons: Array.isArray(l.gap_reasons) ? l.gap_reasons : [],
+            checked_at: (sc.checked_at as string | undefined) ?? null, site_error: (sc.error as string | undefined) ?? null,
+            site_check: l.site_check ?? null, social, hours_summary: h?.summary ?? null,
+            email_status, emailed_at: em?.sent_at ?? contactedAt, skip_code: undefined as string | undefined,
+          };
+        });
+        rows.sort((a, b) => (b.gap_score ?? -1) - (a.gap_score ?? -1) || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+        return ok(rows);
       }
 
       case "outreach.leads.count": {
@@ -2155,60 +2340,54 @@ export const handler: Handler = async (event) => {
         return fail(404, "lead not found");
       }
 
-      case "outreach.leads.enrich_one": {
-        // Scrapes the lead's website looking for a contact email. Runs
-        // one lead at a time so the UI can loop + show progress, and
-        // so we don't blow Netlify's 26s cap on a big campaign. Per-lead
-        // latency is usually 2–5s.
+      case "outreach.leads.enrich_one":
+      case "outreach.leads.check_site": {
+        // enrich_one: the "Find emails" pass. One website check per lead (homepage, contact and
+        // About pages): finds an email when the lead has none, and records chat/booking signals,
+        // social links, the owner's name and the gap score. Runs one lead at a time so the UI can
+        // loop with progress and stay under Netlify's 26 s cap.
+        // check_site: the same pass, information only, for any lead (also already emailed ones).
+        // It never drafts or sends and never touches do-not-contact / contacted / bounced flags.
         const { campaign_id, lead_id } = params as Record<string, string>;
         if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
+        const infoOnly = action === "outreach.leads.check_site";
         const leadsStore = store(OUTREACH_LEADS);
-        const { blobs } = await leadsStore.list({ prefix: `${campaign_id}/` });
-        let storeKey: string | null = null;
-        let lead: Record<string, unknown> | null = null;
-        for (const b of blobs) {
-          const row = await readJson<Record<string, unknown>>(leadsStore, b.key);
-          if ((row as { id?: string } | null)?.id === lead_id) {
-            lead = row;
-            storeKey = b.key;
-            break;
-          }
-        }
-        if (!lead || !storeKey) return fail(404, "lead not found");
-        if (lead.email && !isJunkEmail(lead.email as string)) return ok({ ...lead, already_had_email: true, enriched: false });
+        const found = await findLeadRow(campaign_id, lead_id);
+        if (!found) return fail(404, "lead not found");
+        const storeKey = found.key;
+        let lead = found.lead;
+        const hadEmail = !!lead.email && !isJunkEmail(lead.email as string);
+        if (!infoOnly && hadEmail && (lead.site_check as { checked_at?: string } | undefined)?.checked_at) return ok({ ...lead, already_had_email: true, enriched: false });
         // A placeholder address (johndoe@email.com ...) counts as no email: drop it and look again.
-        if (lead.email) lead = { ...lead, email: null, junk_email: lead.email };
-        const website = lead.website as string | undefined;
+        if (lead.email && !hadEmail) lead = { ...lead, email: null, junk_email: lead.email };
         // Mark every attempt so a progress counter can survive a page reload.
         const checkedAt = new Date().toISOString();
         const skip = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], campaignSkipCtx(await readJson<CampaignRecord>(store(OUTREACH_CAMPAIGNS), campaign_id)));
-        if (skip && skip.code !== "gov_edu_email") {
-          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
+        // Chains and other-state leads are not worth a website visit (the exclude tick and trade skips still look).
+        if (skip && (skip.code === "chain" || skip.code === "out_of_state")) {
+          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, site_check: { checked_at: checkedAt, error: skip.message } });
           return ok({ ...lead, enriched: false, reason: skip.message });
         }
-        if (!website) {
-          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
+        if (!lead.website) {
+          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, site_check: { checked_at: checkedAt, error: "no website" } });
           return ok({ ...lead, enriched: false, reason: "no website to scrape" });
         }
-
         try {
-          const { email, tried } = await findEmailFromWebsite(website);
-          if (!email) {
-            await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt });
-            return ok({ ...lead, enriched: false, tried, reason: "no email found on website" });
+          const res = await checkLeadSite(lead);
+          const updated: Record<string, unknown> = { ...lead, ...res.fields, enrich_checked_at: checkedAt, updated_at: new Date().toISOString() };
+          let enriched = false;
+          const skipEmail = !!skip && skip.code === "gov_edu_email";
+          if (!hadEmail && !skipEmail) {
+            const email = pickBestEmail(res.emails);
+            if (email) {
+              Object.assign(updated, { email, enriched_at: new Date().toISOString(), enrichment_source: "website_scrape" });
+              enriched = true;
+            }
           }
-          const updated = {
-            ...lead,
-            email,
-            enriched_at: new Date().toISOString(),
-            enrich_checked_at: checkedAt,
-            enrichment_source: "website_scrape",
-            updated_at: new Date().toISOString(),
-          };
           await writeJson(leadsStore, storeKey, updated);
-          return ok({ ...updated, enriched: true, tried });
+          return ok({ ...updated, enriched, tried: res.tried, reason: enriched || hadEmail ? undefined : res.fetched === 0 ? "website did not load" : "no email found on website" });
         } catch (err) {
-          return fail(500, err instanceof Error ? err.message : "Enrichment failed");
+          return fail(500, err instanceof Error ? err.message : "Website check failed");
         }
       }
 
@@ -2524,7 +2703,41 @@ export const handler: Handler = async (event) => {
           default_sender_name: rec.default_sender_name ?? "Lakshmi Devaraj",
           default_sender_company: rec.default_sender_company ?? "ShiftForge AI",
           default_sender_offer: rec.default_sender_offer ?? "",
+          sending_inbox_id: rec.sending_inbox_id ?? "",
+          reply_alert_email: rec.reply_alert_email ?? "",
         });
+      }
+
+      case "outreach.inboxes.list": {
+        // AgentMail inboxes for the Settings dropdown, plus which inboxes the reply webhook covers.
+        const agentmailKey = await readServiceKey("agentmail");
+        if (!agentmailKey) return fail(400, "AgentMail key not configured");
+        const inboxes: AgentMailInbox[] = [];
+        let pageToken: string | undefined;
+        for (let i = 0; i < 5; i++) {
+          const r = await agentmailFetch(agentmailKey, `/inboxes?limit=100${pageToken ? `&page_token=${encodeURIComponent(pageToken)}` : ""}`);
+          if (!r.ok) return fail(502, `AgentMail inbox list failed (${r.status})`);
+          const body = (await r.json()) as { inboxes?: AgentMailInbox[]; next_page_token?: string };
+          inboxes.push(...(body.inboxes ?? []));
+          pageToken = body.next_page_token;
+          if (!pageToken) break;
+        }
+        // Best effort: are replies on every inbox delivered to this app? (null = could not tell)
+        let webhooks: Array<{ url: string; enabled: boolean; events: string[]; inbox_ids: string[] | null }> | null = null;
+        try {
+          const w = await agentmailFetch(agentmailKey, "/webhooks");
+          if (w.ok) {
+            const wb = (await w.json()) as { webhooks?: Array<{ url?: string; enabled?: boolean; event_types?: string[]; inbox_ids?: string[]; inbox_id?: string }> };
+            webhooks = (wb.webhooks ?? []).map((h) => ({
+              url: h.url ?? "",
+              enabled: h.enabled !== false,
+              events: h.event_types ?? [],
+              inbox_ids: h.inbox_ids && h.inbox_ids.length > 0 ? h.inbox_ids : h.inbox_id ? [h.inbox_id] : null,
+            }));
+          }
+        } catch { /* informational only */ }
+        const rec = await readOutreachSettings();
+        return ok({ inboxes: inboxes.map((i) => ({ inbox_id: i.inbox_id, email: i.email ?? i.inbox_id, display_name: i.display_name ?? "" })), selected: rec.sending_inbox_id ?? "", webhooks });
       }
       case "outreach.settings.set": {
         // Partial update: only the fields that are present are changed.
@@ -2540,6 +2753,23 @@ export const handler: Handler = async (event) => {
           const v = text(k, max);
           if (v === null) return fail(400, `${k} must be a string`);
           if (v !== undefined) next[k] = v;
+        }
+        const alertEmail = text("reply_alert_email", 200);
+        if (alertEmail === null) return fail(400, "reply_alert_email must be text");
+        if (alertEmail !== undefined) {
+          if (alertEmail && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(alertEmail)) return fail(400, "That does not look like an email address.");
+          next.reply_alert_email = alertEmail.toLowerCase();
+        }
+        const inboxId = text("sending_inbox_id", 200);
+        if (inboxId === null) return fail(400, "sending_inbox_id must be text");
+        if (inboxId !== undefined && inboxId !== (current.sending_inbox_id ?? "")) {
+          if (inboxId) {
+            const amKey = await readServiceKey("agentmail");
+            if (!amKey) return fail(400, "AgentMail key not configured");
+            const chk = await agentmailFetch(amKey, `/inboxes/${encodeURIComponent(inboxId)}`);
+            if (!chk.ok) return fail(400, `AgentMail does not know an inbox called "${inboxId}" (${chk.status}).`);
+          }
+          next.sending_inbox_id = inboxId;
         }
         const model = text("gemini_model", 80);
         if (model === null) return fail(400, "gemini_model must be a string");
@@ -2561,6 +2791,8 @@ export const handler: Handler = async (event) => {
           default_sender_name: next.default_sender_name ?? "",
           default_sender_company: next.default_sender_company ?? "",
           default_sender_offer: next.default_sender_offer ?? "",
+          sending_inbox_id: next.sending_inbox_id ?? "",
+          reply_alert_email: next.reply_alert_email ?? "",
         });
       }
 
@@ -2645,7 +2877,7 @@ export const handler: Handler = async (event) => {
 
         await writeJson(cs, campaign_id, { ...campaign, status: "sending", updated_at: new Date().toISOString() });
 
-        const inbox = await getOrCreateCampaignInbox(agentmailKey, campaign.name as string);
+        const inbox = await getOrCreateCampaignInbox(agentmailKey, campaign.name as string, (await readOutreachSettings()).sending_inbox_id || undefined);
 
         // Sender display name — per-email overrides campaign-level.
         const campaignSenderName = (campaign.default_sender_name as string | undefined) ?? "";
@@ -2720,11 +2952,12 @@ export const handler: Handler = async (event) => {
         }
 
         const queuedAfter = Math.max(0, queuedBefore - sent);
+        // Re-read the campaign: other writers (draft jobs, webhooks) may have changed it while we were sending.
+        const freshCampaign = (await readJson<Record<string, unknown>>(cs, campaign_id)) ?? campaign;
         const updated = {
-          ...campaign,
+          ...freshCampaign,
           // Drafts still queued → keep the campaign "ready" for the next batch.
           status: sent > 0 ? (queuedAfter > 0 ? "ready" : "completed") : "failed",
-          emails_sent: (campaign.emails_sent as number ?? 0) + sent,
           last_send_at: new Date().toISOString(),
           agentmail_inbox_id: inbox.inbox_id,
           updated_at: new Date().toISOString(),
@@ -2892,7 +3125,7 @@ export const handler: Handler = async (event) => {
         const agentmailKey = await readServiceKey("agentmail");
         if (!agentmailKey) return fail(400, "AgentMail key not configured");
 
-        const inbox = await getOrCreateCampaignInbox(agentmailKey, "ShiftForge HQ Health Check");
+        const inbox = await getOrCreateCampaignInbox(agentmailKey, "ShiftForge HQ Health Check", (await readOutreachSettings()).sending_inbox_id || undefined);
         const address = inbox.email ?? null;
         if (!address) return fail(500, "AgentMail returned an inbox without an email field. Check your AgentMail account setup.");
 
