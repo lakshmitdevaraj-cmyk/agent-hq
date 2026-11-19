@@ -103,6 +103,106 @@ function FooterSettings() {
   );
 }
 
+// Which AgentMail inbox new emails are sent from, and where to be told about replies.
+type InboxInfo = { inboxes: Array<{ inbox_id: string; email: string; display_name: string }>; selected: string; webhooks: Array<{ url: string; enabled: boolean; events: string[]; inbox_ids: string[] | null }> | null };
+
+function SendingSettings() {
+  const [info, setInfo] = useState<InboxInfo | null>(null);
+  const [inbox, setInbox] = useState("");
+  const [alertTo, setAlertTo] = useState("");
+  const [saved, setSaved] = useState({ inbox: "", alertTo: "" });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([call<InboxInfo>("outreach.inboxes.list"), call<{ reply_alert_email: string; sending_inbox_id: string }>("outreach.settings.get")])
+      .then(([i, st]) => {
+        setInfo(i);
+        setInbox(st.sending_inbox_id);
+        setAlertTo(st.reply_alert_email);
+        setSaved({ inbox: st.sending_inbox_id, alertTo: st.reply_alert_email });
+      })
+      .catch((e) => setLoadErr(e instanceof Error ? e.message : "Could not load AgentMail inboxes"));
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await call<{ sending_inbox_id: string; reply_alert_email: string }>("outreach.settings.set", { sending_inbox_id: inbox, reply_alert_email: alertTo });
+      setInbox(r.sending_inbox_id);
+      setAlertTo(r.reply_alert_email);
+      setSaved({ inbox: r.sending_inbox_id, alertTo: r.reply_alert_email });
+      setMsg({ ok: true, text: "Saved. New emails will use this inbox." });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Save failed" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Do replies on every inbox reach this app? Read from the AgentMail webhook settings.
+  let coverage: { ok: boolean; text: string } | null = null;
+  if (info) {
+    const hooks = info.webhooks?.filter((h) => h.enabled && h.events.includes("message.received")) ?? null;
+    if (hooks === null) coverage = { ok: false, text: "Could not check which inboxes send replies to this app." };
+    else if (hooks.length === 0) coverage = { ok: false, text: "No reply webhook found in AgentMail, so replies will not reach the Inbox." };
+    else if (hooks.some((h) => h.inbox_ids === null)) coverage = { ok: true, text: "Replies sent to any of your inboxes reach the dashboard Inbox." };
+    else {
+      const covered = new Set(hooks.flatMap((h) => h.inbox_ids ?? []));
+      const missing = info.inboxes.filter((i) => !covered.has(i.inbox_id)).map((i) => i.email);
+      coverage = missing.length === 0 ? { ok: true, text: "Replies sent to any of your inboxes reach the dashboard Inbox." } : { ok: false, text: `Replies to ${missing.join(", ")} do NOT reach the Inbox yet. Add them to the webhook in AgentMail.` };
+    }
+  }
+
+  const dirty = inbox !== saved.inbox || alertTo.trim().toLowerCase() !== saved.alertTo;
+  return (
+    <GlassCard className="mt-6">
+      <h3 className="font-display text-lg font-bold text-white mb-1">Sending inbox and reply alerts</h3>
+      <p className="text-sm text-white/65 mb-3">
+        New emails are sent from the inbox you pick. Emails already sent keep their own inbox, so their status and replies keep working. Leave it on the default to use your first AgentMail inbox, as before.
+      </p>
+      {loadErr && <p className="text-xs text-red-300 mb-2">{loadErr}</p>}
+      <label htmlFor="sending-inbox" className="text-xs font-bold tracking-wider uppercase text-white/60">Send new emails from</label>
+      <select
+        id="sending-inbox"
+        value={inbox}
+        onChange={(e) => setInbox(e.target.value)}
+        disabled={!info}
+        className="mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60"
+      >
+        <option value="">Default (first AgentMail inbox)</option>
+        {info?.inboxes.map((i) => <option key={i.inbox_id} value={i.inbox_id}>{i.email}{i.display_name ? ` (${i.display_name})` : ""}</option>)}
+        {inbox && info && !info.inboxes.some((i) => i.inbox_id === inbox) && <option value={inbox}>{inbox}</option>}
+      </select>
+      {coverage && <p className={`text-xs mt-1.5 ${coverage.ok ? "text-green-300/90" : "text-amber-300"}`}>{coverage.text}</p>}
+
+      <label htmlFor="reply-alert" className="block mt-4 text-xs font-bold tracking-wider uppercase text-white/60">Notify me of replies at</label>
+      <input
+        id="reply-alert"
+        type="email"
+        value={alertTo}
+        onChange={(e) => setAlertTo(e.target.value)}
+        placeholder="you@gmail.com (leave blank for no alerts)"
+        className="mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60"
+      />
+      <p className="text-xs text-white/50 mt-1">One short email per new reply, sent from your sending inbox to this address only. No alert for "no thanks" replies or out-of-office messages.</p>
+
+      <div className="flex items-center gap-3 mt-3">
+        <button
+          onClick={save}
+          disabled={busy || !dirty}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40"
+        >
+          {busy && <Loader2 size={12} className="animate-spin" />} Save
+        </button>
+        {msg && <span className={`text-xs ${msg.ok ? "text-green-300" : "text-red-300"}`}>{msg.text}</span>}
+      </div>
+    </GlassCard>
+  );
+}
+
 // Gemini model + default sender details (prefill the Generate emails form).
 type OutreachDefaults = {
   gemini_model: string;
@@ -472,6 +572,7 @@ export default function Settings() {
       </div>
 
       <OutreachDefaultsSettings />
+      <SendingSettings />
       <MoveSiteSettings />
       <FooterSettings />
 

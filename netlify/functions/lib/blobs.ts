@@ -34,3 +34,18 @@ export async function listJson<T>(s: Store, prefix?: string): Promise<T[]> {
   }
   return out;
 }
+
+/** Like listJson but reads up to `concurrency` blobs at a time (for whole-store scans). */
+export async function listJsonFast<T>(s: Store, prefix?: string, concurrency = 20): Promise<T[]> {
+  const { blobs } = await s.list(prefix ? { prefix } : undefined);
+  const out: Array<T | null> = new Array(blobs.length).fill(null);
+  let next = 0;
+  const worker = async () => {
+    while (next < blobs.length) {
+      const i = next++;
+      out[i] = await readJson<T>(s, blobs[i].key);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, blobs.length) }, worker));
+  return out.filter((v): v is T => v !== null);
+}

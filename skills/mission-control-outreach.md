@@ -124,11 +124,32 @@ Gate 2 (real emails to real people). Everything else is autonomous.
   params: `{ campaign_id, email, name?, notes? }`
 - `outreach.leads.enrich_one` — **Important after an Apify import.**
   Google Maps rarely returns emails (phone + website only, typically).
-  After leads import, loop this across every lead with a website but no
-  email. Each call fetches homepage + /contact + /contact-us and regex's
-  out email addresses. Recovers ~40–70% of the missing addresses. Fails
-  open — if a site blocks scraping, we move on.
+  After leads import, loop this across every lead with a website. One
+  call = one website check: it fetches the homepage, /contact, /contact-us
+  and About pages (in parallel, 6 s each) and (a) finds an email when the
+  lead has none (recovers ~40–70%), (b) records automation signals (chat
+  widget, online booking, contact form, WhatsApp), (c) saves social/contact
+  LINKS only (LinkedIn company/person, Facebook, Instagram, Yelp, Nextdoor,
+  Google reviews; LinkedIn and Facebook pages are never fetched), (d) finds
+  the owner's name (`owner_name`, `owner_confidence` high|low; only a high
+  match sets `contact_name`, so drafts greet "Hi <FirstName>") and (e)
+  computes `gap_score` (0–100) with `gap_reasons` ("No chat · No online
+  booking · Closed Sundays"). Fails open — if a site blocks scraping, we move on.
   params: `{ campaign_id, lead_id }`
+- `outreach.leads.check_site` — the same website check, **information only**,
+  for any lead (also already emailed ones). Never drafts or sends; never
+  changes do-not-contact / contacted / bounced flags. Use it to re-check a
+  whole campaign, one lead per call. params: `{ campaign_id, lead_id }`
+- `outreach.leads.update` — `excluded` (skip this lead when drafting),
+  `trade_override` (include a lead skipped as a different trade), `owner_name`
+  (your own entry: high confidence, used in greetings, kept on re-checks;
+  empty string clears). params: `{ campaign_id, lead_id, excluded?, trade_override?, owner_name? }`
+- `outreach.prospects.list` — every lead across all campaigns (slim rows with
+  owner, gap score, links and `email_status`); this is what the Prospects page
+  shows. params: `{}`
+- Campaign flag `any_trade` (set with `outreach.campaign.update`): "Home
+  services, any trade" turns off the different-trade skip and keeps draft
+  wording trade-neutral.
 - `outreach.leads.delete` — removes one lead and its drafted (unsent) emails.
   params: `{ campaign_id, lead_id }`
 
@@ -200,8 +221,18 @@ cold strangers.
   params: `{ campaign_id, email_id, subject?, body_text?, body_html? }`
 - `outreach.emails.delete` — delete a single draft (drafts only).
   params: `{ campaign_id, email_id }`
-- `outreach.settings.get` / `outreach.settings.set` — optional footer
-  postal address (blank by default). params: `{ postal_address }`
+- `outreach.settings.get` / `outreach.settings.set` — footer postal address,
+  Gemini model, default sender, `sending_inbox_id` (AgentMail inbox that ALL
+  NEW sends use; blank = first inbox; past emails keep their own inbox) and
+  `reply_alert_email` (one short alert per new reply, never for opt-outs or
+  auto-replies; blank = off). params: `{ postal_address?, sending_inbox_id?, reply_alert_email?, ... }`
+- `outreach.inboxes.list` — AgentMail inboxes + which inboxes the reply webhook
+  covers. params: `{}`
+- Draft quality: when a lead has been website-checked, `generate_one` gives
+  Gemini the rating, review count, opening hours, owner first name (high
+  confidence only) and gap reasons, with the rule "mention at most ONE true gap".
+- Campaign `status` and the sent/delivered/replied counters are derived from
+  the emails when you read a campaign, so they are always consistent.
 
 ### Replies (inbound, after AgentMail webhook fires)
 - `outreach.replies.list` — inbound replies. Filter by campaign.

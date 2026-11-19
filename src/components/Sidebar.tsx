@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   BarChart3,
   FormInput,
+  Contact,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/agents", label: "Agents", icon: Users },
   { to: "/voice", label: "Voice", icon: Mic },
   { to: "/outreach", label: "Outreach", icon: Send },
+  { to: "/prospects", label: "Prospects", icon: Contact },
   { to: "/inbox", label: "Inbox", icon: InboxIcon },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/forms", label: "Forms", icon: FormInput },

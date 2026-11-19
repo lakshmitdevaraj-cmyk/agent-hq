@@ -16,6 +16,7 @@ import PublicForm from "@/pages/PublicForm";
 import Settings from "@/pages/Settings";
 import Outreach from "@/pages/Outreach";
 import CampaignDetail from "@/pages/CampaignDetail";
+import Prospects from "@/pages/Prospects";
 import Inbox from "@/pages/Inbox";
 import Analytics from "@/pages/Analytics";
 import SignInGate from "@/components/SignInGate";
@@ -53,6 +54,7 @@ function Shell() {
           <Route path="/pages" element={<Pages />} />
           <Route path="/outreach" element={<Outreach />} />
           <Route path="/outreach/:id" element={<CampaignDetail />} />
+          <Route path="/prospects" element={<Prospects />} />
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/webhooks" element={<Webhooks />} />

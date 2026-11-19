@@ -24,7 +24,11 @@ import {
   Globe,
   Pencil,
   X,
+  MoreHorizontal,
+  Radar,
 } from "lucide-react";
+import { OwnerField, SiteDetails } from "@/components/SiteDetails";
+import { GapBadge, LinkIcons, foundSocialText, leadLinks, ownerText, reachAnotherWay, shortDate, type LeadInfo } from "@/lib/leadInfo";
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/components/Modal";
@@ -57,6 +61,7 @@ type Campaign = {
   default_sender_name?: string | null;
   default_sender_company?: string | null;
   default_sender_offer?: string | null;
+  any_trade?: boolean; // "Home services, any trade": no wrong-trade skipping, trade-neutral wording
   job?: Job | null;
   last_status_refresh_at?: string;
   created_at: string;
@@ -67,7 +72,8 @@ type Campaign = {
 // campaign so its progress survives page reloads and navigation. Progress
 // itself is derived from the data (drafts / leads stamped since started_at).
 type Job = {
-  kind: "generate" | "enrich";
+  kind: "generate" | "enrich" | "sitecheck";
+  resume?: boolean; // continue a stopped website check: keep its original start time
   status: "running" | "done" | "stopped";
   total: number;
   started_at: string;
@@ -98,12 +104,13 @@ type Lead = {
   campaign_id?: string;
   skip_reason?: string; // .gov/.edu address, chain store, other trade, already contacted or bounced: never email-found or drafted
   skip_code?: string;
+  trade_override?: boolean; // included although it looks like a different trade
   excluded?: boolean; // the user ticked this lead off: never drafted
   contacted_at?: string;
   enrich_checked_at?: string;
   enriched_at?: string;
   created_at: string;
-};
+} & LeadInfo;
 
 type Framework = "one-off" | "pas" | "aida" | "sdr";
 
@@ -123,6 +130,7 @@ type EmailRow = {
   framework?: Framework | null;
   source?: string; // "agent_drafted" when injected via emails.create
   edited?: boolean;
+  sent_at?: string;
   blocked_do_not_contact?: boolean; // recipient said no: this draft will never be sent
   blocked_contact?: string; // "already contacted in another campaign" / "bounced earlier": will not be sent
   created_at: string;
@@ -153,7 +161,15 @@ export default function CampaignDetail() {
   const [generateProgress, setGenerateProgress] = useState<{ done: number; total: number } | null>(null);
   // Which job THIS tab is driving right now (so the banner can tell "running"
   // from "interrupted": a job left 'running' by a closed tab).
-  const [localJob, setLocalJob] = useState<"generate" | "enrich" | null>(null);
+  const [localJob, setLocalJob] = useState<"generate" | "enrich" | "sitecheck" | null>(null);
+  const [localDone, setLocalDone] = useState<number | null>(null);
+  const [leadMenu, setLeadMenu] = useState<string | null>(null);
+  useEffect(() => {
+    if (!leadMenu) return;
+    const close = () => setLeadMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [leadMenu]);
   // Batch sending: how many queued drafts to send per click (oldest first).
   const [sendCount, setSendCount] = useState("5");
   const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number; skipped: number } | null>(null);
@@ -232,6 +248,28 @@ export default function CampaignDetail() {
       noteExcluded(leadId, !excluded);
       setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, excluded: !excluded } : l)));
       setErr(e instanceof Error ? e.message : "Could not update the lead");
+    }
+  }
+
+  // "Include anyway" for a lead skipped as a different trade (or back to skipping it).
+  async function setTradeOverride(leadId: string, on: boolean) {
+    if (!id) return;
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, trade_override: on, ...(on && l.skip_code === "other_trade" ? { skip_reason: undefined, skip_code: undefined } : {}) } : l)));
+    try {
+      await call("outreach.leads.update", { campaign_id: id, lead_id: leadId, trade_override: on });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not update the lead");
+      void refresh();
+    }
+  }
+
+  async function setAnyTrade(on: boolean) {
+    if (!id) return;
+    try {
+      setCampaign(await call<Campaign>("outreach.campaign.update", { id, any_trade: on }));
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not update the campaign");
     }
   }
 
@@ -399,6 +437,37 @@ export default function CampaignDetail() {
     await refresh();
   }
 
+  // Re-check websites: the same website check for EVERY lead, one at a time. Information only: it never
+  // drafts or sends, and never changes do-not-contact / contacted / bounced flags. Progress survives a
+  // reload (leads carry site_check.checked_at); a stopped run continues with the leads not yet checked.
+  async function recheckSites() {
+    if (!id) return;
+    const prev = campaign?.job;
+    const resume = prev?.kind === "sitecheck" && prev.status === "running";
+    const since = resume ? Date.parse(prev!.started_at) : Date.now() - 5_000;
+    const targets = leads.filter((l) => l.website && !l.is_test && !(resume && l.site_check?.checked_at && Date.parse(l.site_check.checked_at) >= since));
+    if (targets.length === 0) return;
+    setLocalJob("sitecheck");
+    setLocalDone(0);
+    setErr(null);
+    await saveJob({ kind: "sitecheck", status: "running", total: resume ? prev!.total : targets.length, started_at: resume ? prev!.started_at : new Date().toISOString(), resume });
+    let done = 0;
+    for (const lead of targets) {
+      try {
+        await call("outreach.leads.check_site", { campaign_id: id, lead_id: lead.id });
+      } catch {
+        // One slow or blocked site must not stop the rest.
+      }
+      done++;
+      setLocalDone(done);
+      if (done % 4 === 0 || done === targets.length) await refresh();
+    }
+    await saveJob({ kind: "sitecheck", status: "done", total: resume ? prev!.total : targets.length, started_at: campaign?.job?.started_at ?? new Date().toISOString(), finished_at: new Date().toISOString(), message: "Nothing was drafted or sent." });
+    setLocalJob(null);
+    setLocalDone(null);
+    await refresh();
+  }
+
   // Progress of the saved job, derived from the data so it is still right after
   // a reload: drafts created / leads checked since the job started.
   const jobView = useMemo(() => {
@@ -418,7 +487,8 @@ export default function CampaignDetail() {
       }
     } else {
       for (const l of leads) {
-        const t = l.enrich_checked_at ? Date.parse(l.enrich_checked_at) : 0;
+        const stamp = job.kind === "sitecheck" ? l.site_check?.checked_at : l.enrich_checked_at;
+        const t = stamp ? Date.parse(stamp) : 0;
         if (t >= since) {
           done++;
           lastActivity = Math.max(lastActivity, t);
@@ -431,6 +501,7 @@ export default function CampaignDetail() {
       done = job.done;
       lastActivity = Date.parse(job.progress_at ?? job.started_at);
     }
+    if (localJob === job.kind && localDone !== null) done = Math.max(done, localDone);
     done = Math.min(done, job.total);
     // 'running' with no loop in this tab (or no server progress) for a while = interrupted.
     // A server-side draft waits up to ~60 s per Gemini call plus a retry, so give it 4 minutes.
@@ -440,13 +511,24 @@ export default function CampaignDetail() {
       (serverJob || localJob !== job.kind) &&
       Date.now() - lastActivity > (serverJob ? 240_000 : 120_000);
     return { job, done, found, interrupted };
-  }, [campaign?.job, emails, leads, localJob]);
+  }, [campaign?.job, emails, leads, localJob, localDone]);
 
   // Derive counters from the emails array — race-free unlike the cached
   // counters on the campaign record (which can lose increments when
   // AgentMail fires sent + delivered webhooks in the same millisecond).
   // Delivered/clicked/replied are cumulative — once an email is "clicked"
   // it was also "delivered", etc.
+  // When each lead was last emailed (from the emails themselves).
+  const emailedAt = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of emails) {
+      if (e.status === "drafted") continue;
+      const at = e.sent_at ?? e.created_at;
+      if (at && (!m.get(e.lead_id) || at > m.get(e.lead_id)!)) m.set(e.lead_id, at);
+    }
+    return m;
+  }, [emails]);
+
   const counters = useMemo(() => {
     const drafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length;
     const postSend = emails.filter((e) => e.status !== "drafted" && !e.blocked_do_not_contact);
@@ -542,7 +624,7 @@ export default function CampaignDetail() {
       {/* Persistent job progress — stays until the job finishes (survives reloads) */}
       {jobView && (() => {
         const { job, done, found, interrupted } = jobView;
-        const noun = job.kind === "generate" ? "drafts" : "sites checked";
+        const noun = job.kind === "generate" ? "drafts" : job.kind === "sitecheck" ? "checked" : "sites checked";
         const running = job.status === "running" && !interrupted;
         const tone = running
           ? "border-primary/40 bg-primary/10 text-primary"
@@ -556,9 +638,9 @@ export default function CampaignDetail() {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold">
                   {running
-                    ? `${job.kind === "generate" ? "Drafting" : "Finding emails"}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}`
+                    ? `${job.kind === "generate" ? "Drafting" : job.kind === "sitecheck" ? "Checking websites" : "Finding emails"}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}`
                     : interrupted
-                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" ? "It stopped making progress." : "The tab driving it was closed."} ${job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : "Click Find emails to continue."}`
+                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" ? "It stopped making progress." : "The tab driving it was closed."} ${job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Find emails to continue."}`
                       : job.status === "stopped"
                         ? `Stopped at ${done} of ${job.total} ${noun}. ${job.message ?? ""}`
                         : `Finished: ${done} of ${job.total} ${noun}. ${job.message ?? ""}`}
@@ -646,6 +728,11 @@ export default function CampaignDetail() {
               </p>
               <span className="text-white/20">·</span>
               <SenderNameEditor campaign={campaign} onUpdate={() => void refresh()} />
+              <span className="text-white/20">·</span>
+              <label className="flex items-center gap-1.5 text-xs text-white/65 cursor-pointer" title="Turns off the 'different trade' skip and keeps the email wording trade-neutral">
+                <input type="checkbox" className="accent-primary" checked={campaign.any_trade === true} onChange={(e) => void setAnyTrade(e.target.checked)} />
+                Home services, any trade
+              </label>
             </div>
           </div>
         </div>
@@ -884,6 +971,21 @@ export default function CampaignDetail() {
                 </button>
               );
             })()}
+            {leads.some((l) => l.website && !l.is_test) && (() => {
+              const checking = localJob === "sitecheck";
+              const stopped = jobView?.job.kind === "sitecheck" && jobView.interrupted;
+              return (
+                <button
+                  onClick={recheckSites}
+                  disabled={checking || localJob !== null}
+                  title="Looks at every lead's website for chat, online booking, social links and the owner's name. Information only: nothing is drafted or sent."
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-xs font-bold tracking-wide transition disabled:opacity-50"
+                >
+                  {checking ? <Loader2 size={13} className="animate-spin" /> : <Radar size={13} />}
+                  {checking ? `Checking ${jobView?.done ?? 0} of ${jobView?.job.total ?? ""}` : stopped ? "Continue website check" : "Check websites"}
+                </button>
+              );
+            })()}
             <button
               onClick={() => setTestModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/40 text-accent text-xs font-bold tracking-wide transition"
@@ -912,18 +1014,6 @@ export default function CampaignDetail() {
               {leads.map((l) => (
                 <div key={l.id} className="group flex items-center gap-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 transition cursor-pointer"
                      onClick={() => setLeadDetail(l)}>
-                  <div className="shrink-0 flex flex-col items-center" onClick={(ev) => ev.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      className="accent-primary w-4 h-4 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                      checked={!l.excluded && !l.skip_reason && !l.do_not_contact}
-                      disabled={!!l.skip_reason || !!l.do_not_contact}
-                      onChange={(ev) => void setLeadExcluded(l.id, !ev.target.checked)}
-                      title={l.excluded ? "Excluded: no draft will be written for this lead. Tick to include." : "Untick to skip this lead when drafting"}
-                      aria-label={`Draft an email for ${l.name}`}
-                    />
-                    <span className="text-[8px] uppercase tracking-wider text-white/35 mt-0.5">Draft</span>
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-white truncate">{l.name}</span>
@@ -955,42 +1045,44 @@ export default function CampaignDetail() {
                           {l.skip_reason.replace(/^Skipped: /, "skip: ")}
                         </span>
                       )}
-                      {!l.email && !l.is_test && (
+                      {l.trade_override && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary">
+                          included anyway
+                        </span>
+                      )}
+                      {!l.email && !l.is_test && (reachAnotherWay(l).length > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple/15 border border-purple/40 text-purple">
+                          Reach another way
+                          <span className="inline-flex gap-1" onClick={(ev) => ev.stopPropagation()}>
+                            <LinkIcons items={reachAnotherWay(l)} size={10} />
+                          </span>
+                        </span>
+                      ) : (
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
                           no email
                         </span>
-                      )}
+                      ))}
+                      <GapBadge score={l.gap_score} reasons={l.gap_reasons} />
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-white/50 font-mono mt-0.5 flex-wrap">
                       {l.email && <span className="text-white/70">{l.email}</span>}
                       {l.category && <span>· {l.category}</span>}
                       {l.rating !== null && <span>· <Star size={9} className="inline -mt-0.5" /> {l.rating}{l.reviews_count ? ` (${l.reviews_count})` : ""}</span>}
                       {l.address && <span className="truncate max-w-[220px]">· {l.address}</span>}
+                      {ownerText(l) && <span className={l.owner_confidence === "low" ? "text-white/45" : "text-white/70"}>· Owner: {ownerText(l)}</span>}
                     </div>
+                    {(l.gap_reasons?.length ?? 0) > 0 && (
+                      <div className="text-[11px] text-white/50 mt-0.5">{l.gap_reasons!.join(" · ")}</div>
+                    )}
+                    {(() => {
+                      const sentAt = emailedAt.get(l.id) ?? l.contacted_at;
+                      if (!sentAt) return null;
+                      const found = foundSocialText(l);
+                      return <div className="text-[11px] text-green-300/80 mt-0.5">Emailed {shortDate(sentAt)}{found ? ` · ${found}` : ""}</div>;
+                    })()}
                   </div>
                   <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    {l.website && (
-                      <a
-                        href={l.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white flex items-center justify-center transition"
-                        title={l.website}
-                      >
-                        <Globe size={12} />
-                      </a>
-                    )}
-                    {l.maps_url && (
-                      <a
-                        href={l.maps_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white flex items-center justify-center transition"
-                        title="View on Google Maps"
-                      >
-                        <MapPin size={12} />
-                      </a>
-                    )}
+                    <LinkIcons items={leadLinks(l)} />
                     {l.phone && (
                       <a
                         href={`tel:${l.phone}`}
@@ -1007,6 +1099,38 @@ export default function CampaignDetail() {
                     >
                       <Trash2 size={12} />
                     </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setLeadMenu(leadMenu === l.id ? null : l.id)}
+                        className="w-8 h-8 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white flex items-center justify-center transition"
+                        title="More"
+                        aria-label={`More actions for ${l.name}`}
+                      >
+                        <MoreHorizontal size={14} />
+                      </button>
+                      {leadMenu === l.id && (
+                        <div className="absolute right-0 top-9 z-20 min-w-[210px] rounded-lg bg-[#14161f] border border-white/15 shadow-xl py-1 text-xs">
+                          {!l.do_not_contact && (
+                            <button
+                              className="w-full text-left px-3 py-2 hover:bg-white/10"
+                              onClick={() => { setLeadMenu(null); void setLeadExcluded(l.id, !l.excluded); }}
+                            >
+                              {l.excluded ? "Include this lead" : "Skip this lead"}
+                            </button>
+                          )}
+                          {l.skip_code === "other_trade" && (
+                            <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, true); }}>
+                              Include anyway (different trade)
+                            </button>
+                          )}
+                          {l.trade_override && (
+                            <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, false); }}>
+                              Go back to skipping other trades
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1136,7 +1260,16 @@ export default function CampaignDetail() {
       />
 
       {/* Lead detail */}
-      {leadDetail && <LeadDetailModal lead={leadDetail} onClose={() => setLeadDetail(null)} />}
+      {leadDetail && (
+        <LeadDetailModal
+          lead={leadDetail}
+          onClose={() => setLeadDetail(null)}
+          onChanged={(patch) => {
+            setLeadDetail((cur) => (cur ? ({ ...cur, ...patch } as Lead) : cur));
+            setLeads((prev) => prev.map((l) => (l.id === leadDetail.id ? ({ ...l, ...patch } as Lead) : l)));
+          }}
+        />
+      )}
 
       {/* Edit draft */}
       {editDraft && (
@@ -1334,7 +1467,7 @@ function GenerateEmailsModal({
   existingEmails: EmailRow[];
   campaign: Campaign;
   saveJob: (j: Job | null) => Promise<void>;
-  setLocalJob: (v: "generate" | "enrich" | null) => void;
+  setLocalJob: (v: "generate" | "enrich" | "sitecheck" | null) => void;
   setBusyAction: (v: "run" | "generate" | "send" | null) => void;
   onComplete: () => void;
   setErr: (s: string | null) => void;
@@ -1582,7 +1715,7 @@ function GenerateEmailsModal({
   );
 }
 
-function LeadDetailModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+function LeadDetailModal({ lead, onClose, onChanged }: { lead: Lead; onClose: () => void; onChanged: (patch: Record<string, unknown>) => void }) {
   return (
     <Modal
       open={true}
@@ -1598,6 +1731,13 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead; onClose: () => void })
           <DetailRow label="Phone" value={lead.phone} mono href={lead.phone ? `tel:${lead.phone}` : null} />
           <DetailRow label="Website" value={lead.website} href={lead.website} external />
           <DetailRow label="Google Maps" value={lead.maps_url ? "View on Google Maps" : null} href={lead.maps_url} external />
+        </div>
+
+        {/* Website check + owner */}
+        <OwnerField lead={lead} onSaved={onChanged} />
+        <div className="rounded-lg bg-white/[0.03] border border-white/10 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white/50 font-bold mb-2">Website check</p>
+          <SiteDetails lead={lead} />
         </div>
 
         {/* Metadata block */}
