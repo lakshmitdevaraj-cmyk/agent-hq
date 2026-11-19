@@ -1930,7 +1930,9 @@ export const handler: Handler = async (event) => {
         // A job that starts running is stamped with the SERVER clock, so the UI can
         // count "drafts created since the job started" without clock-skew errors.
         const job = (patch as { job?: { status?: string } | null }).job;
-        if (job && job.status === "running") (patch as { job: Record<string, unknown> }).job.started_at = now;
+        const resuming = !!job && (job as { resume?: boolean }).resume === true && typeof (existing.job as { started_at?: string } | null | undefined)?.started_at === "string";
+        if (job && job.status === "running" && resuming) (patch as { job: Record<string, unknown> }).job.started_at = (existing.job as { started_at: string }).started_at;
+        else if (job && job.status === "running") (patch as { job: Record<string, unknown> }).job.started_at = now;
         // A finishing update keeps the ORIGINAL server start time (the browser's copy of it
         // can be stale or from its own clock, which made finished jobs count 0 drafts).
         else if (job) {
