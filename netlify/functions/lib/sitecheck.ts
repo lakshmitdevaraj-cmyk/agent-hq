@@ -253,7 +253,15 @@ export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advert
   for (const p of pages) {
     const t = pageText(p.html);
     if (EMERGENCY_RX.test(t)) advertises = true;
-    const m = ALL_HOURS_RX.exec(t);
+    // "24/7 Emergency Services" next to normal office hours is an emergency line, not "open all day".
+    const rx = new RegExp(ALL_HOURS_RX.source, "gi");
+    let m: RegExpExecArray | null = null;
+    for (let x = rx.exec(t); x; x = rx.exec(t)) {
+      const around = t.slice(Math.max(0, x.index - 25), x.index + x[0].length + 25);
+      if (/emergenc/i.test(around)) { advertises = true; continue; }
+      m = x;
+      break;
+    }
     if (m) return { hours_usable: false, advertises_emergency: advertises || EMERGENCY_RX.test(t), evidence: `Site says "${t.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).trim()}" (${p.url})` };
   }
   return { hours_usable: true, advertises_emergency: advertises, evidence: null };
@@ -262,7 +270,7 @@ export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advert
 const INDUSTRIAL_RX = /\b(industrial|marine|manufactur\w*|wholesale|distribut(?:or|ion)|oem\b|engineered|shipyard|offshore|vessel|oilfield|commercial (?:and|&) industrial|fabricat\w*|chiller|process (?:cooling|control)|replacement parts)\b/gi;
 const RESIDENTIAL_RX = /\b(homeowners?|residential|your home|home comfort|house|homes)\b/i;
 const LEADGEN_HOSTS = /(?:^|\.)(?:angi|angieslist|homeadvisor|thumbtack|yelp|bbb|yellowpages|manta|mapquest|porch|networx|fixr|buildzoom|houzz|nextdoor|facebook|superpages|chamberofcommerce|cylex|hotfrog|bark|expertise|homeguide|improvenet|fixd)\.(?:com|org|net)$/i;
-const LEADGEN_TEXT = /(?:get|compare)\s+(?:free\s+)?(?:quotes|estimates)\s+from|find\s+(?:a\s+)?(?:local\s+)?(?:pro|contractor|plumber|electrician|hvac|roofer)s?\s+near|we\s+connect\s+(?:you|homeowners)\s+with|top\s+\d+\s+(?:best\s+)?(?:hvac|plumb|electric|roof)|directory\s+of|(?:hvac|plumbing|electrical)\s+(?:companies|contractors)\s+in\s+[A-Z]/i;
+const LEADGEN_TEXT = /(?:get|compare)\s+(?:free\s+)?(?:quotes|estimates)\s+from|find\s+(?:a\s+)?(?:local\s+)?(?:pro|contractor|plumber|electrician|hvac|roofer)s?\s+near|we\s+connect\s+(?:you|homeowners)\s+with|top\s+\d+\s+(?:best\s+)?(?:hvac|plumb|electric|roof)|directory\s+of/i;
 
 /** Warning flags: a lead that may not be a home-service company, or is a listing site rather than a business. */
 export function fitFlags(pages: Page[], website?: string | null): { not_home_service: string | null; lead_gen_listing: string | null } {
