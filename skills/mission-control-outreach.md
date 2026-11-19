@@ -210,6 +210,13 @@ cold strangers.
     postal address from `outreach.settings`) is appended automatically at
     send time — never write it into drafts. Leads marked do-not-contact
     (an inbound reply said no/stop/unsubscribe) are never sent to.
+  - **Review gate (Batch 6):** by default only drafts with
+    `review_status: "ready"` are sent. Drafts marked `check` are sent only
+    when the human ticks them AND confirms (`allow_check: true`); `blocked`
+    drafts, skipped/excluded leads and do-not-contact leads are never sent.
+    Result adds `skipped_not_ready`, `skipped_blocked`, `skipped_excluded`.
+    Editing a draft sets it back to `check`; `outreach.emails.update
+    { review_status: "ready" }` is the human's manual override.
   - `email_ids` — explicit list wins over everything else
   - `sequence_position` — filter by step (1, 2, or 3)
   - neither — send all drafts (legacy single-step behavior)
@@ -226,6 +233,18 @@ cold strangers.
   NEW sends use; blank = first inbox; past emails keep their own inbox) and
   `reply_alert_email` (one short alert per new reply, never for opt-outs or
   auto-replies; blank = off). params: `{ postal_address?, sending_inbox_id?, reply_alert_email?, ... }`
+- `outreach.emails.review.start` — `{ campaign_id, email_ids? }`: AI reviewer
+  job (ready / check / blocked, with reasons). Run it before asking the human
+  to approve a send; poll `outreach.campaign.get` `job` (kind `review`).
+- `outreach.browsercheck.plan` / `outreach.browsercheck.start` —
+  `{ campaign_id, lead_id? }`: real-browser website check for leads about to
+  be emailed (costs Apify credits; ALWAYS show the plan's estimated cost to
+  the human first). If it fails, drafts are still written but never mention a
+  website gap. Facts carry evidence (`site_check.evidence`, `owner_evidence`).
+- Settings: three models (`draft_model`, `review_model`, `helper_model`, each
+  with `*_provider` gemini|second), optional second OpenAI-compatible provider
+  (`second_ai_base_url`, `second_ai_model`, key via `config.set service:"ai2"`)
+  and `browser_check_cap` (leads per campaign, default 25).
 - `outreach.inboxes.list` — AgentMail inboxes + which inboxes the reply webhook
   covers. params: `{}`
 - Draft quality: when a lead has been website-checked, `generate_one` gives

@@ -55,6 +55,7 @@ export function OwnerField({ lead, onSaved }: { lead: LeadRef; onSaved: (patch: 
           Found on <a className="underline" href={lead.owner_source_url} target="_blank" rel="noopener noreferrer">{lead.owner_source_url}</a>
         </p>
       )}
+      {lead.owner_name && lead.owner_evidence && <p className="text-[11px] text-white/45 mt-0.5 italic">"{lead.owner_evidence}"</p>}
       {err && <p className="text-[11px] text-red-300 mt-1">{err}</p>}
     </div>
   );
@@ -73,7 +74,8 @@ export function SiteDetails({ lead }: { lead: LeadInfo }) {
   const so = lead.social ?? {};
   const src = sc?.sources ?? {};
   if (!sc?.checked_at) return <p className="text-xs text-white/50">Website not checked yet. Use "Check websites" on the campaign.</p>;
-  if (sc.error) return <p className="text-xs text-white/50">Checked {shortDate(sc.checked_at)}: {sc.error}.</p>;
+  if (sc.error) return <p className="text-xs text-white/50">Checked {shortDate(sc.checked_at)}: {sc.error}.{sc.needs_browser ? " A browser check may open it." : ""}</p>;
+  const ev = sc.evidence ?? {};
   const links: Array<[string, string | null | undefined, string | undefined]> = [
     ["LinkedIn (company)", so.linkedin_company, src.linkedin_company],
     ["LinkedIn (person)", so.linkedin_person, src.linkedin_person],
@@ -91,8 +93,13 @@ export function SiteDetails({ lead }: { lead: LeadInfo }) {
       </div>
       <div className="space-y-1">
         <Row label="Chat widget" value={sc.chat_widget ?? "none found"} url={src.chat_widget} />
-        <Row label="Online booking" value={sc.booking_tool ?? "none found"} url={src.booking_tool} />
+        {ev.chat_widget && <div className="pl-28 text-[10px] text-white/35 break-all">{ev.chat_widget}</div>}
+        <Row label="Online booking" value={sc.booking_tool ?? (sc.request_form ? "none (a request form only)" : "none found")} url={src.booking_tool ?? sc.request_form_url} />
+        {(ev.booking_tool || ev.request_form) && <div className="pl-28 text-[10px] text-white/35 break-all">{ev.booking_tool ?? ev.request_form}</div>}
         <Row label="Contact form" value={sc.has_contact_form ? "yes" : "none found"} url={sc.contact_form_url} />
+        <Row label="Opening hours" value={sc.hours_usable === false ? "not used (the site says it answers any time)" : "from Google"} />
+        {sc.hours_evidence && <div className="pl-28 text-[10px] text-white/35 break-all">{sc.hours_evidence}</div>}
+        <Row label="Looked at" value={sc.via === "browser" ? "in a real browser" : sc.needs_browser ? "plain download (needs a browser check)" : "plain download"} />
         <Row label="WhatsApp" value={sc.whatsapp_url ?? "none found"} url={sc.whatsapp_url} />
         {links.filter(([, u]) => u).map(([label, u, from]) => (
           <div key={label}>
@@ -101,6 +108,8 @@ export function SiteDetails({ lead }: { lead: LeadInfo }) {
           </div>
         ))}
       </div>
+      {sc.not_home_service && <p className="text-[11px] text-amber-300">Check: may not be a home-service business. {sc.not_home_service}.</p>}
+      {sc.lead_gen_listing && <p className="text-[11px] text-amber-300">Check: may be a lead-gen listing. {sc.lead_gen_listing}.</p>}
       <p className="text-[10px] text-white/35">Checked {shortDate(sc.checked_at)}. Links only: LinkedIn and Facebook pages are never opened by the app.</p>
     </div>
   );

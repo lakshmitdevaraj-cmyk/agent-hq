@@ -86,11 +86,12 @@ export type ContactBlock = { code: "bounced" | "already_contacted"; message: str
  * that is a sequence follow-up (a second step-1 draft is already prevented by the
  * per-(lead, step) draft check).
  */
-export function contactBlock(c: Contacts, email: string | null | undefined, campaignId: string): ContactBlock | null {
+export function contactBlock(c: Contacts, email: string | null | undefined, campaignId: string, opts: { isTest?: boolean } = {}): ContactBlock | null {
   const k = emailKey(email);
   if (!k) return null;
   if (c.bounced.has(k)) return { code: "bounced", message: "Skipped: bounced earlier" };
   const from = c.sent.get(k);
-  if (from && [...from].some((id) => id !== campaignId)) return { code: "already_contacted", message: "Skipped: already contacted in another campaign" };
+  // A test lead (your own address) may be emailed again and again; only a real bounce still blocks it.
+  if (!opts.isTest && from && [...from].some((id) => id !== campaignId)) return { code: "already_contacted", message: "Skipped: already contacted in another campaign" };
   return null;
 }

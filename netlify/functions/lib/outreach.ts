@@ -136,9 +136,12 @@ export function greetingFor(lead: { name?: string | null; contact_name?: string 
 export function newPartOfReply(text: string): string {
   const lines = text.replace(/\r/g, "").split("\n");
   const out: string[] = [];
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (/^\s*>/.test(line)) continue;
-    if (/^\s*on .{5,200}wrote:\s*$/i.test(line) || /^\s*-{2,}\s*original message/i.test(line) || /^\s*from:\s.+/i.test(line) && out.length > 0) break;
+    // Gmail wraps the quote header over two lines: "On Thu, 19 Nov 2026 at 15:41, Name <" + "addr@x.com> wrote:".
+    const twoLine = /^\s*on\s.{3,200}$/i.test(line) && /wrote:\s*$/i.test(lines[i + 1] ?? "") && (line + (lines[i + 1] ?? "")).length < 400;
+    if (/^\s*on .{5,200}wrote:\s*$/i.test(line) || twoLine || /^\s*-{2,}\s*original message/i.test(line) || /^\s*from:\s.+/i.test(line) && out.length > 0) break;
     out.push(line);
   }
   return out.join("\n").trim();

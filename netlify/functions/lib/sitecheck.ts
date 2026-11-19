@@ -12,6 +12,7 @@ export const GAP_WEIGHTS = {
   noWhatsapp: 5,
   weakReputation: 10, // rating below GAP_RATING_MIN, or fewer than GAP_REVIEWS_MIN reviews
   closedEveningsOrWeekends: 15,
+  noWebsite: 80, // no website at all: the biggest gap there is
 } as const;
 export const GAP_RATING_MIN = 4.3;
 export const GAP_REVIEWS_MIN = 30;
@@ -23,23 +24,49 @@ export type Page = { url: string; html: string };
 
 // ── Automation signals ────────────────────────────────────────────────
 
+/**
+ * Live-chat widgets. Each pattern must match the widget's own script / iframe /
+ * settings, never a plain link: a Birdeye or Podium "reviews" link is not chat.
+ */
 const CHAT_WIDGETS: Array<[string, RegExp]> = [
   ["Tidio", /code\.tidio\.co|tidiochat|tidio\.net/i],
   ["Intercom", /widget\.intercom\.io|intercomSettings|intercom-frame/i],
-  ["Drift", /js\.driftt\.com|drift\.com\/|driftt\.com|window\.drift\b/i],
-  ["LiveChat", /cdn\.livechatinc\.com|livechatinc\.com|__lc\.license|livechat\.com\/chat/i],
-  ["Tawk.to", /embed\.tawk\.to|tawk\.to\//i],
-  ["Crisp", /client\.crisp\.chat|crisp\.chat|\$crisp/i],
+  ["Drift", /js\.driftt\.com|js\.drift\.com|window\.drift\b/i],
+  ["LiveChat", /cdn\.livechatinc\.com|__lc\.license|livechat\.com\/chat/i],
+  ["Tawk.to", /embed\.tawk\.to|tawk\.to\/chat/i],
+  ["Crisp", /client\.crisp\.chat|\$crisp/i],
   ["HubSpot chat", /js\.usemessages\.com|hs-conversations|conversations-embed|HubSpotConversations/i],
-  ["Podium", /connect\.podium\.com|podium\.com\/widget|podiumwebchat|podium-webchat/i],
-  ["Birdeye", /birdeye\.com|birdeyewebchat|bf-widget/i],
-  ["Facebook Messenger", /fb-customerchat|customerchat\.js|messenger\.com\/|data-page-id/i],
+  ["Podium", /connect\.podium\.com|podium\.com\/widget|podiumwebchat|podium-webchat|webchat\.podium/i],
+  ["Birdeye chat", /birdeyewebchat|webchat\.birdeye|birdeye\.com\/[^"'\s]*webchat|bf-widget|birdeye-webchat/i],
+  ["Facebook Messenger", /fb-customerchat|customerchat\.js/i],
   ["Zendesk", /static\.zdassets\.com|zopim|zendesk\.com\/embeddable|ze-snippet/i],
+  ["Re:amaze", /cdn\.reamaze\.com|reamaze\.com\/assets|_reamaze|reamaze-embed/i],
+  ["Olark", /static\.olark\.com|olark\.identify|olark\.configure/i],
+  ["Chatra", /call\.chatra\.io|ChatraID/i],
+  ["Freshchat", /wchat\.freshchat\.com|freshchat\.com\/js/i],
+  ["Zoho SalesIQ", /salesiq\.zoho|zsiqchat|\$zoho\.salesiq/i],
+  ["Smartsupp", /smartsuppchat|smartsupp\.com/i],
+  ["JivoChat", /code\.jivosite\.com|jivo_config/i],
+  ["Userlike", /userlike-cdn|userlike\.com\/widget/i],
+  ["Gorgias", /config\.gorgias\.chat|gorgias-chat/i],
+  ["Wix Chat", /wix-chat|wixchat|ascend\.wix\.com\/chat/i],
+  ["GoHighLevel chat", /widgets\.leadconnectorhq\.com\/chat-widget|chat-widget\.leadconnectorhq|leadconnector[^"'\s]*chat/i],
+  ["Broadly", /broadly\.com\/(?:widget|webchat)|webchat\.broadly|broadly-widget/i],
+  ["Kenect", /kenect\.com|webchat\.kenect|kenect-widget/i],
+  ["Smith.ai", /smith\.ai\/widget|widget\.smith\.ai/i],
+  ["Hatch", /hatch\.co\/(?:widget|chat)|webchat\.hatch/i],
+  ["Signpost", /signpost\.com\/(?:widget|chat)|webchat\.signpost/i],
+  ["Numa", /numa\.com\/(?:widget|chat)/i],
+  ["Housecall Pro chat", /housecallpro\.com\/[^"'\s]*(?:chat|widget)/i],
+  ["ServiceTitan chat", /servicetitan\.com\/[^"'\s]*chat|st-webchat/i],
+  ["LiveAgent", /ladesk\.com|liveagent\.com\/scripts/i],
+  ["Gist", /widget\.getgist\.com|getgist\.com/i],
+  ["Chatbot widget", /chatbot\.com\/widget|botpress|landbot\.io|manychat/i],
 ];
 
 const BOOKING_TOOLS: Array<[string, RegExp]> = [
   ["Calendly", /calendly\.com/i],
-  ["Housecall Pro", /housecallpro\.com|housecall\s?pro|online-booking\.housecallpro/i],
+  ["Housecall Pro", /housecallpro\.com|housecall\s?pro|online-booking\.housecallpro|book\.housecallpro/i],
   ["Jobber", /getjobber\.com|clienthub\.getjobber|jobber\.com\/(?:client|request)|jobber work request/i],
   ["ServiceTitan", /servicetitan\.com|scheduler\.servicetitan|st-scheduler/i],
   ["Acuity", /acuityscheduling\.com|squarespacescheduling\.com|app\.acuityscheduling/i],
@@ -47,10 +74,28 @@ const BOOKING_TOOLS: Array<[string, RegExp]> = [
   ["Setmore", /setmore\.com/i],
   ["Booksy", /booksy\.com/i],
   ["Workiz", /workiz\.com/i],
+  ["GoDaddy Bookings", /\/m\/bookings\b|bookings\.godaddy|godaddy-bookings|\bgodaddy\.com\/[^"'\s]*bookings/i],
+  ["Schedule Engine", /scheduleengine\.(?:net|com)|schedule-engine/i],
+  ["FieldEdge", /fieldedge\.com/i],
+  ["Service Fusion", /servicefusion\.com/i],
+  ["ServiceM8", /servicem8\.com/i],
+  ["Zuper", /zuper\.co/i],
+  ["Kickserv", /kickserv\.com/i],
+  ["SimplyBook.me", /simplybook\.(?:me|it)/i],
+  ["Appointlet", /appointlet\.com/i],
+  ["YouCanBook.me", /youcanbook\.me/i],
+  ["Cal.com", /cal\.com\//i],
+  ["TidyCal", /tidycal\.com/i],
+  ["Vagaro", /vagaro\.com/i],
+  ["Mindbody", /mindbodyonline\.com|mindbody\.io/i],
+  ["GoHighLevel booking", /leadconnectorhq\.com\/widget\/(?:booking|bookings)|msgsndr\.com\/widget\/booking/i],
+  ["Hatch", /hatch\.co\/booking/i],
+  ["Smart Online Scheduling", /online-scheduler|onlinescheduler/i],
 ];
 
-// Visible link text that clearly offers online booking.
-const BOOK_LINK_TEXT = /^\s*(?:book\s+(?:online|now|an?\s+appointment|a\s+(?:service|visit|call))|schedule\s+(?:online|service|now|an?\s+appointment)|online\s+(?:booking|scheduling)|request\s+(?:an?\s+)?appointment)\s*$/i;
+const BOOK_TEXT = /^\s*(?:book\s+(?:online|now|an?\s+appointment|a\s+(?:service|visit|call|technician|tech))|schedule\s+(?:online|service|now|an?\s+(?:appointment|service|visit)|a\s+(?:service|visit|call))|online\s+(?:booking|scheduling)|request\s+(?:an?\s+)?(?:appointment|service)|book\s+a\s+service\s+call)\s*$/i;
+const BOOK_PATH = /book|schedul|appointment|reserve/i;
+const CONTACT_PATH = /contact|quote|estimate|request|get-?in-?touch|call-?back|callback/i;
 
 const WHATSAPP_RX = /https?:\/\/(?:wa\.me|api\.whatsapp\.com|web\.whatsapp\.com|chat\.whatsapp\.com)\/[^\s"'<>)]*/i;
 
@@ -60,6 +105,9 @@ export type Signals = {
   has_contact_form: boolean;
   whatsapp_url: string | null;
   contact_form_url: string | null;
+  /** "Schedule Now" / "Request service" that only opens the site's own contact or call-back form: not real online booking. */
+  request_form: boolean;
+  request_form_url: string | null;
 };
 
 type Anchor = { href: string; text: string };
@@ -97,20 +145,54 @@ function hasContactForm(html: string): boolean {
   });
 }
 
-export function detectSignals(pages: Page[]): { signals: Signals; sources: Record<string, string> } {
-  const signals: Signals = { chat_widget: null, booking_tool: null, has_contact_form: false, whatsapp_url: null, contact_form_url: null };
+const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
+
+/** "booking" = a real scheduler; "request_form" = a button that only opens the site's own contact form. */
+function classifyBookLink(a: Anchor, pageUrl: string): "booking" | "request_form" | null {
+  if (!BOOK_TEXT.test(a.text)) return null;
+  let u: URL;
+  try { u = new URL(a.href); } catch { return null; }
+  const external = hostOf(a.href) !== hostOf(pageUrl);
+  if (external) return /facebook|instagram|linkedin|google\.com|yelp/i.test(u.hostname) ? null : "booking";
+  const target = `${u.pathname}${u.hash}`;
+  if (BOOK_PATH.test(target) && !CONTACT_PATH.test(u.pathname)) return "booking";
+  return "request_form";
+}
+
+export type SignalResult = { signals: Signals; sources: Record<string, string>; evidence: Record<string, string> };
+
+export function detectSignals(pages: Page[]): SignalResult {
+  const signals: Signals = { chat_widget: null, booking_tool: null, has_contact_form: false, whatsapp_url: null, contact_form_url: null, request_form: false, request_form_url: null };
   const sources: Record<string, string> = {};
+  const evidence: Record<string, string> = {};
   for (const p of pages) {
     if (!signals.chat_widget) {
       const hit = CHAT_WIDGETS.find(([, rx]) => rx.test(p.html));
-      if (hit) { signals.chat_widget = hit[0]; sources.chat_widget = p.url; }
+      if (hit) {
+        const m = p.html.match(hit[1]);
+        signals.chat_widget = hit[0]; sources.chat_widget = p.url;
+        evidence.chat_widget = `${hit[0]} chat widget code found: "${(m?.[0] ?? "").slice(0, 70)}" on ${p.url}`;
+      }
     }
     if (!signals.booking_tool) {
       const hit = BOOKING_TOOLS.find(([, rx]) => rx.test(p.html));
-      if (hit) { signals.booking_tool = hit[0]; sources.booking_tool = p.url; }
-      else if (extractAnchors(p.html, p.url).some((a) => BOOK_LINK_TEXT.test(a.text))) {
-        signals.booking_tool = "Book online link";
-        sources.booking_tool = p.url;
+      if (hit) {
+        const m = p.html.match(hit[1]);
+        signals.booking_tool = hit[0]; sources.booking_tool = p.url;
+        evidence.booking_tool = `${hit[0]} booking link/code found: "${(m?.[0] ?? "").slice(0, 70)}" on ${p.url}`;
+      } else {
+        for (const a of extractAnchors(p.html, p.url)) {
+          const kind = classifyBookLink(a, p.url);
+          if (kind === "booking") {
+            signals.booking_tool = "Book online link"; sources.booking_tool = p.url;
+            evidence.booking_tool = `"${a.text}" button goes to ${a.href}`;
+            break;
+          }
+          if (kind === "request_form" && !signals.request_form) {
+            signals.request_form = true; signals.request_form_url = a.href;
+            evidence.request_form = `"${a.text}" button only opens the site's own contact form (${a.href})`;
+          }
+        }
       }
     }
     if (!signals.whatsapp_url) {
@@ -123,10 +205,87 @@ export function detectSignals(pages: Page[]): { signals: Signals; sources: Recor
       if (!signals.contact_form_url || (/contact/i.test(p.url) && !/contact/i.test(signals.contact_form_url))) {
         signals.contact_form_url = p.url;
         sources.contact_form_url = p.url;
+        evidence.contact_form = `Contact form on ${p.url}`;
       }
     }
   }
-  return { signals, sources };
+  if (signals.booking_tool) { signals.request_form = false; }
+  return { signals, sources, evidence };
+}
+
+// ── Needs a real browser? ─────────────────────────────────────────────
+
+const JS_BUILDERS: Array<[string, RegExp]> = [
+  ["GoDaddy website builder", /wsimg\.com|godaddysites|img1\.wsimg|websitebuilder\.godaddy/i],
+  ["Wix", /wixstatic\.com|static\.parastorage|wix\.com\/|X-Wix/i],
+  ["Squarespace", /squarespace\.com|static1\.squarespace|sqsp/i],
+  ["Duda", /multiscreensite\.com|dudaone|irp\.cdn-website|cdn-website\.com/i],
+  ["hibu", /hibu\.com|hibu-|yellowpages-?website|webs\.com/i],
+  ["Weebly", /weebly\.com|editmysite\.com/i],
+  ["Webflow", /webflow\.com|assets\.website-files/i],
+];
+
+/**
+ * Chat and booking widgets on these builders load with JavaScript, so a plain
+ * download can miss them. True when nothing was found and the page looks JS-built.
+ */
+export function needsBrowserCheck(pages: Page[], s: Pick<Signals, "chat_widget" | "booking_tool">): { needs: boolean; reason: string | null } {
+  if (s.chat_widget && s.booking_tool) return { needs: false, reason: null };
+  const home = pages[0];
+  if (!home) return { needs: false, reason: null };
+  for (const p of pages.slice(0, 3)) {
+    const b = JS_BUILDERS.find(([, rx]) => rx.test(p.html));
+    if (b) return { needs: true, reason: `${b[0]} site: chat and booking may load with JavaScript` };
+  }
+  const text = visibleText(home.html);
+  if (text.length < 400 && /<script\b/i.test(home.html)) return { needs: true, reason: "Page is mostly JavaScript" };
+  return { needs: false, reason: null };
+}
+
+// ── Site wording: hours, fit ──────────────────────────────────────────
+
+const ALL_HOURS_RX = /24\s*\/\s*7|24\s*x\s*7|24\s*hours|24-hour|day or night|around the clock|night or day|any ?time|nights? and weekends|nights?,? weekends/i;
+const EMERGENCY_RX = /emergency/i;
+
+/** If the site itself says it answers any time, Google's opening hours must not be used. */
+export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advertises_emergency: boolean; evidence: string | null } {
+  let advertises = false;
+  for (const p of pages) {
+    const t = pageText(p.html);
+    if (EMERGENCY_RX.test(t)) advertises = true;
+    // "24/7 Emergency Services" next to normal office hours is an emergency line, not "open all day".
+    const rx = new RegExp(ALL_HOURS_RX.source, "gi");
+    let m: RegExpExecArray | null = null;
+    for (let x = rx.exec(t); x; x = rx.exec(t)) {
+      const around = t.slice(Math.max(0, x.index - 25), x.index + x[0].length + 25);
+      if (/emergenc/i.test(around)) { advertises = true; continue; }
+      m = x;
+      break;
+    }
+    if (m) return { hours_usable: false, advertises_emergency: advertises || EMERGENCY_RX.test(t), evidence: `Site says "${t.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).trim()}" (${p.url})` };
+  }
+  return { hours_usable: true, advertises_emergency: advertises, evidence: null };
+}
+
+const INDUSTRIAL_RX = /\b(industrial|marine|manufactur\w*|wholesale|distribut(?:or|ion)|oem\b|engineered|shipyard|offshore|vessel|oilfield|commercial (?:and|&) industrial|fabricat\w*|chiller|process (?:cooling|control)|replacement parts)\b/gi;
+const RESIDENTIAL_RX = /\b(homeowners?|residential|your home|home comfort|house|homes)\b/i;
+const LEADGEN_HOSTS = /(?:^|\.)(?:angi|angieslist|homeadvisor|thumbtack|yelp|bbb|yellowpages|manta|mapquest|porch|networx|fixr|buildzoom|houzz|nextdoor|facebook|superpages|chamberofcommerce|cylex|hotfrog|bark|expertise|homeguide|improvenet|fixd)\.(?:com|org|net)$/i;
+const LEADGEN_TEXT = /(?:get|compare)\s+(?:free\s+)?(?:quotes|estimates)\s+from|find\s+(?:a\s+)?(?:local\s+)?(?:pro|contractor|plumber|electrician|hvac|roofer)s?\s+near|we\s+connect\s+(?:you|homeowners)\s+with|top\s+\d+\s+(?:best\s+)?(?:hvac|plumb|electric|roof)|directory\s+of/i;
+
+/** Warning flags: a lead that may not be a home-service company, or is a listing site rather than a business. */
+export function fitFlags(pages: Page[], website?: string | null): { not_home_service: string | null; lead_gen_listing: string | null } {
+  const text = pages.slice(0, 3).map((p) => pageText(p.html)).join(" ");
+  const hits = new Set((text.match(INDUSTRIAL_RX) ?? []).map((x) => x.toLowerCase()));
+  let notHome: string | null = null;
+  if (hits.size >= 2 && !RESIDENTIAL_RX.test(text)) notHome = `Site talks about ${[...hits].slice(0, 4).join(", ")} and nothing about homes`;
+  let lead: string | null = null;
+  const host = website ? hostOf(website) : "";
+  if (host && LEADGEN_HOSTS.test(host)) lead = `The website is ${host}, a listing site`;
+  else {
+    const m = LEADGEN_TEXT.exec(text);
+    if (m) lead = `Site wording looks like a directory: "${m[0].slice(0, 60)}"`;
+  }
+  return { not_home_service: notHome, lead_gen_listing: lead };
 }
 
 // ── Social and review links (links only) ──────────────────────────────
@@ -188,7 +347,7 @@ export function extractSocial(pages: Page[]): { social: Social; sources: Record<
 /** A founder page can honour someone who has died ("In memoriam", "the late ..."): never greet them. */
 const DECEASED = /in memoriam|in loving memory|passed away|the late\b|rest in peace|\bR\.?I\.?P\b|deceased|\(\s*19\d\d\s*[-–]\s*(?:19|20)\d\d\s*\)/i;
 
-export type Owner = { name: string; source_url: string; confidence: "high" | "low"; how: string };
+export type Owner = { name: string; source_url: string; confidence: "high" | "low"; how: string; evidence: string };
 
 const NAME_STOP = new Set([
   "our", "the", "meet", "about", "us", "team", "staff", "operated", "owned", "since", "family", "company", "services", "service", "home", "homes",
@@ -254,12 +413,44 @@ const NAME = "([A-Z][a-z]+(?:['-][A-Z][a-z]+)?(?:\\s+[A-Z]\\.)?\\s+[A-Z][a-z]+(?
 const ROLE = "(?:[Oo]wner|[Ff]ounder|[Cc]o-?[Ff]ounder|[Pp]resident|CEO)";
 // "Owner", "Owner and President", "Founder / CEO": a heading that may stack several titles.
 const ROLES = `${ROLE}(?:\\s*(?:and|&|/|,)\\s*(?:${ROLE}|[Oo]perator|[Gg]eneral [Mm]anager))*`;
-const OWNER_PATTERNS: Array<{ rx: RegExp; how: string; confidence: "high" | "low" }> = [
-  { rx: new RegExp(`(?:[Ff]ounded|[Oo]wned|[Ss]tarted|[Ee]stablished|[Rr]un|[Oo]perated)(?:\\s+in\\s+\\d{4})?(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "founded/owned by", confidence: "high" },
-  { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?${ROLES}\\b`, "g"), how: "name, owner/founder", confidence: "high" },
-  { rx: new RegExp(`\\b${ROLES}(?:\\s*[:\\-–—|.]\\s*|\\s+)${NAME}`, "g"), how: "owner: name", confidence: "high" },
+const CURRENT_VERBS = "(?:purchased|bought|acquired|took over|now owns|now runs|currently owns|is the (?:current|new) owner|became (?:the )?owner)";
+
+type Pat = { rx: RegExp; how: string; confidence: "high" | "low"; founderOnly?: boolean; current?: boolean };
+const OWNER_PATTERNS: Pat[] = [
+  // Someone who bought / took over the business is the CURRENT owner, whoever founded it.
+  { rx: new RegExp(`${NAME}(?:,[^,.]{1,70},)?\\s+${CURRENT_VERBS}`, "g"), how: "bought/took over", confidence: "high", current: true },
+  { rx: new RegExp(`(?:[Pp]urchased|[Aa]cquired|[Bb]ought|[Tt]aken over)(?:\\s+in\\s+\\d{4})?\\s+by\\s+${NAME}\\b`, "g"), how: "purchased by", confidence: "high", current: true },
+  { rx: new RegExp(`(?:[Oo]wned|[Rr]un|[Oo]perated)(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "owned by", confidence: "high" },
+  { rx: new RegExp(`(?:[Ff]ounded|[Ss]tarted|[Ee]stablished)(?:\\s+in\\s+\\d{4})?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "founded by", confidence: "low", founderOnly: true },
+  { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?(?:[Oo]wner|[Pp]resident|CEO)(?:\\s*(?:and|&|/|,)\\s*${ROLE})*\\b`, "g"), how: "name, owner", confidence: "high" },
+  { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?[Ff]ounder\\b(?!\\s+(?:and|&|/)\\s+(?:[Oo]wner|[Pp]resident|CEO))`, "g"), how: "name, founder", confidence: "low", founderOnly: true },
+  { rx: new RegExp(`\\b(?:[Oo]wner|[Pp]resident|CEO)(?:\\s*(?:and|&|/|,)\\s*${ROLE})*(?:\\s*[:\\-–—|.]\\s*|\\s+)${NAME}`, "g"), how: "owner: name", confidence: "high" },
+  { rx: new RegExp(`\\b(?:[Oo]ur\\s+)?[Ff]ounder(?:\\s*[:\\-–—|.,]\\s*|\\s+)${NAME}`, "g"), how: "our founder, name", confidence: "low", founderOnly: true },
   { rx: new RegExp(`\\b[Mm]eet\\s+(?:the\\s+owner,?\\s+|our\\s+(?:owner|founder),?\\s+)?${NAME}`, "g"), how: "meet name", confidence: "low" },
 ];
+
+/** Words that say a person is NOT the current owner. */
+const FORMER = /\b(retired|retiring|retirement|former(?:ly)?|previous|past owner|original owner|sold the (?:company|business)|sold (?:it|his|her|their)|stepped down|passed (?:away|the torch)|handed (?:over|down)|was (?:the )?(?:owner|founder|president)|originally (?:founded|started)|the late)\b/i;
+
+function sentenceAround(text: string, idx: number, len: number): string {
+  const before = text.slice(Math.max(0, idx - 260), idx);
+  const bs = Math.max(before.lastIndexOf(". "), before.lastIndexOf("! "), before.lastIndexOf("? "));
+  const start = Math.max(0, idx - 260) + (bs >= 0 ? bs + 2 : 0);
+  const after = text.slice(idx + len, idx + len + 260);
+  const ae = after.search(/[.!?](?:\s|$)/);
+  const end = idx + len + (ae >= 0 ? ae + 1 : after.length);
+  return text.slice(start, end).replace(/\s+/g, " ").trim().slice(0, 300);
+}
+
+/** Is the match about someone who has left? Looks a little before and after the name. */
+function isFormer(text: string, m: RegExpExecArray, name: string): boolean {
+  const pos = m.index + m[0].indexOf(name);
+  const before = text.slice(Math.max(0, pos - 50), pos);
+  const after = text.slice(pos + name.length, pos + name.length + 80);
+  if (new RegExp(`^(?:,[^,.]{1,70},)?\\s*,?\\s*${CURRENT_VERBS}`, "i").test(after)) return false;
+  const cutAfter = after.split(/[.!?]/)[0];
+  return FORMER.test(before) || FORMER.test(cutAfter);
+}
 
 function ldPeople(html: string): Array<{ name: string; role: string }> {
   const out: Array<{ name: string; role: string }> = [];
@@ -273,7 +464,7 @@ function ldPeople(html: string): Array<{ name: string; role: string }> {
     const type = String(o["@type"] ?? "");
     if (/Person/i.test(type) && typeof o.name === "string") {
       const job = typeof o.jobTitle === "string" ? o.jobTitle : "";
-      if (DECEASED.test(`${job} ${typeof o.description === "string" ? o.description : ""}`)) return;
+      if (DECEASED.test(`${job} ${typeof o.description === "string" ? o.description : ""}`) || FORMER.test(`${job} ${typeof o.description === "string" ? o.description : ""}`)) return;
       if (role || /owner|founder|president|ceo/i.test(job)) out.push({ name: o.name, role: role || job });
     }
     for (const k of ["founder", "founders", "owner"]) if (o[k]) walk(o[k], k);
@@ -286,18 +477,24 @@ function ldPeople(html: string): Array<{ name: string; role: string }> {
   return out;
 }
 
+type Cand = { name: string; url: string; how: string; confidence: "high" | "low"; evidence: string; current: boolean; founderOnly: boolean };
+
 /**
- * Owner/founder from visible text patterns and schema.org JSON-LD. About pages
- * are searched first. Business-like names, testimonial names and staff lists
- * without a role are rejected. Null when nothing clear is found.
+ * The CURRENT owner from visible text patterns and schema.org JSON-LD, with the
+ * sentence that shows it. Retired / former / late founders are never returned;
+ * someone who "purchased" the company is preferred; a founder-only mention is
+ * low confidence (never used in greetings). Null when nothing clear is found.
  */
 export function findOwner(pages: Page[], businessName?: string | null): Owner | null {
   const aboutFirst = [...pages].sort((a, b) => Number(/about|story|team|owner/i.test(b.url)) - Number(/about|story|team|owner/i.test(a.url)));
-  let low: Owner | null = null;
+  const cands: Cand[] = [];
+  const formerNames = new Set<string>();
   for (const p of aboutFirst) {
     for (const person of ldPeople(p.html)) {
       const name = person.name.replace(/\s+/g, " ").trim();
-      if (validPersonName(name, businessName)) return { name, source_url: p.url, confidence: "high", how: "schema.org founder" };
+      if (!validPersonName(name, businessName)) continue;
+      const founderOnly = !/owner|president|ceo/i.test(person.role);
+      cands.push({ name, url: p.url, how: "schema.org " + (person.role || "owner"), confidence: founderOnly ? "low" : "high", evidence: `Website data lists ${name} as ${person.role || "owner"}`, current: false, founderOnly });
     }
     const text = pageText(p.html);
     for (const pat of OWNER_PATTERNS) {
@@ -306,14 +503,23 @@ export function findOwner(pages: Page[], businessName?: string | null): Owner | 
       while ((m = pat.rx.exec(text))) {
         const name = m[1].replace(/\s+/g, " ").trim();
         if (!validPersonName(name, businessName)) continue;
-        if (DECEASED.test(text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 160))) continue;
-        if (pat.confidence === "high") return { name, source_url: p.url, confidence: "high", how: pat.how };
-        low ??= { name, source_url: p.url, confidence: "low", how: pat.how };
+        if (DECEASED.test(text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 160))) { formerNames.add(name); continue; }
+        if (isFormer(text, m, name)) { formerNames.add(name); continue; }
+        cands.push({ name, url: p.url, how: pat.how, confidence: pat.confidence, evidence: sentenceAround(text, m.index, m[0].length), current: !!pat.current, founderOnly: !!pat.founderOnly });
         break;
       }
     }
   }
-  return low;
+  const usable = cands.filter((c) => !formerNames.has(c.name) || c.current);
+  const pick = (f: (c: Cand) => boolean) => usable.find(f);
+  const best =
+    pick((c) => c.current) ??
+    pick((c) => c.confidence === "high" && !c.founderOnly) ??
+    // A founder who is also named with an owner role elsewhere counts as the owner.
+    usable.find((c) => c.founderOnly && usable.some((o) => o !== c && o.name === c.name && !o.founderOnly)) ??
+    pick((c) => c.confidence === "low");
+  if (!best) return null;
+  return { name: best.name, source_url: best.url, confidence: best.confidence, how: best.how, evidence: best.evidence };
 }
 
 // ── Opening hours ─────────────────────────────────────────────────────
@@ -400,10 +606,12 @@ export type GapResult = { score: number; reasons: string[] };
 /** Explainable 0-100 automation gap. Only call it for a lead whose website was actually fetched. */
 export function gapScore(
   lead: { rating?: number | null; reviews_count?: number | null; raw?: unknown },
-  s: Pick<Signals, "chat_widget" | "booking_tool" | "has_contact_form" | "whatsapp_url">,
+  s: Pick<Signals, "chat_widget" | "booking_tool" | "has_contact_form" | "whatsapp_url"> | null,
+  opts: { hoursUsable?: boolean } = {},
 ): GapResult {
   let score = 0;
   const reasons: string[] = [];
+  if (!s) return { score: GAP_WEIGHTS.noWebsite, reasons: ["No website"] };
   if (!s.chat_widget) { score += GAP_WEIGHTS.noChat; reasons.push("No chat"); }
   if (!s.booking_tool) { score += GAP_WEIGHTS.noBooking; reasons.push("No online booking"); }
   if (s.has_contact_form && !s.chat_widget && !s.booking_tool) { score += GAP_WEIGHTS.contactFormOnly; reasons.push("Contact form only"); }
@@ -414,7 +622,7 @@ export function gapScore(
     score += GAP_WEIGHTS.weakReputation;
     reasons.push(lowRating && fewReviews ? "Low rating, few reviews" : lowRating ? `Rating ${lead.rating}` : `Only ${lead.reviews_count} reviews`);
   }
-  const h = hoursInfo(lead.raw);
+  const h = opts.hoursUsable === false ? null : hoursInfo(lead.raw);
   if (h && (h.closedWeekend || h.closesEarlyWeekdays)) {
     score += GAP_WEIGHTS.closedEveningsOrWeekends;
     if (h.closedDays.length > 0) reasons.push(h.closedDays.length >= 2 && h.closedWeekend ? "Closed weekends" : `Closed ${h.closedDays.map((d) => `${d}s`).join(", ")}`);
@@ -435,4 +643,13 @@ export function reachAnotherWay(lead: { social?: Partial<Social> | null; site_ch
   if (so.linkedin_person) out.push({ kind: "linkedin_person", url: so.linkedin_person });
   if (sc?.whatsapp_url) out.push({ kind: "whatsapp", url: sc.whatsapp_url });
   return out;
+}
+
+/** No website, a name stuffed with "<trade> Repair/Crew/Experts" and almost no reviews: often a lead-gen / fake listing. Label only. */
+export function looksLikeLeadGenListing(lead: { name?: string | null; website?: string | null; reviews_count?: number | null }): string | null {
+  if (lead.website && lead.website.trim()) return null;
+  const name = lead.name ?? "";
+  if (typeof lead.reviews_count === "number" && lead.reviews_count >= 10) return null;
+  if (/(?:emergency|hvac|\bac\b|a\/c|air conditioning|plumb\w*|heating|roofing)\s+(?:repair|crew|experts?|pros?)\b/i.test(name)) return "No website, a name stuffed with trade keywords, and few reviews";
+  return null;
 }

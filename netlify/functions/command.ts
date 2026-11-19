@@ -21,9 +21,13 @@ import {
   isAutoReply,
 } from "./lib/outreach";
 import {
-  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName,
+  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing,
   type Page, type Owner,
 } from "./lib/sitecheck";
+import { pickAngle, pickOpeningStyle, cityOf, checkModelDraft, type ModelDraft, type Fact } from "./lib/angle";
+import { DRAFT_SYSTEM_PROMPT, OPENING_STYLE_HELP, REVIEW_SYSTEM_PROMPT } from "./lib/prompts";
+import { evidenceFor, codeReview, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
+import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 
 function slugify(s: string): string {
@@ -77,8 +81,8 @@ const OUTREACH_REPLIES = "agent-hq-outreach-replies"; // inbound replies from Ag
 const OUTREACH_SETTINGS = "agent-hq-outreach-settings"; // key: "settings" → { postal_address }
 
 // Service keys we onboard. `gemini` doubles as the voice key — reads through VOICE_CONFIG for back-compat.
-type ServiceKey = "gemini" | "apify" | "agentmail";
-const SERVICE_KEYS: ServiceKey[] = ["gemini", "apify", "agentmail"];
+type ServiceKey = "gemini" | "apify" | "agentmail" | "ai2"; // ai2 = the optional second (OpenAI-compatible) AI provider
+const SERVICE_KEYS: ServiceKey[] = ["gemini", "apify", "agentmail", "ai2"];
 
 type ServiceConfigRecord = { key: string; updated_at: string; last_test?: { ok: boolean; at: string; message?: string } };
 
@@ -115,11 +119,20 @@ const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 type OutreachSettings = {
   postal_address?: string;
-  gemini_model?: string;
+  gemini_model?: string; // legacy: the one model setting before batch 6 (now the Drafting/Helper fallback)
+  draft_model?: string; // writes the emails (default gemini-3.5-flash-lite)
+  review_model?: string; // checks every draft (default gemini-2.5-flash)
+  helper_model?: string; // owner fallback + campaign planning (default gemini-3.5-flash-lite)
+  draft_provider?: "gemini" | "second";
+  review_provider?: "gemini" | "second";
+  helper_provider?: "gemini" | "second";
+  second_ai_base_url?: string; // OpenAI-compatible chat-completions base URL (key stored as service "ai2")
+  second_ai_model?: string;
   default_sender_name?: string;
   default_sender_company?: string;
   default_sender_offer?: string;
   sending_inbox_id?: string; // AgentMail inbox all NEW sends use (blank = the first inbox, as before)
+  browser_check_cap?: number; // most leads per campaign the Apify browser check may open (default 25)
   reply_alert_email?: string; // where a short "new reply" note is sent (blank = off)
   updated_at?: string;
 };
@@ -129,8 +142,9 @@ async function readOutreachSettings(): Promise<OutreachSettings> {
 }
 
 async function getGeminiModel(): Promise<string> {
-  const m = (await readOutreachSettings()).gemini_model?.trim();
-  return m || DEFAULT_GEMINI_MODEL;
+  // The default Gemini model for calls that do not name one (the Helper model).
+  const s = await readOutreachSettings();
+  return s.helper_model?.trim() || s.gemini_model?.trim() || DEFAULT_GEMINI_MODEL;
 }
 
 // Google's free-tier daily quota resets at midnight Pacific. Work out when
@@ -238,6 +252,164 @@ async function geminiGenerate(
 /** Settings for the long-running background jobs (drafting, preview): up to 60 s per Gemini answer, one retry on a slow one. */
 const BACKGROUND_AI: GeminiAiOpts = { budgetMs: 170_000, timeoutMs: 60_000, retryOnTimeout: true };
 
+
+// ── AI roles: Drafting / Reviewer / Helper ────────────────────────────
+// Each role has a model (and may use the optional second OpenAI-compatible provider).
+// On 429 / 503 from the chosen provider we try the other one once. A reviewer that
+// cannot answer never makes a draft "ready" (see reviewDraft).
+
+type AiRole = "draft" | "review" | "helper";
+const DEFAULT_REVIEW_MODEL = "gemini-2.5-flash";
+const DEFAULT_SECOND_AI = { base_url: "https://api.deepseek.com/v1", model: "deepseek-chat" };
+
+async function roleConfig(role: AiRole): Promise<{ provider: "gemini" | "second"; model: string }> {
+  const s = await readOutreachSettings();
+  const legacy = s.gemini_model?.trim();
+  const model = role === "review" ? s.review_model?.trim() || DEFAULT_REVIEW_MODEL : (role === "draft" ? s.draft_model?.trim() : s.helper_model?.trim()) || legacy || DEFAULT_GEMINI_MODEL;
+  return { provider: s[`${role}_provider` as const] === "second" ? "second" : "gemini", model };
+}
+
+async function secondAiConfig(): Promise<{ key: string; base_url: string; model: string } | null> {
+  const key = await readServiceKey("ai2");
+  if (!key) return null;
+  const s = await readOutreachSettings();
+  return { key, base_url: (s.second_ai_base_url?.trim() || DEFAULT_SECOND_AI.base_url).replace(/\/+$/, ""), model: s.second_ai_model?.trim() || DEFAULT_SECOND_AI.model };
+}
+
+/** Is any AI provider set up? (Gemini key, or the second provider.) */
+async function aiAvailable(): Promise<boolean> {
+  return !!(await readServiceKey("gemini")) || !!(await secondAiConfig());
+}
+
+function secondAiError(status: number, text: string, model: string): GeminiError {
+  const snippet = text.replace(/\s+/g, " ").slice(0, 200);
+  if (status === 429) return new GeminiError(`The second AI provider hit its limit (429).`, /quota|billing|insufficient/i.test(text) ? "daily_quota" : "rate_limited", status, 15);
+  if (status >= 500) return new GeminiError(`The second AI provider is busy (${status}).`, "unavailable", status, 5);
+  if (status === 401 || status === 403) return new GeminiError(`The second AI provider rejected the key (${status}): ${snippet}`, "auth", status);
+  if (status === 404) return new GeminiError(`The second AI provider does not know the model "${model}" or the address is wrong (404). ${snippet}`, "model_unavailable", status);
+  return new GeminiError(`The second AI provider failed (${status}): ${snippet}`, "other", status);
+}
+
+/** One OpenAI-style chat completion that must answer with JSON. */
+async function secondAiGenerate(cfg: { key: string; base_url: string; model: string }, req: { system: string; user: string; temperature: number; maxTokens?: number }, opts: GeminiAiOpts): Promise<string> {
+  const ms = Math.max(5000, Math.min(opts.timeoutMs ?? 40_000, opts.budgetMs ?? 40_000));
+  const call = async (json: boolean) =>
+    fetch(`${cfg.base_url}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.key}` },
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [{ role: "system", content: req.system }, { role: "user", content: req.user }],
+        temperature: req.temperature,
+        ...(req.maxTokens ? { max_tokens: req.maxTokens } : {}),
+        ...(json ? { response_format: { type: "json_object" } } : {}),
+      }),
+      signal: AbortSignal.timeout(ms),
+    });
+  try {
+    let r = await call(true);
+    if (r.status === 400) {
+      const t = await r.text();
+      // Some providers do not know response_format: ask again without it (the prompt already says "JSON only").
+      if (!/response_format|json_object|json mode/i.test(t)) throw secondAiError(400, t, cfg.model);
+      r = await call(false);
+    }
+    if (!r.ok) throw secondAiError(r.status, await r.text(), cfg.model);
+    const data = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const text = data.choices?.[0]?.message?.content ?? "";
+    if (!text) throw new GeminiError("The second AI provider returned an empty answer.", "other", 200);
+    return text;
+  } catch (e) {
+    if (e instanceof GeminiError) throw e;
+    const name = (e as { name?: string } | null)?.name;
+    if (name === "TimeoutError" || name === "AbortError") throw new GeminiError("The second AI provider did not answer in time.", "timeout", 0, 0);
+    throw new GeminiError(`Could not reach the second AI provider: ${e instanceof Error ? e.message : "network error"}`, "unavailable", 0, 5);
+  }
+}
+
+function parseLooseJson(text: string): unknown {
+  const t = text.trim();
+  try { return JSON.parse(t); } catch { /* strip fences / surrounding text */ }
+  const stripped = t.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  try { return JSON.parse(stripped); } catch { /* last try: first { ... last } */ }
+  const a = stripped.indexOf("{");
+  const b = stripped.lastIndexOf("}");
+  if (a >= 0 && b > a) return JSON.parse(stripped.slice(a, b + 1));
+  throw new Error("The AI answer was not valid JSON.");
+}
+
+type AiJsonResult = { json: unknown; provider: "gemini" | "second"; model: string; fell_back: boolean };
+
+async function aiJson(role: AiRole, req: { system: string; user: string; temperature?: number }, opts: GeminiAiOpts = {}): Promise<AiJsonResult> {
+  const cfg = await roleConfig(role);
+  const second = await secondAiConfig();
+  const geminiKey = await readServiceKey("gemini");
+  const temperature = req.temperature ?? 0.2;
+  const attempt = async (provider: "gemini" | "second"): Promise<AiJsonResult> => {
+    if (provider === "second") {
+      if (!second) throw new GeminiError("The second AI provider is not set up.", "auth", 400);
+      const text = await secondAiGenerate(second, { system: req.system, user: req.user, temperature }, opts);
+      return { json: parseLooseJson(text), provider, model: second.model, fell_back: false };
+    }
+    if (!geminiKey) throw new GeminiError("Gemini key not configured — open Settings and add it first.", "auth", 400);
+    const data = await geminiGenerate(
+      {
+        systemInstruction: { role: "system", parts: [{ text: req.system }] },
+        contents: [{ role: "user", parts: [{ text: req.user }] }],
+        generationConfig: { temperature, responseMimeType: "application/json" },
+      },
+      { key: geminiKey, model: cfg.model, ...opts },
+    );
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    if (!text) throw new GeminiError("Gemini returned an empty answer.", "other", 200);
+    return { json: parseLooseJson(text), provider, model: cfg.model, fell_back: false };
+  };
+  const primary: "gemini" | "second" = cfg.provider === "second" && second ? "second" : "gemini";
+  try {
+    return await attempt(primary);
+  } catch (e) {
+    // Only a limit (429) or an overloaded provider (503/5xx) switches provider, once.
+    const limited = e instanceof GeminiError && (e.kind === "rate_limited" || e.kind === "daily_quota" || e.kind === "unavailable");
+    const other: "gemini" | "second" | null = primary === "gemini" ? (second ? "second" : null) : geminiKey ? "gemini" : null;
+    if (!limited || !other) throw e;
+    try {
+      return { ...(await attempt(other)), fell_back: true };
+    } catch {
+      throw e; // report the original problem
+    }
+  }
+}
+
+
+/** What the Settings page shows. Old records without the new fields get the defaults. */
+async function settingsView(rec: OutreachSettings): Promise<Record<string, unknown>> {
+  const draft = rec.draft_model?.trim() || rec.gemini_model?.trim() || DEFAULT_GEMINI_MODEL;
+  return {
+    postal_address: rec.postal_address ?? "",
+    gemini_model: draft,
+    default_gemini_model: DEFAULT_GEMINI_MODEL,
+    draft_model: draft,
+    review_model: rec.review_model?.trim() || DEFAULT_REVIEW_MODEL,
+    helper_model: rec.helper_model?.trim() || rec.gemini_model?.trim() || DEFAULT_GEMINI_MODEL,
+    default_draft_model: DEFAULT_GEMINI_MODEL,
+    default_review_model: DEFAULT_REVIEW_MODEL,
+    default_helper_model: DEFAULT_GEMINI_MODEL,
+    draft_provider: rec.draft_provider === "second" ? "second" : "gemini",
+    review_provider: rec.review_provider === "second" ? "second" : "gemini",
+    helper_provider: rec.helper_provider === "second" ? "second" : "gemini",
+    second_ai_base_url: rec.second_ai_base_url?.trim() || DEFAULT_SECOND_AI.base_url,
+    second_ai_model: rec.second_ai_model?.trim() || DEFAULT_SECOND_AI.model,
+    second_ai_configured: !!(await readServiceKey("ai2")),
+    // Name and company are pre-seeded until the user saves their own (even an empty one).
+    default_sender_name: rec.default_sender_name ?? "Lakshmi Devaraj",
+    default_sender_company: rec.default_sender_company ?? "ShiftForge AI",
+    default_sender_offer: rec.default_sender_offer ?? "",
+    sending_inbox_id: rec.sending_inbox_id ?? "",
+    reply_alert_email: rec.reply_alert_email ?? "",
+    browser_check_cap: rec.browser_check_cap ?? BROWSER_DEFAULT_CAP,
+  };
+}
+
 // Turn a GeminiError into the structured API failure the UI understands.
 function geminiFail(err: GeminiError) {
   const status = err.kind === "daily_quota" || err.kind === "rate_limited" ? 429 : err.kind === "unavailable" ? 503 : err.kind === "timeout" ? 504 : 502;
@@ -247,8 +419,19 @@ function geminiFail(err: GeminiError) {
 // Light-touch "does this key actually work" tests. We do NOT hit the full
 // service surface here — just a cheap endpoint that returns 200 on a valid
 // key and 401/403 on an invalid one. Keeps onboarding fast.
-async function testServiceKey(name: ServiceKey, key: string, model?: string): Promise<{ ok: boolean; message: string }> {
+async function testServiceKey(name: ServiceKey, key: string, model?: string, extra: { base_url?: string } = {}): Promise<{ ok: boolean; message: string }> {
   try {
+    if (name === "ai2") {
+      const st = await readOutreachSettings();
+      const cfg = { key, base_url: (extra.base_url?.trim() || st.second_ai_base_url?.trim() || DEFAULT_SECOND_AI.base_url).replace(/\/+$/, ""), model: model || st.second_ai_model?.trim() || DEFAULT_SECOND_AI.model };
+      try {
+        await secondAiGenerate(cfg, { system: 'Reply with JSON only: {"ok": true}', user: "ping", temperature: 0, maxTokens: 20 }, { timeoutMs: 15_000, budgetMs: 15_000 });
+        return { ok: true, message: `Second AI provider verified (${cfg.model} at ${cfg.base_url})` };
+      } catch (err) {
+        if (err instanceof GeminiError && (err.kind === "rate_limited" || err.kind === "daily_quota")) return { ok: true, message: `Second AI provider accepted the key (${cfg.model}), but it is at its limit right now.` };
+        return { ok: false, message: err instanceof Error ? err.message : "Test failed" };
+      }
+    }
     if (name === "gemini") {
       // A models-list call passes for keys whose chosen model is unusable, so
       // do one tiny REAL generate call with the chosen model. A bad key or an
@@ -451,12 +634,12 @@ type SequenceContext = {
 };
 
 async function generateEmailDraft(
-  geminiKey: string,
+  _geminiKey: string | null,
   lead: { name?: string; contact_name?: string; company?: string; website?: string; category?: string; address?: string; notes?: string; is_test?: boolean; rating?: number | null; reviews_count?: number | null; gap_reasons?: string[]; hours_summary?: string | null },
   senderContext: { sender_name?: string; sender_company?: string; sender_offer?: string; campaign_query?: string; any_trade?: boolean },
   sequence: SequenceContext = {},
   ai: GeminiAiOpts = {},
-): Promise<EmailDraft> {
+): Promise<EmailDraft & { written_by: string }> {
   const greeting = greetingFor(lead);
   const leadSummary = [
     `GREETING: ${greeting ?? "Hi there"}`,
@@ -510,27 +693,152 @@ async function generateEmailDraft(
     ],
     generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
   };
-  const data = await geminiGenerate(body, { key: geminiKey, ...ai });
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  if (!text) throw new Error("Gemini returned empty draft");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    const stripped = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
-    parsed = JSON.parse(stripped);
-  }
+  const ans = await aiJson("draft", { system: body.systemInstruction.parts[0].text, user: body.contents[0].parts[0].text, temperature: 0.7 }, ai);
+  const parsed = ans.json;
   const obj = parsed as Partial<EmailDraft>;
   // Enforce the fixed offer + greeting even if the model ignored the prompt.
-  return normalizeDraft(
-    {
-      subject: String(obj.subject ?? "").trim() || "Quick question",
-      body_text: String(obj.body_text ?? "").trim(),
-      body_html: String(obj.body_html ?? "").trim(),
-    },
-    greeting,
-    { firstEmail: !isSequence || (sequence.step ?? 1) <= 1 },
-  );
+  return {
+    ...normalizeDraft(
+      {
+        subject: String(obj.subject ?? "").trim() || "Quick question",
+        body_text: String(obj.body_text ?? "").trim(),
+        body_html: String(obj.body_html ?? "").trim(),
+      },
+      greeting,
+      { firstEmail: !isSequence || (sequence.step ?? 1) <= 1 },
+    ),
+    written_by: ans.model,
+  };
+}
+
+// ── New first-email path: code picks the fact and angle, a small model writes ──
+
+type FirstEmailLead = {
+  name?: string; contact_name?: string; address?: string; category?: string; is_test?: boolean;
+  rating?: number | null; reviews_count?: number | null; raw?: unknown; site_check?: Record<string, unknown> | null;
+};
+type FirstEmailMeta = { written_by: string; fact_used: number | null; draft_facts: Fact[]; angle: string; opening_style: string; gap_note: string | null; check_reasons: string[] };
+
+async function generateFirstEmail(
+  lead: FirstEmailLead,
+  sender: { sender_offer?: string },
+  ctx: { draftsSoFar: number; any_trade: boolean; query: string },
+  ai: GeminiAiOpts,
+): Promise<{ draft: EmailDraft; meta: FirstEmailMeta }> {
+  const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
+  const style = pickOpeningStyle(ctx.draftsSoFar, plan.facts.length > 0);
+  const greetingLine = greetingFor(lead) ?? "Hi there";
+  const trade = ctx.any_trade ? "home services" : (lead.category || ctx.query || "home services").slice(0, 60);
+  const offer = sender.sender_offer?.trim() || "We set up AI assistants that answer calls and website messages for home-service businesses, take the details and pass every enquiry to the owner.";
+  const user = [
+    `BUSINESS: ${lead.name ?? "the business"}`,
+    `GREETING: ${greetingLine}`,
+    `CITY: ${cityOf(lead.address) || "(unknown)"}`,
+    `TRADE: ${trade}`,
+    plan.facts.length ? `FACTS YOU MAY USE:\n${plan.facts.map((f) => `${f.n}. ${f.text}`).join("\n")}` : "FACTS YOU MAY USE:\n(none: write without any claim about their business)",
+    `ANGLE: ${plan.angle.line}`,
+    `OPENING STYLE: ${style} - ${OPENING_STYLE_HELP[style]}`,
+    `OFFER (background only, rewrite in your own words, tied to the angle, never paste it): "${offer}"`,
+  ].join("\n");
+  let failures: string[] = [];
+  let ans: AiJsonResult | null = null;
+  let md: ModelDraft = { subject: "", body: "", fact_used: null, opening_style: style };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const prompt = attempt === 0 ? user : `${user}\n\nYOUR LAST ANSWER FAILED THESE CHECKS: ${failures.join("; ")}. Write it again and fix them. Output JSON only.`;
+    ans = await aiJson("draft", { system: DRAFT_SYSTEM_PROMPT, user: prompt, temperature: 0.4 }, ai);
+    const o = (ans.json && typeof ans.json === "object" ? ans.json : {}) as Record<string, unknown>;
+    md = {
+      subject: String(o.subject ?? "").replace(/\s+/g, " ").trim(),
+      body: String(o.body ?? o.body_text ?? "").replace(/\r/g, "").trim(),
+      fact_used: typeof o.fact_used === "number" ? o.fact_used : null,
+      opening_style: String(o.opening_style ?? style),
+    };
+    failures = md.body ? checkModelDraft(md, plan.facts.length) : ["the body is empty"];
+    if (failures.length === 0) break;
+  }
+  const draft = normalizeDraft({ subject: md.subject || "Quick question", body_text: md.body, body_html: textToHtml(md.body) }, greetingFor(lead), { firstEmail: true });
+  return {
+    draft,
+    meta: { written_by: ans?.model ?? "", fact_used: md.fact_used, draft_facts: plan.facts, angle: plan.angle.code, opening_style: md.opening_style, gap_note: plan.uncertain, check_reasons: failures },
+  };
+}
+
+// ── AI reviewer ───────────────────────────────────────────────────────
+
+type ReviewOutcome = {
+  status: ReviewStatus;
+  reasons: string[];
+  reviewed_by: string | null;
+  rewritten?: { subject: string; body_text: string; body_html: string; original: { subject: string; body_text: string; body_html: string } };
+};
+
+type ReviewableEmail = { subject: string; body_text: string; body_html: string; sequence_position?: number; fact_used?: number | null; draft_facts?: Fact[]; check_reasons?: string[] };
+
+/**
+ * Checks one draft against the lead's saved evidence. Code-only checks come first (a wrong
+ * owner or an unchecked website claim is blocked without asking a model). A reviewer that
+ * cannot answer gives "check", never "ready".
+ */
+async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<string, unknown>, ai: GeminiAiOpts): Promise<ReviewOutcome> {
+  const greeting = greetingFor(lead as Parameters<typeof greetingFor>[0]);
+  const hours = hoursInfo((lead as { raw?: unknown }).raw);
+  const forModel: ReviewLead = { ...lead, hours_summary: hours?.summary ?? null };
+  const cr = codeReview(forModel, greeting, typeof email.fact_used === "number");
+  const writerNotes = email.check_reasons ?? [];
+  if (cr.blocked.length > 0) return { status: "blocked", reasons: [...cr.blocked, ...cr.check], reviewed_by: "code checks" };
+  const ask = async (subject: string, body: string) => {
+    const r = await aiJson(
+      "review",
+      {
+        system: REVIEW_SYSTEM_PROMPT,
+        user: JSON.stringify({ DRAFT: { subject, body }, GREETING_EXPECTED: greeting ? `${greeting},` : "Hi there,", EMAIL_STEP: email.sequence_position ?? 1, FACTS_GIVEN_TO_WRITER: email.draft_facts ?? "unknown (older draft)", SAVED_EVIDENCE: evidenceFor(forModel) }),
+        temperature: 0,
+      },
+      ai,
+    );
+    return { verdict: parseVerdict(r.json), model: r.model };
+  };
+  try {
+    const first = await ask(email.subject, email.body_text);
+    const v = first.verdict;
+    const extra = [...cr.check, ...writerNotes.map((n) => `Writer check: ${n}`)];
+    if (v.status === "blocked") return { status: "blocked", reasons: [...v.reasons, ...extra], reviewed_by: first.model };
+    if (v.status === "ready" && extra.length === 0) return { status: "ready", reasons: v.reasons, reviewed_by: first.model };
+    if (v.status === "ready") return { status: "check", reasons: [...v.reasons, ...extra], reviewed_by: first.model };
+    // Wording-only problem with a rewrite: fix it, then review the new version once more.
+    if (v.problem === "wording" && v.rewrite) {
+      const body_text = normalizeDraft({ subject: v.rewrite.subject, body_text: v.rewrite.body, body_html: "" }, greeting, { firstEmail: (email.sequence_position ?? 1) <= 1 }).body_text;
+      const subject = v.rewrite.subject;
+      const codeFails = (email.sequence_position ?? 1) <= 1 ? checkModelDraft({ subject, body: body_text, fact_used: email.fact_used ?? null, opening_style: "" }, email.draft_facts?.length ?? (typeof email.fact_used === "number" ? 1 : 0)) : [];
+      if (codeFails.length === 0) {
+        const second = await ask(subject, body_text);
+        if (second.verdict.status === "ready" && extra.length === 0) {
+          return {
+            status: "ready",
+            reasons: [`Reworded by the reviewer: ${v.reasons.join(" ")}`.slice(0, 300)],
+            reviewed_by: second.model,
+            rewritten: { subject, body_text, body_html: textToHtml(body_text), original: { subject: email.subject, body_text: email.body_text, body_html: email.body_html } },
+          };
+        }
+      }
+    }
+    return { status: "check", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: first.model };
+  } catch (err) {
+    const why = err instanceof Error ? err.message : "the reviewer did not answer";
+    return { status: "check", reasons: [`Not reviewed yet: ${why}`.slice(0, 200), ...cr.check], reviewed_by: null };
+  }
+}
+
+/** The review fields to store on an email record. */
+function reviewFields(o: ReviewOutcome, prevHistory?: unknown): Record<string, unknown> {
+  const fields: Record<string, unknown> = { review_status: o.status, review_reasons: o.reasons, reviewed_by: o.reviewed_by, reviewed_at: o.reviewed_by ? new Date().toISOString() : null };
+  if (o.rewritten) {
+    fields.subject = o.rewritten.subject;
+    fields.body_text = o.rewritten.body_text;
+    fields.body_html = o.rewritten.body_html;
+    fields.review_history = [...(Array.isArray(prevHistory) ? prevHistory : []), { at: new Date().toISOString(), kind: "original_before_rewrite", ...o.rewritten.original }];
+  }
+  return fields;
 }
 
 // ── Apify helpers ─────────────────────────────────────────────────────
@@ -669,19 +977,18 @@ function siteBase(website: string): URL | null {
 
 /** Gemini fallback: a name only when the About text clearly names the owner/founder; the answer must appear in the text. */
 async function geminiOwnerFallback(text: string, businessName: string, ai: GeminiAiOpts): Promise<string | null> {
-  const key = await readServiceKey("gemini");
-  if (!key || text.length < 80) return null;
+  if (!(await aiAvailable()) || text.length < 80) return null;
   try {
-    const data = await geminiGenerate(
+    const { json } = await aiJson(
+      "helper",
       {
-        systemInstruction: { role: "system", parts: [{ text: 'You read the About page text of a small business. Reply with JSON {"owner": string|null}. Give a name ONLY when the text clearly names the owner or founder of this business as a person. Never guess; return null for staff lists without a role, testimonials, reviewers or company names.' }] },
-        contents: [{ role: "user", parts: [{ text: `Business: ${businessName}\n\nAbout text:\n${text.slice(0, 3500)}` }] }],
-        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+        system: 'You read the About page text of a small business. Reply with JSON {"owner": string|null}. Give a name ONLY when the text clearly names the CURRENT owner of this business as a person. Never guess; return null for staff lists without a role, testimonials, reviewers, company names, and anyone described as retired, former, sold, late or passed away.',
+        user: `Business: ${businessName}\n\nAbout text:\n${text.slice(0, 3500)}`,
+        temperature: 0,
       },
-      { key, ...ai },
+      ai,
     );
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    const name = (JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim()) as { owner?: unknown }).owner;
+    const name = (json as { owner?: unknown }).owner;
     if (typeof name !== "string") return null;
     const clean = name.replace(/\s+/g, " ").trim();
     return validPersonName(clean, businessName) && text.includes(clean) ? clean : null;
@@ -692,21 +999,27 @@ async function geminiOwnerFallback(text: string, businessName: string, ai: Gemin
 
 type SiteCheckResult = { fields: Record<string, unknown>; emails: string[]; fetched: number; tried: string[] };
 
-async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
-  const started = Date.now();
+/**
+ * Turns fetched pages (plain download OR browser-rendered) into the lead fields:
+ * signals with evidence, social links, owner with evidence, hours wording, fit
+ * flags, gap score. Pure apart from the optional Gemini owner fallback.
+ */
+async function analyzeSite(lead: Record<string, unknown>, pages: Page[], viaIn: "raw" | "browser", started = Date.now()): Promise<SiteCheckResult> {
+  let via = viaIn;
   const checkedAt = new Date().toISOString();
-  const base = typeof lead.website === "string" ? siteBase(lead.website) : null;
-  const tried: string[] = [];
-  if (!base) return { fields: { site_check: { checked_at: checkedAt, error: "no website" } }, emails: [], fetched: 0, tried };
-  const urls = SITE_CHECK_PATHS.map((p) => new URL(p, base).toString());
-  tried.push(...urls);
-  const got = await Promise.all(urls.map((u) => fetchPage(u)));
-  // Several paths can redirect to the same page: keep each page once.
-  const seen = new Set<string>();
-  const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
-  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load (it may block automated visits)" } }, emails: [], fetched: 0, tried };
-
-  const { signals, sources } = detectSignals(pages);
+  const { signals, sources, evidence } = detectSignals(pages);
+  // A plain re-check never throws away what a real browser already saw on this lead.
+  if (via === "raw" && (lead.site_check as { via?: string } | null | undefined)?.via === "browser") via = "browser";
+  if (via === "browser") {
+    // The browser only looks at a few pages: anything the earlier plain check found on other pages is kept.
+    const prior = (lead.site_check ?? {}) as Record<string, unknown>;
+    const priorEv = (prior.evidence ?? {}) as Record<string, string>;
+    for (const k of ["chat_widget", "booking_tool", "whatsapp_url", "contact_form_url"] as const) {
+      if (!signals[k] && typeof prior[k] === "string") { (signals as Record<string, unknown>)[k] = prior[k]; if (priorEv[k]) evidence[k] = priorEv[k]; }
+    }
+    if (!signals.has_contact_form && prior.has_contact_form === true) signals.has_contact_form = true;
+    if (signals.booking_tool) signals.request_form = false;
+  }
   const { social, sources: socialSources } = extractSocial(pages);
   const emails: string[] = [];
   for (const p of pages) for (const e of extractEmailsFromHtml(p.html)) if (!emails.includes(e) && !isGovEduEmail(e)) emails.push(e);
@@ -718,13 +1031,30 @@ async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckRe
     if (about) {
       const n = await geminiOwnerFallback(pageText(about.html), name ?? "this business", { budgetMs: 8000, timeoutMs: 8000 });
       // The model's answer is never trusted as much as a pattern match: low confidence, shown for review only.
-      if (n) owner = { name: n, source_url: about.url, confidence: "low", how: "AI reading of the About page" };
+      if (n) owner = { name: n, source_url: about.url, confidence: "low", how: "AI reading of the About page", evidence: "Found by an AI reading of the About page; not confirmed by a clear sentence." };
     }
   }
 
-  const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals);
+  const wording = siteHoursWording(pages);
+  const fit = fitFlags(pages, typeof lead.website === "string" ? lead.website : null);
+  const nb: { needs: boolean; reason: string | null } = via === "browser" ? { needs: false, reason: null } : needsBrowserCheck(pages, signals);
+  const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals, { hoursUsable: wording.hours_usable });
   const fields: Record<string, unknown> = {
-    site_check: { checked_at: checkedAt, ...signals, pages_checked: pages.length, sources: { ...sources, ...socialSources } },
+    site_check: {
+      checked_at: checkedAt,
+      via,
+      ...signals,
+      pages_checked: pages.length,
+      sources: { ...sources, ...socialSources },
+      evidence,
+      hours_usable: wording.hours_usable,
+      advertises_emergency: wording.advertises_emergency,
+      hours_evidence: wording.evidence,
+      needs_browser: nb.needs,
+      needs_browser_reason: nb.reason,
+      not_home_service: fit.not_home_service,
+      lead_gen_listing: fit.lead_gen_listing,
+    },
     social,
     gap_score: gap.score,
     gap_reasons: gap.reasons,
@@ -732,14 +1062,44 @@ async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckRe
   // An owner the user typed in is never overwritten by a re-check.
   if (lead.owner_source !== "manual") {
     if (owner) {
-      Object.assign(fields, { owner_name: owner.name, owner_source_url: owner.source_url, owner_confidence: owner.confidence, owner_source: owner.how });
+      Object.assign(fields, { owner_name: owner.name, owner_source_url: owner.source_url, owner_confidence: owner.confidence, owner_source: owner.how, owner_evidence: owner.evidence });
       // Only a high-confidence owner is used to greet the lead ("Hi Dana").
       fields.contact_name = owner.confidence === "high" ? owner.name : null;
-    } else if (lead.owner_name) {
-      // Nothing found this time: keep what we had.
+    } else if (via === "raw" && lead.owner_name && lead.owner_confidence !== "high") {
+      // An older guess that this check can no longer confirm (could be a retired founder): drop it.
+      Object.assign(fields, { owner_name: null, owner_confidence: null, owner_source: null, owner_source_url: null, owner_evidence: null, contact_name: null });
     }
   }
-  return { fields, emails, fetched: pages.length, tried };
+  return { fields, emails, fetched: pages.length, tried: [] };
+}
+
+/** A lead with no website: "No website" is the biggest gap; a trade-keyword-stuffed name with few reviews is flagged as a possible lead-gen listing. */
+function noWebsiteFields(lead: Record<string, unknown>, checkedAt: string): Record<string, unknown> {
+  const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
+  return {
+    site_check: { checked_at: checkedAt, error: "no website", lead_gen_listing: looksLikeLeadGenListing(lead as { name?: string; website?: string; reviews_count?: number }) },
+    gap_score: g.score,
+    gap_reasons: g.reasons,
+  };
+}
+
+async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
+  const started = Date.now();
+  const checkedAt = new Date().toISOString();
+  const base = typeof lead.website === "string" ? siteBase(lead.website) : null;
+  const tried: string[] = [];
+  if (!base) return { fields: noWebsiteFields(lead, checkedAt), emails: [], fetched: 0, tried };
+  const urls = SITE_CHECK_PATHS.map((p) => new URL(p, base).toString());
+  tried.push(...urls);
+  const got = await Promise.all(urls.map((u) => fetchPage(u)));
+  // A homepage that did not load gets one more, slower try (many sites are just slow).
+  if (!got[0]) got[0] = await fetchPage(urls[0], 12000);
+  // Several paths can redirect to the same page: keep each page once.
+  const seen = new Set<string>();
+  const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
+  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load (it may block automated visits)", needs_browser: true, needs_browser_reason: "The site did not load for a plain download; a browser may open it" } }, emails: [], fetched: 0, tried };
+  const res = await analyzeSite(lead, pages, "raw", started);
+  return { ...res, tried };
 }
 
 /** Best address from a list: role-based business addresses first. */
@@ -849,39 +1209,12 @@ Rules:
 - "maxResults" = clamp the user-requested number into [10, 200]. If unspecified, use 50.
 - Always return valid JSON. No trailing commas. Double-quoted strings only.`;
 
-async function previewIcpWithGemini(geminiKey: string, userQuery: string, maxResultsHint?: number, ai: GeminiAiOpts = {}): Promise<StructuredQuery> {
-  const body = {
-    systemInstruction: { role: "system", parts: [{ text: PREVIEW_SYSTEM_PROMPT }] },
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: `ICP description:\n${userQuery}\n\nMax results hint: ${
-              typeof maxResultsHint === "number" ? maxResultsHint : "unspecified"
-            }`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-    },
-  };
-  const data = await geminiGenerate(body, { key: geminiKey, ...ai });
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  if (!text) throw new Error("Gemini returned empty response");
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    // Sometimes the model wraps in ```json fences despite the mime type —
-    // strip them and retry.
-    const stripped = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
-    parsed = JSON.parse(stripped);
-  }
+async function previewIcpWithGemini(_geminiKey: string | null, userQuery: string, maxResultsHint?: number, ai: GeminiAiOpts = {}): Promise<StructuredQuery> {
+  const { json: parsed } = await aiJson(
+    "helper",
+    { system: PREVIEW_SYSTEM_PROMPT, user: `ICP description:\n${userQuery}\n\nMax results hint: ${typeof maxResultsHint === "number" ? maxResultsHint : "unspecified"}`, temperature: 0.2 },
+    ai,
+  );
   const obj = parsed as Partial<StructuredQuery>;
   const location = typeof obj.location === "string" && obj.location.trim() ? obj.location.trim() : "Unknown";
   const terms = Array.isArray(obj.searchTerms) ? obj.searchTerms.filter((t) => typeof t === "string" && t.trim()) : [];
@@ -923,6 +1256,17 @@ function deriveCampaign<T extends Record<string, unknown>>(c: T, emails: Array<{
   const sendingNow = st === "sending" && Date.now() - Date.parse((c.updated_at as string) ?? "") < 5 * 60_000;
   if (!sendingNow && (st === "ready" || st === "sending" || st === "completed" || st === "failed") && sent > 0) out.status = queued > 0 ? "ready" : "completed";
   return out as T;
+}
+
+/** The lead count comes from the leads themselves (the stored leads_imported was only bumped by some import paths). */
+async function withLeadCount<T extends Record<string, unknown>>(c: T): Promise<T> {
+  try {
+    const { blobs } = await store(OUTREACH_LEADS).list({ prefix: `${String(c.id)}/` });
+    const stored = typeof c.leads_imported === "number" ? c.leads_imported : 0;
+    return { ...c, leads_imported: blobs.length > 0 ? blobs.length : stored };
+  } catch {
+    return c;
+  }
 }
 
 async function campaignEmails(id: string): Promise<Array<{ status?: string; click_count?: number }>> {
@@ -970,10 +1314,10 @@ export async function draftOne(p: {
   leadHint?: unknown;
   ai?: GeminiAiOpts;
   contacts?: Contacts;
+  review?: boolean; // run the AI reviewer right after drafting (background jobs)
 }): Promise<DraftOneResult> {
   const { campaign_id, lead_id, sender_name, sender_company, sender_offer, framework, step, total_steps, leadHint } = p;
-  const geminiKey = await readServiceKey("gemini");
-  if (!geminiKey) return draftFail(400, "Gemini key not configured");
+  if (!(await aiAvailable())) return draftFail(400, "Gemini key not configured");
 
   const cs = store(OUTREACH_CAMPAIGNS);
   const campaign = await readJson<CampaignRecord>(cs, campaign_id);
@@ -1011,7 +1355,7 @@ export async function draftOne(p: {
     if (skip) return draftFail(400, `${skip.message} — no draft created`, skip.code === "excluded" ? "excluded" : "skipped_lead");
   }
   {
-    const block = contactBlock(p.contacts ?? (await loadContacts()), lead.email as string, campaign_id);
+    const block = contactBlock(p.contacts ?? (await loadContacts()), lead.email as string, campaign_id, { isTest: lead.is_test === true });
     if (block) return draftFail(400, `${block.message} — no draft created`, block.code);
   }
   {
@@ -1036,32 +1380,51 @@ export async function draftOne(p: {
     .sort((a, b) => a.step - b.step);
 
   try {
-    const draft = await generateEmailDraft(
-      geminiKey,
-      {
-        name: lead.name as string | undefined,
-        contact_name: lead.contact_name as string | undefined,
-        company: lead.company as string | undefined,
-        website: lead.website as string | undefined,
-        category: lead.category as string | undefined,
-        address: lead.address as string | undefined,
-        notes: lead.notes as string | undefined,
-        is_test: lead.is_test === true,
-        rating: typeof lead.rating === "number" ? lead.rating : null,
-        reviews_count: typeof lead.reviews_count === "number" ? lead.reviews_count : null,
-        gap_reasons: Array.isArray(lead.gap_reasons) ? (lead.gap_reasons as string[]).filter((r) => /chat|booking|whatsapp|contact form/i.test(r)) : [],
-        hours_summary: hoursInfo(lead.raw)?.summary ?? null,
-      },
-      {
-        sender_name: typeof sender_name === "string" ? sender_name : undefined,
-        sender_company: typeof sender_company === "string" ? sender_company : undefined,
-        sender_offer: typeof sender_offer === "string" ? sender_offer : undefined,
-        campaign_query: campaign.query as string,
-        any_trade: campaign.any_trade === true,
-      },
-      { framework: fw, step: stepNum, total_steps: totalNum, previous_steps: previousSteps },
-      p.ai ?? {},
-    );
+    const isSeq = fw !== "one-off";
+    let draft: EmailDraft;
+    let meta: Record<string, unknown> = {};
+    if (!isSeq) {
+      // First email: the code picks the one confident fact and angle, a small model writes it.
+      const sameStep = existingEmails.filter((e) => (e.sequence_position ?? 1) === 1).length;
+      const first = await generateFirstEmail(
+        { ...(lead as FirstEmailLead), site_check: (lead.site_check as Record<string, unknown> | null | undefined) ?? null },
+        { sender_offer: typeof sender_offer === "string" ? sender_offer : undefined },
+        { draftsSoFar: sameStep, any_trade: campaign.any_trade === true, query: String(campaign.query ?? "") },
+        p.ai ?? {},
+      );
+      draft = first.draft;
+      meta = first.meta;
+    } else {
+      // Sequences (PAS / AIDA / SDR) keep the older long prompt for every step.
+      const d = await generateEmailDraft(
+        null,
+        {
+          name: lead.name as string | undefined,
+          contact_name: lead.contact_name as string | undefined,
+          company: lead.company as string | undefined,
+          website: lead.website as string | undefined,
+          category: lead.category as string | undefined,
+          address: lead.address as string | undefined,
+          notes: lead.notes as string | undefined,
+          is_test: lead.is_test === true,
+          rating: typeof lead.rating === "number" ? lead.rating : null,
+          reviews_count: typeof lead.reviews_count === "number" ? lead.reviews_count : null,
+          gap_reasons: pickAngle({ site_check: lead.site_check as never }).uncertain ? [] : Array.isArray(lead.gap_reasons) ? (lead.gap_reasons as string[]).filter((r) => /chat|booking|whatsapp|contact form/i.test(r)) : [],
+          hours_summary: (lead.site_check as { hours_usable?: boolean } | undefined)?.hours_usable === false ? null : hoursInfo(lead.raw)?.summary ?? null,
+        },
+        {
+          sender_name: typeof sender_name === "string" ? sender_name : undefined,
+          sender_company: typeof sender_company === "string" ? sender_company : undefined,
+          sender_offer: typeof sender_offer === "string" ? sender_offer : undefined,
+          campaign_query: campaign.query as string,
+          any_trade: campaign.any_trade === true,
+        },
+        { framework: fw, step: stepNum, total_steps: totalNum, previous_steps: previousSteps },
+        p.ai ?? {},
+      );
+      draft = d;
+      meta = { written_by: d.written_by };
+    }
     const emailId = nanoid(12);
     const createdAt = new Date().toISOString();
     const record = {
@@ -1078,9 +1441,17 @@ export async function draftOne(p: {
       sequence_total: totalNum,
       framework: fw,
       status: "drafted",
+      ...meta,
       created_at: createdAt,
       updated_at: createdAt,
     };
+    // Review right away (background jobs only): the Send button only sends "ready" drafts.
+    if (p.review) {
+      const outcome = await reviewDraft(record as unknown as ReviewableEmail, lead as ReviewLead & Record<string, unknown>, p.ai ?? {});
+      Object.assign(record, reviewFields(outcome));
+    } else {
+      Object.assign(record, { review_status: "check", review_reasons: ["Not reviewed yet"], reviewed_by: null, reviewed_at: null });
+    }
     await writeJson(es, `${campaign_id}/${createdAt}-${emailId}`, record);
     // Persist the sender context + default framework on the campaign (re-read: a job may have updated it meanwhile).
     const fresh = (await readJson<CampaignRecord>(cs, campaign_id)) ?? campaign;
@@ -1140,7 +1511,7 @@ async function planDraftPairs(campaign_id: string, framework: unknown, hints?: u
   for (const l of leads) {
     const email = l.email as string | null | undefined;
     if (!email || isJunkEmail(email) || l.do_not_contact) continue;
-    if (leadSkipReason(l as Parameters<typeof leadSkipReason>[0], ctx) || contactBlock(contacts, email, campaign_id)) continue;
+    if (leadSkipReason(l as Parameters<typeof leadSkipReason>[0], ctx) || contactBlock(contacts, email, campaign_id, { isTest: l.is_test === true })) continue;
     for (let step = 1; step <= totalSteps; step++) if (!have.has(`${l.id}__${step}`)) pairs.push({ lead: l, step });
   }
   // All step 1 first, then step 2, then step 3: later steps refer back to earlier ones.
@@ -1199,6 +1570,7 @@ export async function runDraftJob(p: DraftJobParams): Promise<void> {
           leadHint: lead,
           ai: BACKGROUND_AI,
           contacts,
+          review: true,
         });
         if (r.ok) { made++; break; }
         if (r.code === "daily_quota") { stopped = `${r.error} ${made} draft${made === 1 ? "" : "s"} were made before it stopped.`; break; }
@@ -1221,13 +1593,172 @@ export async function runDraftJob(p: DraftJobParams): Promise<void> {
   });
 }
 
+
+// ── Browser check (Apify playwright-scraper) ──────────────────────────
+// Chat and booking widgets on site builders (GoDaddy, Wix, ...) load with JavaScript, so a
+// plain download can miss them. For leads that will really be emailed, one Apify run opens
+// their pages in a real browser; the same detectors then read the rendered pages.
+// Runs in the ai-background function (start, poll, finish); progress is written to campaign.job.
+
+type BrowserCtx = ReturnType<typeof campaignSkipCtx>;
+
+function browserEligible(lead: Record<string, unknown>, ctx: BrowserCtx, forced: boolean): boolean {
+  if (!lead.website || typeof lead.website !== "string" || !siteBase(lead.website)) return false;
+  if (forced) return true;
+  const email = lead.email as string | null | undefined;
+  if (!email || isJunkEmail(email) || lead.do_not_contact || lead.excluded || lead.is_test) return false;
+  if (leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], ctx)) return false;
+  const sc = (lead.site_check ?? {}) as { needs_browser?: boolean; via?: string };
+  return sc.needs_browser === true && sc.via !== "browser";
+}
+
+async function planBrowserCheck(campaign_id: string, leadId?: string): Promise<{ lead_ids: string[]; names: string[]; leads: number; pages: number; est_usd: number; cap: number; used: number; remaining: number }> {
+  const campaign = await readJson<CampaignRecord & { browser_checked_ids?: string[] }>(store(OUTREACH_CAMPAIGNS), campaign_id);
+  if (!campaign) throw new Error("campaign not found");
+  const ctx = campaignSkipCtx(campaign);
+  const settings = await readOutreachSettings();
+  const cap = Math.max(1, Math.min(200, settings.browser_check_cap ?? BROWSER_DEFAULT_CAP));
+  const done = new Set(campaign.browser_checked_ids ?? []);
+  const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
+  let picked = leads.filter((l) => (leadId ? l.id === leadId : true) && browserEligible(l, ctx, !!leadId));
+  // New leads count against the cap; one already browser-checked in this campaign can be re-checked for free.
+  const remaining = Math.max(0, cap - done.size);
+  let room = remaining;
+  picked = picked.filter((l) => { if (done.has(l.id)) return true; if (room <= 0) return false; room--; return true; });
+  const est = estimateBrowserCost(picked.length);
+  return { lead_ids: picked.map((l) => l.id), names: picked.map((l) => String(l.name ?? l.id)), leads: picked.length, pages: est.pages, est_usd: est.usd, cap, used: done.size, remaining };
+}
+
+async function patchLeadFields(campaign_id: string, lead_id: string, patch: Record<string, unknown>): Promise<void> {
+  const found = await findLeadRow(campaign_id, lead_id);
+  if (!found) return;
+  await writeJson(store(OUTREACH_LEADS), found.key, { ...found.lead, ...patch, updated_at: new Date().toISOString() });
+}
+
+export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[] }): Promise<void> {
+  const { campaign_id } = p;
+  const cs = store(OUTREACH_CAMPAIGNS);
+  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
+  if (!campaign?.job || campaign.job.kind !== "browsercheck" || campaign.job.status !== "running") return;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const t0 = Date.now();
+  let done = 0;
+  let stopped: string | null = null;
+  try {
+    const apify = await readServiceKey("apify");
+    if (!apify) throw new Error("Apify key not configured");
+    const leads: Array<Record<string, unknown> & { id: string }> = [];
+    for (const id of p.lead_ids) {
+      const f = await findLeadRow(campaign_id, id);
+      if (f) leads.push(f.lead as Record<string, unknown> & { id: string });
+    }
+    const sites = leads.map((l) => ({ lead_id: l.id, base: siteBase(String(l.website))?.toString() ?? "" })).filter((x) => x.base);
+    if (sites.length === 0) throw new Error("No lead with a usable website");
+    const r = await fetch(`https://api.apify.com/v2/acts/${BROWSER_ACTOR}/runs?token=${encodeURIComponent(apify)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(browserInput(sites)) });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(r.status === 402 || /credit|limit|usage/i.test(txt) ? "Apify has no credit left for a browser check. Drafting still works; gaps just will not be mentioned for these leads." : `Apify browser run could not start (${r.status}): ${txt.slice(0, 160)}`);
+    }
+    const started = (await r.json()) as { data?: { id?: string } };
+    const runId = started.data?.id;
+    if (!runId) throw new Error("Apify did not return a run id");
+    await patchJob(campaign_id, { message: "The browser is opening the websites…", run_id: runId });
+    let datasetId: string | null = null;
+    let status = "RUNNING";
+    while (Date.now() - t0 < JOB_MAX_MS) {
+      await sleep(7000);
+      const st = await getApifyRunStatus(apify, runId);
+      status = st.status;
+      datasetId = st.defaultDatasetId ?? datasetId;
+      if (datasetId) {
+        try {
+          const items = await getApifyDatasetItems(apify, datasetId, 500);
+          done = new Set(items.map((i) => i.lead_id).filter((x): x is string => typeof x === "string")).size;
+          await patchJob(campaign_id, { done });
+        } catch { /* progress only */ }
+      }
+      if (["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"].includes(status)) break;
+    }
+    if (!datasetId) throw new Error(`The browser run ended without results (${status}).`);
+    const items = await getApifyDatasetItems(apify, datasetId, 600);
+    const byLead = pagesByLead(items);
+    const checkedIds = new Set(((await readJson<{ browser_checked_ids?: string[] }>(cs, campaign_id))?.browser_checked_ids) ?? []);
+    for (const lead of leads) {
+      const pages = byLead.get(lead.id);
+      const nowIso = new Date().toISOString();
+      if (pages && pages.length > 0) {
+        const res = await analyzeSite(lead, pages, "browser");
+        await patchLeadFields(campaign_id, lead.id, { ...res.fields, browser_checked_at: nowIso });
+        checkedIds.add(lead.id);
+      } else {
+        // Keep the plain result, but say it is still uncertain so drafting and the reviewer do not trust gaps.
+        const sc = (lead.site_check ?? {}) as Record<string, unknown>;
+        await patchLeadFields(campaign_id, lead.id, { site_check: { ...sc, needs_browser: true, needs_browser_reason: "The browser check could not open this site", browser_error: "no pages loaded", browser_attempted_at: nowIso } });
+      }
+    }
+    const fresh = await readJson<Record<string, unknown>>(cs, campaign_id);
+    if (fresh) await writeJson(cs, campaign_id, { ...fresh, browser_checked_ids: [...checkedIds] });
+    if (status !== "SUCCEEDED") stopped = `The browser run ended early (${status}). Leads without results stay marked "needs browser check".`;
+  } catch (err) {
+    stopped = err instanceof Error ? err.message : "Browser check failed";
+  }
+  await patchJob(campaign_id, { status: stopped ? "stopped" : "done", done, finished_at: new Date().toISOString(), message: stopped ?? undefined });
+}
+
+/** Which drafts a review run covers: the ticked ones, else every draft that is not already "ready". */
+async function planReview(campaign_id: string, emailIds?: string[]): Promise<Array<{ key: string; row: Record<string, unknown> & { id: string } }>> {
+  const es = store(OUTREACH_EMAILS);
+  const { blobs } = await es.list({ prefix: `${campaign_id}/` });
+  const out: Array<{ key: string; row: Record<string, unknown> & { id: string } }> = [];
+  const want = emailIds && emailIds.length ? new Set(emailIds) : null;
+  for (const b of blobs) {
+    const row = await readJson<Record<string, unknown> & { id: string }>(es, b.key);
+    if (!row || row.status !== "drafted") continue;
+    if (want ? !want.has(row.id) : row.review_status === "ready") continue;
+    out.push({ key: b.key, row });
+  }
+  return out;
+}
+
+/** The review job: one draft at a time, progress written after each (runs in ai-background). */
+export async function runReviewJob(p: { campaign_id: string; email_ids?: string[] }): Promise<void> {
+  const { campaign_id } = p;
+  const cs = store(OUTREACH_CAMPAIGNS);
+  const campaign = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
+  if (!campaign?.job || campaign.job.kind !== "review" || campaign.job.status !== "running") return;
+  const t0 = Date.now();
+  let done = 0;
+  let stopped: string | null = null;
+  try {
+    const todo = await planReview(campaign_id, p.email_ids);
+    const es = store(OUTREACH_EMAILS);
+    for (let i = 0; i < todo.length && !stopped; i++) {
+      if (Date.now() - t0 > JOB_MAX_MS) { stopped = `Time limit reached after ${done} reviews. Click Review again to continue.`; break; }
+      const { key, row } = todo[i];
+      if (i > 0) await new Promise((r) => setTimeout(r, 1500));
+      const found = await findLeadRow(campaign_id, String(row.lead_id));
+      if (!found) { done++; continue; }
+      const outcome = await reviewDraft(row as unknown as ReviewableEmail, found.lead as ReviewLead & Record<string, unknown>, BACKGROUND_AI);
+      // Re-read: if the draft was edited or sent while the reviewer worked, the verdict no longer applies.
+      const fresh = await readJson<Record<string, unknown>>(es, key);
+      if (fresh && fresh.status === "drafted" && fresh.updated_at === row.updated_at) {
+        await writeJson(es, key, { ...fresh, ...reviewFields(outcome, fresh.review_history), updated_at: new Date().toISOString() });
+      }
+      done++;
+      await patchJob(campaign_id, { done });
+    }
+  } catch (err) {
+    stopped = err instanceof Error ? err.message : "Review failed";
+  }
+  await patchJob(campaign_id, { status: stopped ? "stopped" : "done", done, finished_at: new Date().toISOString(), message: stopped ?? undefined });
+}
+
 export async function runPreviewJob(p: { id: string; query: string; max_results?: number }): Promise<void> {
   const ss = store(OUTREACH_SETTINGS);
   const key = `preview/${p.id}`;
   try {
-    const geminiKey = await readServiceKey("gemini");
-    if (!geminiKey) throw new GeminiError("Gemini key not configured — open Settings and add it first.", "auth", 400);
-    const structured = await previewIcpWithGemini(geminiKey, p.query, p.max_results, BACKGROUND_AI);
+    if (!(await aiAvailable())) throw new GeminiError("Gemini key not configured — open Settings and add it first.", "auth", 400);
+    const structured = await previewIcpWithGemini(null, p.query, p.max_results, BACKGROUND_AI);
     await writeJson(ss, key, { status: "done", result: structured, finished_at: new Date().toISOString() });
   } catch (err) {
     await writeJson(ss, key, {
@@ -1818,11 +2349,10 @@ export const handler: Handler = async (event) => {
         // This is cheap and safe to call repeatedly — no side effects.
         const { query, max_results } = params as Record<string, unknown>;
         if (typeof query !== "string" || !query.trim()) return fail(400, "query required");
-        const geminiKey = await readServiceKey("gemini");
-        if (!geminiKey) return fail(400, "Gemini key not configured — open Settings and add it first.");
+        if (!(await aiAvailable())) return fail(400, "Gemini key not configured — open Settings and add it first.");
         try {
           const structured = await previewIcpWithGemini(
-            geminiKey,
+            null,
             query.trim(),
             typeof max_results === "number" ? max_results : undefined,
           );
@@ -1838,7 +2368,7 @@ export const handler: Handler = async (event) => {
         // (up to 60 s, one retry). The page then polls outreach.preview.result.
         const { query } = params as Record<string, unknown>;
         if (typeof query !== "string" || !query.trim()) return fail(400, "query required");
-        if (!(await readServiceKey("gemini"))) return fail(400, "Gemini key not configured — open Settings and add it first.");
+        if (!(await aiAvailable())) return fail(400, "Gemini key not configured — open Settings and add it first.");
         const id = nanoid(10);
         await writeJson(store(OUTREACH_SETTINGS), `preview/${id}`, { status: "running", started_at: new Date().toISOString() });
         return ok({ id });
@@ -1851,12 +2381,63 @@ export const handler: Handler = async (event) => {
         return rec ? ok(rec) : fail(404, "preview not found");
       }
 
+      case "outreach.emails.review.start": {
+        // Records a review job (all unreviewed/"check"/blocked drafts, or the given email_ids); the page then
+        // POSTs { task: "review", params: { campaign_id, email_ids } } to the ai-background function.
+        const { campaign_id, email_ids } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
+        if (!(await aiAvailable())) return fail(400, "No AI provider is set up. Add the Gemini key in Settings.");
+        const cs = store(OUTREACH_CAMPAIGNS);
+        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        if (!campaign) return fail(404, "campaign not found");
+        const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
+        if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
+          return failCode(409, "A job is already running for this campaign. Wait for it to finish.", "job_running");
+        }
+        const ids = Array.isArray(email_ids) ? (email_ids as unknown[]).filter((x): x is string => typeof x === "string") : undefined;
+        const todo = await planReview(campaign_id, ids);
+        if (todo.length === 0) return fail(400, "No drafts to review.");
+        const now = new Date().toISOString();
+        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "review", status: "running", total: todo.length, done: 0, started_at: now, progress_at: now }, updated_at: now });
+        return ok({ total: todo.length, started_at: now });
+      }
+
+      case "outreach.browsercheck.plan": {
+        // How many leads a browser check would open and what it would cost (an estimate), shown before anything starts.
+        const { campaign_id, lead_id } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
+        try {
+          return ok(await planBrowserCheck(campaign_id, typeof lead_id === "string" ? lead_id : undefined));
+        } catch (err) {
+          return fail(404, err instanceof Error ? err.message : "campaign not found");
+        }
+      }
+
+      case "outreach.browsercheck.start": {
+        // Records the job; the page then POSTs { task: "browsercheck", params: { campaign_id, lead_ids } } to ai-background.
+        const { campaign_id, lead_id } = params as Record<string, unknown>;
+        if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
+        if (!(await readServiceKey("apify"))) return fail(400, "Apify key not configured. Add it in Settings to use the browser check.");
+        const cs = store(OUTREACH_CAMPAIGNS);
+        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        if (!campaign) return fail(404, "campaign not found");
+        const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
+        if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
+          return failCode(409, "A job is already running for this campaign. Wait for it to finish.", "job_running");
+        }
+        const plan = await planBrowserCheck(campaign_id, typeof lead_id === "string" ? lead_id : undefined);
+        if (plan.leads === 0) return fail(400, plan.remaining <= 0 && plan.used > 0 ? `The browser check limit for this campaign (${plan.cap} leads) is reached. You can raise it in Settings.` : "No lead needs a browser check right now.");
+        const now = new Date().toISOString();
+        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "browsercheck", status: "running", total: plan.leads, done: 0, started_at: now, progress_at: now, message: "Starting the browser…" }, updated_at: now });
+        return ok({ ...plan, started_at: now });
+      }
+
       case "outreach.draft.start": {
         // Validates and records a drafting job; the page then POSTs the same parameters to the
         // ai-background function, which does the slow work and writes progress to campaign.job.
         const { campaign_id, framework, leads } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
-        if (!(await readServiceKey("gemini"))) return fail(400, "Gemini key not configured");
+        if (!(await aiAvailable())) return fail(400, "Gemini key not configured");
         const cs = store(OUTREACH_CAMPAIGNS);
         const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
         if (!campaign) return fail(404, "campaign not found");
@@ -1909,7 +2490,7 @@ export const handler: Handler = async (event) => {
       case "outreach.campaign.list": {
         const all = await listJsonFast<{ id: string; created_at: string }>(store(OUTREACH_CAMPAIGNS));
         all.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        return ok(await Promise.all(all.map(async (c) => deriveCampaign(c as Record<string, unknown>, await campaignEmails(c.id)))));
+        return ok(await Promise.all(all.map(async (c) => deriveCampaign(await withLeadCount(c as Record<string, unknown>), await campaignEmails(c.id)))));
       }
 
       case "outreach.campaign.get": {
@@ -1917,7 +2498,7 @@ export const handler: Handler = async (event) => {
         if (!id) return fail(400, "id required");
         const record = await readJson(store(OUTREACH_CAMPAIGNS), id);
         if (!record) return fail(404, "campaign not found");
-        return ok(deriveCampaign(record as Record<string, unknown>, await campaignEmails(id)));
+        return ok(deriveCampaign(await withLeadCount(record as Record<string, unknown>), await campaignEmails(id)));
       }
 
       case "outreach.campaign.update": {
@@ -2170,7 +2751,7 @@ export const handler: Handler = async (event) => {
         const contacts = await loadContacts();
         const annotated = rows.map((r0) => {
           const r = withoutJunkEmail(r0);
-          const why = leadSkipReason(r, ctx) ?? (r.email ? contactBlock(contacts, r.email, campaign_id) : null);
+          const why = leadSkipReason(r, ctx) ?? (r.email ? contactBlock(contacts, r.email, campaign_id, { isTest: (r as { is_test?: boolean }).is_test === true }) : null);
           return why ? { ...r, skip_reason: why.message, skip_code: why.code } : r;
         });
         return ok(annotated.slice(0, typeof limit === "number" ? limit : 500));
@@ -2180,7 +2761,7 @@ export const handler: Handler = async (event) => {
         // Per-lead things you control (send only the ones you want to change):
         //   excluded (true = never draft this lead), trade_override (true = include although
         //   it looks like a different trade), owner_name (your own entry; "" clears it).
-        const { campaign_id, lead_id, excluded, trade_override, owner_name } = params as Record<string, unknown>;
+        const { campaign_id, lead_id, excluded, trade_override, owner_name, delete_drafts } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id || typeof lead_id !== "string" || !lead_id) return fail(400, "campaign_id and lead_id required");
         if (excluded !== undefined && typeof excluded !== "boolean") return fail(400, "excluded must be true or false");
         if (trade_override !== undefined && typeof trade_override !== "boolean") return fail(400, "trade_override must be true or false");
@@ -2202,23 +2783,35 @@ export const handler: Handler = async (event) => {
           }
         }
         await writeJson(store(OUTREACH_LEADS), found.key, updated);
-        return ok(updated);
+        // Skipping a lead can also remove its unsent drafts (sent emails stay as history).
+        let draftsDeleted = 0;
+        if (excluded === true && delete_drafts === true) {
+          const es = store(OUTREACH_EMAILS);
+          const { blobs } = await es.list({ prefix: `${campaign_id}/` });
+          for (const eb of blobs) {
+            const em = await readJson<{ lead_id?: string; status?: string }>(es, eb.key);
+            if (em?.lead_id === lead_id && em.status === "drafted") { await es.delete(eb.key); draftsDeleted++; }
+          }
+        }
+        return ok({ ...updated, drafts_deleted: draftsDeleted });
       }
 
       case "outreach.prospects.list": {
         // Every lead across all campaigns in one slim list (no raw Apify blob), for the Prospects page.
         const [leads, emails, campaigns] = await Promise.all([
           listJsonFast<Record<string, unknown>>(store(OUTREACH_LEADS)),
-          listJsonFast<{ lead_id?: string; status?: string; sent_at?: string; created_at?: string }>(store(OUTREACH_EMAILS)),
+          listJsonFast<{ lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
           listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
         ]);
         const campName = new Map(campaigns.map((c) => [c.id, c.name ?? c.query ?? c.id]));
         // Per lead: strongest email state and when we last emailed it.
-        const byLead = new Map<string, { replied: boolean; bounced: boolean; sent: boolean; sent_at: string | null }>();
+        const byLead = new Map<string, { replied: boolean; bounced: boolean; sent: boolean; sent_at: string | null; review: string | null; review_at: string }>();
         for (const e of emails) {
           if (!e.lead_id) continue;
-          const cur = byLead.get(e.lead_id) ?? { replied: false, bounced: false, sent: false, sent_at: null };
+          const cur = byLead.get(e.lead_id) ?? { replied: false, bounced: false, sent: false, sent_at: null, review: null, review_at: "" };
           const st = e.status ?? "drafted";
+          // The review status of the lead's newest unsent draft (older drafts without one count as "check").
+          if (st === "drafted" && (e.created_at ?? "") >= cur.review_at) { cur.review = e.review_status === "ready" || e.review_status === "blocked" ? e.review_status : "check"; cur.review_at = e.created_at ?? ""; }
           if (st === "replied") cur.replied = true;
           if (["bounced", "complained", "failed"].includes(st)) cur.bounced = true;
           if (st !== "drafted") {
@@ -2245,6 +2838,8 @@ export const handler: Handler = async (event) => {
             checked_at: (sc.checked_at as string | undefined) ?? null, site_error: (sc.error as string | undefined) ?? null,
             site_check: l.site_check ?? null, social, hours_summary: h?.summary ?? null,
             email_status, emailed_at: em?.sent_at ?? contactedAt,
+            review_status: em?.review ?? null,
+            owner_evidence: l.owner_evidence ?? null,
           };
         });
         rows.sort((a, b) => (b.gap_score ?? -1) - (a.gap_score ?? -1) || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
@@ -2371,12 +2966,16 @@ export const handler: Handler = async (event) => {
           return ok({ ...lead, enriched: false, reason: skip.message });
         }
         if (!lead.website) {
-          await writeJson(leadsStore, storeKey, { ...lead, enrich_checked_at: checkedAt, site_check: { checked_at: checkedAt, error: "no website" } });
-          return ok({ ...lead, enriched: false, reason: "no website to scrape" });
+          const noSite = { ...lead, enrich_checked_at: checkedAt, ...noWebsiteFields(lead, checkedAt) };
+          await writeJson(leadsStore, storeKey, noSite);
+          return ok({ ...noSite, enriched: false, reason: "no website to scrape" });
         }
         try {
           const res = await checkLeadSite(lead);
-          const updated: Record<string, unknown> = { ...lead, ...res.fields, enrich_checked_at: checkedAt, updated_at: new Date().toISOString() };
+          // Re-read the lead right before writing: a check takes seconds, and a reply, a
+          // do-not-contact flag or an edit made meanwhile must not be overwritten.
+          const fresh = (await findLeadRow(campaign_id, lead_id))?.lead ?? lead;
+          const updated: Record<string, unknown> = { ...fresh, ...(lead.junk_email && !lead.email ? { email: null, junk_email: lead.junk_email } : {}), ...res.fields, enrich_checked_at: checkedAt, updated_at: new Date().toISOString() };
           let enriched = false;
           const skipEmail = !!skip && skip.code === "gov_edu_email";
           if (!hadEmail && !skipEmail) {
@@ -2516,7 +3115,7 @@ export const handler: Handler = async (event) => {
         const contactsIdx = await loadContacts();
         const es = store(OUTREACH_EMAILS);
         const already = new Set((await listJson<{ lead_id: string }>(es, `${campaign_id}/`)).map((e) => e.lead_id));
-        const sendable = leads.filter((l) => l.email && !l.do_not_contact && !leadSkipReason(l, ctx) && !contactBlock(contactsIdx, l.email, campaign_id) && !already.has(l.id));
+        const sendable = leads.filter((l) => l.email && !l.do_not_contact && !leadSkipReason(l, ctx) && !contactBlock(contactsIdx, l.email, campaign_id, { isTest: l.is_test === true }) && !already.has(l.id));
         if (sendable.length === 0) return fail(400, "No leads with email addresses that still need a draft");
 
         // Paced: one lead at a time with a gap (the free tier allows 15 requests a
@@ -2564,6 +3163,8 @@ export const handler: Handler = async (event) => {
               body_text: draft.body_text,
               body_html: draft.body_html,
               status: "drafted", // drafted | sent | delivered | bounced | clicked | replied | failed
+              review_status: "check",
+              review_reasons: ["Not reviewed yet"],
               created_at: createdAt,
               updated_at: createdAt,
             });
@@ -2603,11 +3204,18 @@ export const handler: Handler = async (event) => {
         const dncLeads = (await listJson<{ id: string; email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).filter((l) => l.do_not_contact);
         const dncIds = new Set(dncLeads.map((l) => l.id));
         const dncMail = new Set(dncLeads.map((l) => emailKey(l.email)).filter((e): e is string => !!e));
+        const campLeads = await listJson<{ id: string; excluded?: boolean; is_test?: boolean }>(store(OUTREACH_LEADS), `${campaign_id}/`);
+        const skippedLeadIds = new Set(campLeads.filter((l) => l.excluded).map((l) => l.id));
+        const testLeadIds = new Set(campLeads.filter((l) => l.is_test).map((l) => l.id));
         const contactsIdx = await loadContacts();
-        const annotated = rows.map((r) => {
+        const annotated = rows.map((r0) => {
+          // Drafts from before the reviewer existed count as "check" (not reviewed yet).
+          const rv = r0 as { review_status?: string; review_reasons?: string[] };
+          const r = r0.status === "drafted" && !rv.review_status ? { ...r0, review_status: "check", review_reasons: ["Not reviewed yet"] } : r0;
           if (r.status !== "drafted") return r;
+          if (r.lead_id && skippedLeadIds.has(r.lead_id)) return { ...r, blocked_lead_skipped: true };
           if ((r.lead_id && dncIds.has(r.lead_id)) || dncMail.has(emailKey(r.to_email) ?? "")) return { ...r, blocked_do_not_contact: true };
-          const block = contactBlock(contactsIdx, r.to_email, campaign_id);
+          const block = contactBlock(contactsIdx, r.to_email, campaign_id, { isTest: !!r.lead_id && testLeadIds.has(r.lead_id) });
           return block ? { ...r, blocked_contact: block.message.replace(/^Skipped: /, "") } : r;
         });
         return ok(annotated.slice(0, typeof limit === "number" ? limit : 500));
@@ -2616,8 +3224,9 @@ export const handler: Handler = async (event) => {
       case "outreach.emails.update": {
         // Lets the UI tweak a drafted email (subject/body) before send. Only
         // drafts are editable — a sent email is a record of what went out.
-        const { campaign_id, email_id, subject, body_text, body_html, to_email } = params as Record<string, string>;
+        const { campaign_id, email_id, subject, body_text, body_html, to_email, review_status } = params as Record<string, string>;
         if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
+        if (review_status !== undefined && review_status !== "ready") return fail(400, 'review_status can only be set to "ready" by hand');
         const newTo = to_email === undefined ? undefined : cleanEmail(to_email);
         if (to_email !== undefined && (!newTo || isJunkEmail(newTo))) return fail(400, "that is not a valid email address");
         if (subject !== undefined && !String(subject).trim()) return fail(400, "subject cannot be empty");
@@ -2641,6 +3250,12 @@ export const handler: Handler = async (event) => {
               edited: true,
               updated_at: new Date().toISOString(),
             };
+            const changed = !!(subject || body_text || body_html || (newTo && newTo !== row.to_email));
+            if (changed) Object.assign(updated, { review_status: "check", review_reasons: ["You edited this draft. Review it again, or mark it ready yourself."], reviewed_by: null, reviewed_at: null });
+            if (review_status === "ready") {
+              if (!changed && row.review_status === "blocked") return fail(400, "This draft is blocked. Fix it or use Review again first.");
+              Object.assign(updated, { review_status: "ready", review_reasons: ["Marked ready by you."], reviewed_by: "you", reviewed_at: new Date().toISOString() });
+            }
             await writeJson(es, b.key, updated);
             return ok(updated);
           }
@@ -2696,18 +3311,7 @@ export const handler: Handler = async (event) => {
 
       // ── OUTREACH SETTINGS (footer postal address) ─────────────────
       case "outreach.settings.get": {
-        const rec = await readOutreachSettings();
-        return ok({
-          postal_address: rec.postal_address ?? "",
-          gemini_model: rec.gemini_model || DEFAULT_GEMINI_MODEL,
-          default_gemini_model: DEFAULT_GEMINI_MODEL,
-          // Name and company are pre-seeded until the user saves their own (even an empty one).
-          default_sender_name: rec.default_sender_name ?? "Lakshmi Devaraj",
-          default_sender_company: rec.default_sender_company ?? "ShiftForge AI",
-          default_sender_offer: rec.default_sender_offer ?? "",
-          sending_inbox_id: rec.sending_inbox_id ?? "",
-          reply_alert_email: rec.reply_alert_email ?? "",
-        });
+        return ok(await settingsView(await readOutreachSettings()));
       }
 
       case "outreach.inboxes.list": {
@@ -2773,29 +3377,53 @@ export const handler: Handler = async (event) => {
           }
           next.sending_inbox_id = inboxId;
         }
-        const model = text("gemini_model", 80);
-        if (model === null) return fail(400, "gemini_model must be a string");
-        if (model !== undefined && model !== (current.gemini_model ?? "")) {
-          const chosen = model || DEFAULT_GEMINI_MODEL;
-          // A bad model name must fail when saved, so prove it with a real call.
-          const gkey = await readServiceKey("gemini");
-          if (gkey) {
+        if (p.browser_check_cap !== undefined) {
+          const n = Number(p.browser_check_cap);
+          if (!Number.isInteger(n) || n < 1 || n > 200) return fail(400, "browser_check_cap must be a whole number from 1 to 200");
+          next.browser_check_cap = n;
+        }
+        // Second AI provider details (the key itself is saved with config.set, service "ai2").
+        const sBase = text("second_ai_base_url", 200);
+        const sModel = text("second_ai_model", 100);
+        if (sBase === null || sModel === null) return fail(400, "second_ai_base_url and second_ai_model must be text");
+        if (sBase !== undefined) {
+          if (sBase && !/^https?:\/\/[^\s]+$/i.test(sBase)) return fail(400, "The second provider address must start with https://");
+          next.second_ai_base_url = sBase;
+        }
+        if (sModel !== undefined) next.second_ai_model = sModel;
+        // Which provider each role uses.
+        for (const role of ["draft", "review", "helper"] as const) {
+          const k = `${role}_provider` as const;
+          if (p[k] === undefined) continue;
+          if (p[k] !== "gemini" && p[k] !== "second") return fail(400, `${k} must be "gemini" or "second"`);
+          if (p[k] === "second" && !(await readServiceKey("ai2"))) return fail(400, "Add the second AI provider's key first.");
+          next[k] = p[k] as "gemini" | "second";
+        }
+        // Models: each is proven with a real call before it is saved (a bad name fails here, not mid-campaign).
+        const gkey = await readServiceKey("gemini");
+        const skey = await readServiceKey("ai2");
+        const modelKeys: Array<["draft_model" | "review_model" | "helper_model", "draft" | "review" | "helper"]> = [["draft_model", "draft"], ["review_model", "review"], ["helper_model", "helper"]];
+        // The old single "gemini_model" field now sets the Drafting model.
+        if (p.gemini_model !== undefined && p.draft_model === undefined) p.draft_model = p.gemini_model;
+        for (const [field, role] of modelKeys) {
+          const v = text(field, 80);
+          if (v === null) return fail(400, `${field} must be a string`);
+          if (v === undefined || v === (current[field] ?? "")) continue;
+          const usesSecond = next[`${role}_provider` as const] === "second";
+          const chosen = v || (role === "review" ? DEFAULT_REVIEW_MODEL : DEFAULT_GEMINI_MODEL);
+          if (usesSecond) {
+            // With the second provider the model name is the second provider's model.
+            if (skey && v) { const t = await testServiceKey("ai2", skey, chosen, { base_url: next.second_ai_base_url }); if (!t.ok) return fail(400, t.message); }
+          } else if (gkey) {
             const t = await testServiceKey("gemini", gkey, chosen);
             if (!t.ok) return fail(400, t.message);
           }
-          next.gemini_model = model;
+          next[field] = v;
+          if (field === "draft_model") next.gemini_model = v; // keep the legacy field in step
         }
         next.updated_at = new Date().toISOString();
         await writeJson(store(OUTREACH_SETTINGS), "settings", next);
-        return ok({
-          postal_address: next.postal_address ?? "",
-          gemini_model: next.gemini_model || DEFAULT_GEMINI_MODEL,
-          default_sender_name: next.default_sender_name ?? "",
-          default_sender_company: next.default_sender_company ?? "",
-          default_sender_offer: next.default_sender_offer ?? "",
-          sending_inbox_id: next.sending_inbox_id ?? "",
-          reply_alert_email: next.reply_alert_email ?? "",
-        });
+        return ok(await settingsView(next));
       }
 
       case "outreach.emails.send": {
@@ -2815,7 +3443,7 @@ export const handler: Handler = async (event) => {
         //
         // Every outgoing email gets the opt-out + signature footer appended
         // here (not by Gemini). Leads flagged do-not-contact are never sent to.
-        const { campaign_id, email_ids, sequence_position, limit } = params as Record<string, unknown>;
+        const { campaign_id, email_ids, sequence_position, limit, allow_check } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         const agentmailKey = await readServiceKey("agentmail");
         if (!agentmailKey) return fail(400, "AgentMail key not configured");
@@ -2830,7 +3458,7 @@ export const handler: Handler = async (event) => {
 
         // ── Decide what to send BEFORE touching AgentMail or campaign status ──
         const es = store(OUTREACH_EMAILS);
-        const allEmails = await listJson<{ id: string; campaign_id: string; lead_id: string; to_email: string; subject: string; body_text: string; body_html: string; status: string; sender_name?: string | null; sequence_position?: number; created_at?: string }>(
+        const allEmails = await listJson<{ id: string; campaign_id: string; lead_id: string; to_email: string; subject: string; body_text: string; body_html: string; status: string; sender_name?: string | null; sequence_position?: number; created_at?: string; review_status?: string }>(
           es,
           `${campaign_id}/`,
         );
@@ -2844,18 +3472,33 @@ export const handler: Handler = async (event) => {
         );
 
         // Do-not-contact: any lead (in any campaign) flagged by an opt-out reply.
-        const allLeads = await listJson<{ id: string; email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS));
+        const allLeads = await listJson<{ id: string; email?: string | null; do_not_contact?: boolean; excluded?: boolean; is_test?: boolean }>(store(OUTREACH_LEADS));
+        // A lead you skipped ("Skip this lead") never gets an email, even if a draft already exists.
+        const excludedLeadIds = new Set(allLeads.filter((l) => l.excluded).map((l) => l.id));
         const dncLeadIds = new Set(allLeads.filter((l) => l.do_not_contact).map((l) => l.id));
         const dncEmails = new Set(allLeads.filter((l) => l.do_not_contact).map((l) => emailKey(l.email)).filter((e): e is string => !!e));
         const isDnc = (e: { lead_id: string; to_email: string }) => dncLeadIds.has(e.lead_id) || dncEmails.has(emailKey(e.to_email) ?? "");
         // Never send to an address that bounced earlier, or that was emailed from another campaign.
         const contactsIdx = await loadContacts();
-        const contactBlocked = (e: { to_email: string }) => contactBlock(contactsIdx, e.to_email, campaign_id);
+        const testLeadIds = new Set(allLeads.filter((l) => l.is_test).map((l) => l.id));
+        const contactBlocked = (e: { to_email: string; lead_id?: string }) => contactBlock(contactsIdx, e.to_email, campaign_id, { isTest: !!e.lead_id && testLeadIds.has(e.lead_id) });
 
+        // Review gate: plain Send sends only drafts the AI reviewer passed ("ready"). Ticked drafts that
+        // still say "check" go out only when the page confirmed it (allow_check). "blocked" never goes out.
+        const reviewOf = (e: { review_status?: string }) => (e.review_status === "ready" || e.review_status === "blocked" ? e.review_status : "check");
+        const passesReview = (e: { id: string; review_status?: string }) => {
+          const st = reviewOf(e);
+          if (st === "ready") return true;
+          if (st === "check") return !!selectedIds && selectedIds.has(e.id) && allow_check === true;
+          return false;
+        };
+        const inScope = (e: { id: string; sequence_position?: number }) => (selectedIds ? selectedIds.has(e.id) : targetStep !== null ? (e.sequence_position ?? 1) === targetStep : true);
         const eligible = allEmails.filter((e) => {
           if (e.status !== "drafted") return false;
           if (isDnc(e)) return false;
+          if (excludedLeadIds.has(e.lead_id)) return false;
           if (contactBlocked(e)) return false;
+          if (!passesReview(e)) return false;
           if (selectedIds) return selectedIds.has(e.id);
           if (targetStep !== null) {
             if ((e.sequence_position ?? 1) !== targetStep) return false;
@@ -2867,11 +3510,16 @@ export const handler: Handler = async (event) => {
         // Oldest first, then cap to the requested batch size.
         eligible.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? -1 : (a.created_at ?? "") > (b.created_at ?? "") ? 1 : 0));
         const toSend = batchLimit ? eligible.slice(0, batchLimit) : eligible;
-        const queuedBefore = allEmails.filter((e) => e.status === "drafted" && !isDnc(e) && !contactBlocked(e)).length;
+        const queuedBefore = allEmails.filter((e) => e.status === "drafted" && !isDnc(e) && !excludedLeadIds.has(e.lead_id) && !contactBlocked(e) && reviewOf(e) === "ready").length;
+        const draftedInScope = allEmails.filter((e) => e.status === "drafted" && inScope(e) && !isDnc(e) && !contactBlocked(e));
+        const skippedExcluded = draftedInScope.filter((e) => excludedLeadIds.has(e.lead_id)).length;
+        const skippedBlocked = draftedInScope.filter((e) => !excludedLeadIds.has(e.lead_id) && reviewOf(e) === "blocked").length;
+        const skippedNotReady = draftedInScope.filter((e) => !excludedLeadIds.has(e.lead_id) && reviewOf(e) === "check" && !passesReview(e)).length;
+        const skipInfo = { skipped_excluded: skippedExcluded, skipped_blocked: skippedBlocked, skipped_not_ready: skippedNotReady };
         const skippedContacted = allEmails.filter((e) => e.status === "drafted" && !isDnc(e) && contactBlocked(e) && (!selectedIds || selectedIds.has(e.id))).map((e) => ({ email_id: e.id, to_email: e.to_email, reason: contactBlocked(e)!.message.replace(/^Skipped: /, "") }));
 
         if (toSend.length === 0) {
-          return ok({ sent: 0, total: 0, queued: queuedBefore, errors: [], skipped_do_not_contact: allEmails.filter((e) => e.status === "drafted" && isDnc(e)).length, skipped_contacted: skippedContacted });
+          return ok({ sent: 0, total: 0, queued: queuedBefore, errors: [], ...skipInfo, skipped_do_not_contact: allEmails.filter((e) => e.status === "drafted" && isDnc(e)).length, skipped_contacted: skippedContacted });
         }
 
         const settings = await readJson<{ postal_address?: string }>(store(OUTREACH_SETTINGS), "settings");
@@ -2971,7 +3619,7 @@ export const handler: Handler = async (event) => {
           summary: `Sent ${sent} of ${toSend.length} emails for "${campaign.name}" (${queuedAfter} still queued)`,
           details: { campaign_id, sent, queued: queuedAfter, errors: errors.length, inbox: inbox.inbox_id },
         });
-        return ok({ sent, total: toSend.length, queued: queuedAfter, errors, inbox, skipped_contacted: skippedContacted });
+        return ok({ sent, total: toSend.length, queued: queuedAfter, errors, inbox, skipped_contacted: skippedContacted, ...skipInfo });
       }
 
       // ── INBOX (AgentMail inbound replies) ─────────────────────────

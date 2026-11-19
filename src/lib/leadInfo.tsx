@@ -1,13 +1,15 @@
-import { Facebook, FileText, Globe, Instagram, Linkedin, MapPin, MessageCircle } from "lucide-react";
+import { Facebook, FileText, Globe, Instagram, Linkedin, MapPin, MessageCircle, Phone } from "lucide-react";
 
 /** What the website check stores on a lead (all optional: older leads have none of it). */
 export type LeadInfo = {
   website?: string | null;
   maps_url?: string | null;
   email?: string | null;
+  phone?: string | null;
   owner_name?: string | null;
   owner_confidence?: "high" | "low" | null;
   owner_source_url?: string | null;
+  owner_evidence?: string | null; // the sentence on the website that shows who the current owner is
   gap_score?: number | null;
   gap_reasons?: string[];
   social?: {
@@ -26,7 +28,18 @@ export type LeadInfo = {
     has_contact_form?: boolean;
     whatsapp_url?: string | null;
     contact_form_url?: string | null;
+    request_form?: boolean; // "Schedule Now" that only opens the site's own contact form
+    request_form_url?: string | null;
     sources?: Record<string, string>;
+    evidence?: Record<string, string>;
+    via?: "raw" | "browser";
+    needs_browser?: boolean;
+    needs_browser_reason?: string | null;
+    hours_usable?: boolean;
+    advertises_emergency?: boolean;
+    hours_evidence?: string | null;
+    not_home_service?: string | null;
+    lead_gen_listing?: string | null;
     error?: string;
   } | null;
 };
@@ -51,10 +64,12 @@ export function leadLinks(l: LeadInfo): LinkItem[] {
 
 /** The ways to reach a lead that has no usable email (form, Facebook, Instagram, LinkedIn, WhatsApp). */
 export function reachAnotherWay(l: LeadInfo): LinkItem[] {
-  return leadLinks(l).filter((x) => ["linkedin", "facebook", "instagram", "whatsapp", "form"].includes(x.kind));
+  const out = leadLinks(l).filter((x) => ["linkedin", "facebook", "instagram", "whatsapp", "form"].includes(x.kind));
+  if (l.phone) out.push({ kind: "phone", label: `Call them: ${l.phone}`, url: `tel:${l.phone.replace(/[^\d+]/g, "")}` });
+  return out;
 }
 
-const ICONS: Record<string, typeof Globe> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, whatsapp: MessageCircle, form: FileText, website: Globe, maps: MapPin };
+const ICONS: Record<string, typeof Globe> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, whatsapp: MessageCircle, form: FileText, website: Globe, maps: MapPin, phone: Phone };
 
 export function LinkIcons({ items, size = 12 }: { items: LinkItem[]; size?: number }) {
   return (
