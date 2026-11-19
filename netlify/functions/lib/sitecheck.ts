@@ -249,7 +249,7 @@ export function pageText(html: string): string {
 const NAME = "([A-Z][a-z]+(?:['-][A-Z][a-z]+)?(?:\\s+[A-Z]\\.)?\\s+[A-Z][a-z]+(?:['-][A-Z][a-z]+)?)";
 const ROLE = "(?:[Oo]wner|[Ff]ounder|[Cc]o-?[Ff]ounder|[Pp]resident|CEO)";
 const OWNER_PATTERNS: Array<{ rx: RegExp; how: string; confidence: "high" | "low" }> = [
-  { rx: new RegExp(`(?:[Ff]ounded|[Oo]wned|[Ss]tarted|[Ee]stablished|[Rr]un|[Oo]perated)(?:\\s+in\\s+\\d{4})?(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}(?!\\s+and\\b)`, "g"), how: "founded/owned by", confidence: "high" },
+  { rx: new RegExp(`(?:[Ff]ounded|[Oo]wned|[Ss]tarted|[Ee]stablished|[Rr]un|[Oo]perated)(?:\\s+in\\s+\\d{4})?(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "founded/owned by", confidence: "high" },
   { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?${ROLE}\\b`, "g"), how: "name, owner/founder", confidence: "high" },
   { rx: new RegExp(`\\b${ROLE}(?:\\s*[:\\-–—|]\\s*|\\s+)${NAME}`, "g"), how: "owner: name", confidence: "high" },
   { rx: new RegExp(`\\b[Mm]eet\\s+(?:the\\s+owner,?\\s+|our\\s+(?:owner|founder),?\\s+)?${NAME}`, "g"), how: "meet name", confidence: "low" },
