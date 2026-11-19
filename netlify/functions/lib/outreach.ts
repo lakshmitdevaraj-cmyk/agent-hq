@@ -144,7 +144,12 @@ export function newPartOfReply(text: string): string {
   return out.join("\n").trim();
 }
 
-const AUTO_REPLY = /(out of (the )?office|automatic reply|auto[- ]?reply|autoreply|undeliverable|delivery status|mailer-daemon|vacation)/i;
+export const AUTO_REPLY = /(out of (the )?office|automatic reply|auto[- ]?reply|autoreply|undeliverable|delivery status|mailer-daemon|vacation)/i;
+
+/** Out-of-office, bounce and other automatic messages (subject or the start of the new text). */
+export function isAutoReply(subject: string | null | undefined, text: string | null | undefined): boolean {
+  return AUTO_REPLY.test(subject ?? "") || AUTO_REPLY.test(newPartOfReply(text ?? "").slice(0, 300));
+}
 
 const STRONG_PHRASES = [
   /\bunsubscribe\b/i,
@@ -357,8 +362,8 @@ export type SkipReason = {
  * do not overlap.
  */
 export function leadSkipReason(
-  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; is_test?: boolean; raw?: unknown },
-  campaign: string | null | undefined | { location?: string | null; query?: string | null },
+  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; trade_override?: boolean; is_test?: boolean; raw?: unknown },
+  campaign: string | null | undefined | { location?: string | null; query?: string | null; anyTrade?: boolean },
 ): SkipReason | null {
   if (lead.excluded) return { code: "excluded", message: "Excluded by you" };
   if (lead.is_test) return null;
@@ -373,7 +378,9 @@ export function leadSkipReason(
   if (leadState && wantState && leadState !== wantState) {
     return { code: "out_of_state", message: `Skipped: out of state (${leadState}, campaign is ${wantState})` };
   }
-  const wantTrades = tradesOf(campaignQuery);
+  // "Home services, any trade" campaigns, or a lead you chose to include anyway, skip the trade check.
+  const anyTrade = !!(campaign && typeof campaign === "object" && campaign.anyTrade) || lead.trade_override === true;
+  const wantTrades = anyTrade ? new Set<string>() : tradesOf(campaignQuery);
   const leadTrades = tradesOf(`${lead.category ?? ""} ${lead.name ?? ""}`);
   if (wantTrades.size > 0 && leadTrades.size > 0 && ![...leadTrades].some((t) => wantTrades.has(t))) {
     return { code: "other_trade", message: `Skipped: different trade (${[...leadTrades].join(", ")})` };
