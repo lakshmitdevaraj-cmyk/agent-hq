@@ -158,6 +158,21 @@ const ACTIONS: ActionGroup[] = [
         params: "{ campaign_id, lead_id }",
       },
       {
+        action: "outreach.browsercheck.plan",
+        desc: "Read-only: which leads of a campaign a real-browser website check would cover (only leads with an email, not skipped/excluded/do-not-contact/test, not already browser-checked, within the per-campaign cap), the number of pages and the estimated Apify cost. Show this to the human before starting.",
+        params: "{ campaign_id, lead_id? }",
+      },
+      {
+        action: "outreach.browsercheck.start",
+        desc: "Starts the real-browser check (one Apify playwright-scraper run, started and polled by the background function; progress on campaign.job as kind browsercheck). Fixes facts the plain fetch can't see (chat widgets, booking tools on JavaScript sites). Records the job, then POST { task: \"browsercheck\", params: { campaign_id, lead_ids } } to ai-background. Costs Apify credits; if it fails, drafting still works with the facts treated as uncertain.",
+        params: "{ campaign_id, lead_id? }",
+      },
+      {
+        action: "outreach.emails.review.start",
+        desc: "Runs the AI reviewer over drafts (background job kind review). Each draft gets review_status ready | check | blocked, review_reasons, reviewed_by. Wording-only problems are rewritten once and re-reviewed; fact problems stay blocked. Records the job, then the caller POSTs { task: \"review\", params } to /.netlify/functions/ai-background (same as Generate). Without email_ids it reviews every unsent draft that is unreviewed, check or blocked.",
+        params: "{ campaign_id, email_ids? }",
+      },
+      {
         action: "outreach.prospects.list",
         desc: "Every lead across all campaigns as slim rows for the Prospects page: owner, campaign, niche, gap score and reasons, social/contact links, email_status (not_emailed | emailed | replied | bounced | do_not_contact), hours summary. No raw Apify data.",
         params: "{}",
@@ -186,12 +201,12 @@ const ACTIONS: ActionGroup[] = [
       },
       { action: "outreach.emails.delete", desc: "Delete one DRAFT. Sent emails are kept as history.", params: "{ campaign_id, email_id }" },
       { action: "outreach.settings.get", desc: "Outreach settings: postal_address (footer), Gemini model, default sender, sending_inbox_id (AgentMail inbox new emails are sent from; blank = first inbox) and reply_alert_email (blank = no alerts).", params: "{}" },
-      { action: "outreach.settings.set", desc: "Partial update of the settings above. sending_inbox_id is checked against AgentMail. reply_alert_email gets one short note per new reply (never for opt-outs or auto-replies).", params: "{ postal_address?, gemini_model?, default_sender_*?, sending_inbox_id?, reply_alert_email? }" },
+      { action: "outreach.settings.set", desc: "Partial update of the settings above. sending_inbox_id is checked against AgentMail. reply_alert_email gets one short note per new reply (never for opt-outs or auto-replies).", params: "{ postal_address?, draft_model?, review_model?, helper_model?, draft_provider?, review_provider?, helper_provider? (gemini|second), second_ai_base_url?, second_ai_model?, browser_check_cap?, default_sender_*?, sending_inbox_id?, reply_alert_email? } - a changed model is test-called before saving. The second provider key is saved with config.set {service:\"ai2\"}." },
       { action: "outreach.inboxes.list", desc: "AgentMail inboxes for the sending-inbox dropdown, the selected one, and which inboxes the reply webhook covers (webhooks may be null when AgentMail could not be asked).", params: "{}" },
       {
         action: "outreach.emails.send",
-        desc: "Fires drafted emails via AgentMail from the user's own inbox. Rewrites every outbound link through /t/:token for click tracking. Pass limit to send only that many (oldest drafts first; the rest stay queued) and sequence_position to send only that step; leads who already replied to an earlier step, and leads marked do-not-contact, are skipped. The opt-out line + ShiftForge AI signature footer is appended automatically. Drafts to an address already emailed from another campaign, or that bounced earlier, are skipped and listed in skipped_contacted. Returns { sent, total, queued, errors, skipped_contacted }. ALWAYS get explicit human approval (GATE 2) before each step — these are real emails to real people.",
-        params: "{ campaign_id, email_ids?, sequence_position?, limit? }",
+        desc: "Fires drafted emails via AgentMail from the user's own inbox. Rewrites every outbound link through /t/:token for click tracking. Pass limit to send only that many (oldest drafts first; the rest stay queued) and sequence_position to send only that step; leads who already replied to an earlier step, and leads marked do-not-contact, are skipped. The opt-out line + ShiftForge AI signature footer is appended automatically. Drafts to an address already emailed from another campaign, or that bounced earlier, are skipped and listed in skipped_contacted. By default ONLY drafts with review_status ready are sent; ticked (email_ids) drafts with status check need allow_check:true (the human confirms); blocked drafts, excluded/do-not-contact leads are never sent. Returns { sent, total, queued, errors, skipped_contacted, skipped_not_ready, skipped_blocked, skipped_excluded }. ALWAYS get explicit human approval (GATE 2) before each step — these are real emails to real people.",
+        params: "{ campaign_id, email_ids?, sequence_position?, limit?, allow_check? }",
       },
       { action: "outreach.replies.list", desc: "Inbound replies. Filter by campaign id if provided.", params: "{ campaign_id?, limit? }" },
       { action: "outreach.replies.get", desc: "One reply's full content.", params: "{ id }" },
@@ -540,6 +555,9 @@ THE FLOW:
                             in a new session.
   outreach.leads.enrich_one { campaign_id, lead_id }
   outreach.leads.check_site { campaign_id, lead_id }   (info only)
+  outreach.browsercheck.plan  { campaign_id, lead_id? }   (estimate)
+  outreach.browsercheck.start { campaign_id, lead_id? }   (Apify credits)
+  outreach.emails.review.start { campaign_id, email_ids? }
   outreach.prospects.list   {}
                             Apify's Google Maps actor rarely returns
                             emails — most businesses list phone +
@@ -585,7 +603,7 @@ THE FLOW:
                               body_text?, body_html? }
 
   outreach.emails.send      { campaign_id, email_ids?,
-                              sequence_position?, limit? }
+                              sequence_position?, limit?, allow_check? }
                             [GATE 2 before EACH step]
                             Sends drafts via AgentMail. Rewrites
                             every href through /t/:token for click
@@ -633,7 +651,7 @@ are only as good as this input. Examples:
 
 Service config (third-party keys):
   config.status
-  config.set       { service: 'gemini'|'apify'|'agentmail', key, skip_test? }
+  config.set       { service: 'gemini'|'apify'|'agentmail'|'ai2', key, skip_test? }
   config.test      { service }
   config.clear     { service }
 
