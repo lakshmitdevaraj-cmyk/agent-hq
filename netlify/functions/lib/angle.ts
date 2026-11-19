@@ -122,9 +122,3 @@ export function checkModelDraft(d: ModelDraft, factCount: number): string[] {
   }
   return fails;
 }
-
-/** Plain text with blank-line paragraphs -> simple <p> html. */
-export function textToHtml(text: string): string {
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return text.trim().split(/\n\s*\n/).map((p) => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`).join("");
-}
