@@ -2800,16 +2800,18 @@ export const handler: Handler = async (event) => {
         // Every lead across all campaigns in one slim list (no raw Apify blob), for the Prospects page.
         const [leads, emails, campaigns] = await Promise.all([
           listJsonFast<Record<string, unknown>>(store(OUTREACH_LEADS)),
-          listJsonFast<{ lead_id?: string; status?: string; sent_at?: string; created_at?: string }>(store(OUTREACH_EMAILS)),
+          listJsonFast<{ lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
           listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
         ]);
         const campName = new Map(campaigns.map((c) => [c.id, c.name ?? c.query ?? c.id]));
         // Per lead: strongest email state and when we last emailed it.
-        const byLead = new Map<string, { replied: boolean; bounced: boolean; sent: boolean; sent_at: string | null }>();
+        const byLead = new Map<string, { replied: boolean; bounced: boolean; sent: boolean; sent_at: string | null; review: string | null; review_at: string }>();
         for (const e of emails) {
           if (!e.lead_id) continue;
-          const cur = byLead.get(e.lead_id) ?? { replied: false, bounced: false, sent: false, sent_at: null };
+          const cur = byLead.get(e.lead_id) ?? { replied: false, bounced: false, sent: false, sent_at: null, review: null, review_at: "" };
           const st = e.status ?? "drafted";
+          // The review status of the lead's newest unsent draft (older drafts without one count as "check").
+          if (st === "drafted" && (e.created_at ?? "") >= cur.review_at) { cur.review = e.review_status === "ready" || e.review_status === "blocked" ? e.review_status : "check"; cur.review_at = e.created_at ?? ""; }
           if (st === "replied") cur.replied = true;
           if (["bounced", "complained", "failed"].includes(st)) cur.bounced = true;
           if (st !== "drafted") {
@@ -2836,6 +2838,8 @@ export const handler: Handler = async (event) => {
             checked_at: (sc.checked_at as string | undefined) ?? null, site_error: (sc.error as string | undefined) ?? null,
             site_check: l.site_check ?? null, social, hours_summary: h?.summary ?? null,
             email_status, emailed_at: em?.sent_at ?? contactedAt,
+            review_status: em?.review ?? null,
+            owner_evidence: l.owner_evidence ?? null,
           };
         });
         rows.sort((a, b) => (b.gap_score ?? -1) - (a.gap_score ?? -1) || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
