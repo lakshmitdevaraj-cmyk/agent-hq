@@ -135,7 +135,7 @@ const ACTIONS: ActionGroup[] = [
         desc: "Called on a poll loop while a campaign is 'searching'. Queries Apify's run status. When SUCCEEDED, imports dataset items as leads. When FAILED/ABORTED/TIMED-OUT, marks the campaign failed. Safe no-op if the campaign isn't running.",
         params: "{ id }",
       },
-      { action: "outreach.campaign.delete", desc: "Removes a campaign record. Leads and emails become orphaned in storage but invisible to the UI.", params: "{ id }" },
+      { action: "outreach.campaign.delete", desc: "Deletes the campaign, ALL its leads and its unsent drafts permanently. Emails already sent are kept as history. Returns { leads_deleted, drafts_deleted, sent_kept }.", params: "{ id }" },
       {
         action: "outreach.leads.list",
         desc: "All leads for a campaign, newest first.",
@@ -159,7 +159,7 @@ const ACTIONS: ActionGroup[] = [
       },
       {
         action: "outreach.browsercheck.plan",
-        desc: "Read-only: which leads of a campaign a real-browser website check would cover (only leads with an email, not skipped/excluded/do-not-contact/test, not already browser-checked, within the per-campaign cap), the number of pages and the estimated Apify cost. Show this to the human before starting.",
+        desc: "Read-only: which leads of a campaign a real-browser website check would cover (leads with an email first, then leads that can only be reached another way via Facebook/LinkedIn/Instagram/WhatsApp/contact form/phone; not skipped/excluded/do-not-contact/test, not already browser-checked, within the per-campaign cap), the number of pages and the estimated Apify cost. Show this to the human before starting.",
         params: "{ campaign_id, lead_id? }",
       },
       {

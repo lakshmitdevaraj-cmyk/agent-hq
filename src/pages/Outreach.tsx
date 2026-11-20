@@ -100,7 +100,7 @@ export default function Outreach() {
   }
 
   async function removeCampaign(id: string, name: string) {
-    if (!confirm(`Delete campaign "${name}"? Leads and emails become inaccessible.`)) return;
+    if (!confirm(`Delete campaign "${name}"?\n\nThis permanently deletes all its leads and its unsent drafts. Emails that were already sent are kept as history. This cannot be undone.`)) return;
     try {
       await call("outreach.campaign.delete", { id });
       noteDeleted("campaign", id);

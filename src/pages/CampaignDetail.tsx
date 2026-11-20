@@ -86,6 +86,9 @@ type Job = {
   finished_at?: string;
   message?: string;
   failures?: Array<{ name: string; error: string }>;
+  apify_status?: string; // browser check: how the Apify run ended
+  apify_message?: string;
+  log_tail?: string; // the last error lines of the Apify run, so a failure is visible without opening Apify
 };
 
 type Lead = {
@@ -469,41 +472,6 @@ export default function CampaignDetail() {
   // Loops through every lead that has a website but no email, scrapes
   // each site for a contact email, updates the lead record. Runs client-
   // side so the progress bar reflects real per-lead latency.
-  async function enrichEmails() {
-    if (!id) return;
-    // Chains, .gov/.edu and out-of-state leads are skipped by the server too.
-    const targets = leads.filter((l) => !l.email && l.website && !l.skip_reason);
-    if (targets.length === 0) return;
-    setLocalJob("enrich");
-    setErr(null);
-    await saveJob({ kind: "enrich", status: "running", total: targets.length, started_at: new Date().toISOString() });
-    let found = 0;
-    let done = 0;
-    for (const lead of targets) {
-      try {
-        const result = await call<{ enriched?: boolean }>("outreach.leads.enrich_one", {
-          campaign_id: id,
-          lead_id: lead.id,
-        });
-        if (result.enriched) found++;
-      } catch {
-        // Per-lead failures shouldn't halt the loop — sites block, time out, etc.
-      }
-      done++;
-      if (done % 3 === 0 || done === targets.length) await refresh();
-    }
-    await saveJob({
-      kind: "enrich",
-      status: "done",
-      total: targets.length,
-      started_at: campaign?.job?.started_at ?? new Date().toISOString(),
-      finished_at: new Date().toISOString(),
-      message: `${found} of ${targets.length} sites gave us an email.`,
-    });
-    setLocalJob(null);
-    await refresh();
-  }
-
   // Re-check websites: the same website check for EVERY lead, one at a time. Information only: it never
   // drafts or sends, and never changes do-not-contact / contacted / bounced flags. Progress survives a
   // reload (leads carry site_check.checked_at); a stopped run continues with the leads not yet checked.
@@ -693,7 +661,7 @@ export default function CampaignDetail() {
         const { job, done, found, interrupted } = jobView;
         const noun = job.kind === "generate" ? "drafts" : job.kind === "review" ? "drafts reviewed" : job.kind === "browsercheck" ? "sites opened in the browser" : job.kind === "sitecheck" ? "checked" : "sites checked";
         const title = job.kind === "generate" ? "Drafting" : job.kind === "review" ? "Reviewing drafts" : job.kind === "browsercheck" ? "Browser check" : job.kind === "sitecheck" ? "Checking websites" : "Finding emails";
-        const again = job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "review" ? "Click Review all to carry on." : job.kind === "browsercheck" ? "Click Check in browser to try again." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Find emails to continue.";
+        const again = job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "review" ? "Click Review all to carry on." : job.kind === "browsercheck" ? "Click Check in browser to try again." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Check websites to continue.";
         const running = job.status === "running" && !interrupted;
         const tone = running
           ? "border-primary/40 bg-primary/10 text-primary"
@@ -714,6 +682,12 @@ export default function CampaignDetail() {
                         ? `Stopped at ${done} of ${job.total} ${noun}. ${job.message ?? ""}`
                         : `Finished: ${done} of ${job.total} ${noun}. ${job.message ?? ""}`}
                 </div>
+                {job.kind === "browsercheck" && (job.apify_status || job.log_tail) && (
+                  <div className="mt-1 text-xs opacity-90">
+                    {job.apify_status && <div>Apify run: {job.apify_status}{job.apify_message ? ` · ${job.apify_message}` : ""}</div>}
+                    {job.log_tail && <pre className="mt-1 whitespace-pre-wrap font-mono text-[10px] opacity-80 max-h-28 overflow-auto">{job.log_tail}</pre>}
+                  </div>
+                )}
                 {job.failures && job.failures.length > 0 && (
                   <ul className="mt-1 text-xs opacity-90 list-disc pl-5">
                     {job.failures.slice(0, 6).map((f, i) => (
@@ -1030,21 +1004,6 @@ export default function CampaignDetail() {
             <span className="text-xs font-mono text-white/50">({leads.length})</span>
           </div>
           <div className="flex items-center gap-2">
-            {(() => {
-              const withoutEmail = leads.filter((l) => !l.email && l.website && !l.skip_reason).length;
-              const enriching = localJob === "enrich";
-              if (withoutEmail === 0 && !enriching) return null;
-              return (
-                <button
-                  onClick={enrichEmails}
-                  disabled={enriching || withoutEmail === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
-                >
-                  {enriching ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
-                  {enriching ? `Finding emails ${jobView?.done ?? 0}/${jobView?.job.total ?? ""}` : `Find emails (${withoutEmail})`}
-                </button>
-              );
-            })()}
             {leads.some((l) => l.website && !l.is_test) && (() => {
               const checking = localJob === "sitecheck";
               const stopped = jobView?.job.kind === "sitecheck" && jobView.interrupted;
@@ -1061,7 +1020,8 @@ export default function CampaignDetail() {
               );
             })()}
             {(() => {
-              const needing = leads.filter((l) => l.email && !l.excluded && !l.do_not_contact && !l.is_test && !l.skip_reason && l.site_check?.needs_browser && l.site_check?.via !== "browser").length;
+              // Leads with an email, and leads we can only reach another way (the server applies the cap and the order).
+              const needing = leads.filter((l) => (l.email || reachAnotherWay(l).length > 0) && !l.excluded && !l.do_not_contact && !l.is_test && !l.skip_reason && l.site_check?.needs_browser && l.site_check?.via !== "browser").length;
               const running = campaign.job?.kind === "browsercheck" && campaign.job.status === "running";
               if (needing === 0 && !running) return null;
               return (
@@ -1846,8 +1806,8 @@ function GenerateEmailsModal({
           {skippedNoEmailButWebsite > 0 && (
             <div className="pt-2 mt-1 border-t border-white/5 text-[11px] text-white/60">
               💡 Tip: {skippedNoEmailButWebsite} of those have websites. Close this and click
-              <span className="font-semibold text-primary"> Find emails </span>
-              in the Leads card to scrape them first — usually recovers 40–70%.
+              <span className="font-semibold text-primary"> Check websites </span>
+              in the Leads card to find their emails first (it also finds gaps, links and owners).
             </div>
           )}
           {skippedAlreadyDrafted > 0 && (

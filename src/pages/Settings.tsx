@@ -249,7 +249,7 @@ function OutreachDefaultsSettings() {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await call<OutreachDefaults>("outreach.settings.set", {
+      const r = await call<OutreachDefaults & { model_errors?: Array<{ field: string; model: string; message: string }> }>("outreach.settings.set", {
         draft_model: form.draft_model, review_model: form.review_model, helper_model: form.helper_model,
         draft_provider: form.draft_provider, review_provider: form.review_provider, helper_provider: form.helper_provider,
         browser_check_cap: Number(form.browser_check_cap),
@@ -260,7 +260,11 @@ function OutreachDefaultsSettings() {
       const next = { ...form, ...r };
       setForm(next);
       setSaved(next);
-      setMsg({ ok: true, text: "Saved" });
+      const bad = r.model_errors ?? [];
+      const roleName = (f: string) => (f === "draft_model" ? "Drafting" : f === "review_model" ? "Reviewer" : "Helper");
+      setMsg(bad.length === 0
+        ? { ok: true, text: "Saved" }
+        : { ok: false, text: `Your other changes are saved. Not saved: ${bad.map((b) => `${roleName(b.field)} model "${b.model}" (${b.message})`).join("; ")}` });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "Save failed" });
     } finally {

@@ -33,8 +33,8 @@ export type LeadFacts = {
 const ANGLES: Record<AngleCode, string> = {
   after_hours: "Calls when the office is closed (they advertise emergency service but the office is closed on evenings or weekends)",
   instant_answers: "Website visitors get an instant answer (today the only option is waiting for a call back)",
-  missed_calls: "Calls missed while the team is out on jobs",
-  general: "Calls missed while the team is out on jobs (general; no claim about this business)",
+  missed_calls: "Calls missed while the team is out on jobs. PHONE CALLS ONLY: never mention website messages, chat, forms or booking",
+  general: "Calls missed while the team is out on jobs or after hours (general; no claim about this business). PHONE CALLS ONLY: never mention website messages, chat, forms or booking, because the business may already have them",
 };
 
 /**
@@ -105,8 +105,13 @@ const BANNED_BODY: Array<[RegExp, string]> = [
 ];
 
 /** Plain failures a model can fix on a retry. Empty list = passed. */
-export function checkModelDraft(d: ModelDraft, factCount: number): string[] {
+/** Angles that must talk about phone calls only (the business may already have chat or booking). */
+export const callsOnly = (code: AngleCode): boolean => code === "general" || code === "missed_calls";
+const WEB_CHANNEL_RX = /\b(?:website|web ?site|web) (?:messages?|chat|visitors?|enquir\w+|inquir\w+|forms?|leads?)|\b(?:live|web|site) ?chat\b|\bchat(?: ?bot| widget)?\b|\bonline (?:form|booking|chat|messages?)|\b(?:contact|request|call-?back) forms?\b|\btext messages?\b|\bsms\b/i;
+
+export function checkModelDraft(d: ModelDraft, factCount: number, opts: { callsOnly?: boolean } = {}): string[] {
   const fails: string[] = [];
+  if (opts.callsOnly && WEB_CHANNEL_RX.test(d.body)) fails.push("the body mentions website messages, chat, forms or booking: talk about phone calls only");
   const words = wordCount(d.body);
   if (words < 50 || words > 110) fails.push(`the body has ${words} words (must be 60-100)`);
   for (const [rx, why] of BANNED_BODY) if (rx.test(d.body)) fails.push(`the body ${why}`);
