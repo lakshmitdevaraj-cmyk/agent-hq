@@ -293,11 +293,25 @@ const subjectKey = (subject: string, ignore: string[]): string => {
   return wordsOf(subject).filter((w) => !drop.has(w)).join(" ");
 };
 
-/** Too close to another first email in the same campaign (8+ shared words, same opening as the last two, same subject pattern). */
+/** Shared words between two emails of one campaign that count as copying. (Copying from the offer or the examples stays at 8.) */
+export const CROSS_EMAIL_WORDS = 12;
+
+/** Phrases that just describe what the assistant does; every email may say them. */
+const SERVICE_PHRASES: RegExp[] = [
+  /\b(?:answers?|picks? up|takes?|handles?) (?:your |their |the )?(?:phone )?(?:calls?|messages?|website messages?|texts?)(?: and (?:website |web |chat )?(?:calls?|messages?))?\b/gi,
+  /\b(?:takes?|gets?|collects?) (?:down )?(?:the |their |your )?(?:caller['’]?s )?(?:details|information|name and number)\b/gi,
+  /\bsends? (?:them|those|it|the details|everything|that)(?: straight| right)? (?:over )?to (?:you|the owner|your team|your phone)\b/gi,
+];
+let svcMark = 0;
+/** Each removed phrase becomes a one-off marker word, so two emails never "share" a run across the gap. */
+const withoutServiceDescription = (body: string): string => SERVICE_PHRASES.reduce((t, rx) => t.replace(rx, () => ` svcgap${svcMark++}x `), body);
+
+/** Too close to another first email in the same campaign (12+ shared words, same opening as the last two, same subject pattern). */
 export function samenessProblem(d: { subject: string; body: string }, others: Array<{ subject: string; body: string }>, ignoreWords: string[] = []): string | null {
   for (const o of others) {
-    const r = sharedRun(d.body, o.body);
-    if (r) return `it repeats 8+ words from another email in this campaign ("${r}"): use different wording`;
+    // Between emails the limit is 12 words, and plain descriptions of the service are ignored (nearly every email says the same true thing).
+    const r = sharedRun(withoutServiceDescription(d.body), withoutServiceDescription(o.body), CROSS_EMAIL_WORDS);
+    if (r) return `it repeats ${CROSS_EMAIL_WORDS}+ words from another email in this campaign ("${r}"): use different wording`;
   }
   const lastTwo = others.slice(-2);
   const open = openingKey(d.body);
