@@ -103,7 +103,7 @@ Gate 2 (real emails to real people). Everything else is autonomous.
 - `outreach.campaign.list` — all campaigns, newest first.
 - `outreach.campaign.get` — one campaign by id.
   params: `{ id }`
-- `outreach.campaign.update` — patch (e.g. rename).
+- `outreach.campaign.update` — patch (e.g. rename, `any_trade`). A `job` in the patch goes to the separate job record.
   params: `{ id, ...patch }`
 - `outreach.campaign.run` — **fires Apify**. Blocks 30s–3min. Writes
   one lead record per result. Only call after Gate 1.
@@ -139,17 +139,52 @@ Gate 2 (real emails to real people). Everything else is autonomous.
 - `outreach.leads.check_site` — the same website check, **information only**,
   for any lead (also already emailed ones). Never drafts or sends; never
   changes do-not-contact / contacted / bounced flags. Use it to re-check a
-  whole campaign, one lead per call. params: `{ campaign_id, lead_id }`
+  whole campaign, one lead per call. Leads **without a website** are checked
+  too (instant, no download): they get the "No website" gap and the lead-gen
+  label. The check also records, as labels only (nothing is deleted):
+  `lead_gen_listing` (exact-match keyword domains, network footers,
+  toll-free main numbers, directory pages, throwaway domain endings),
+  `not_home_service` (industrial, **wholesalers / suppliers / parts stores**),
+  `real_trade` (duct cleaning, plumbing, water heater, HVAC, ... used in the
+  email instead of the campaign niche) and `mentions_24_7`. Owner lines in team
+  lists ("Name ~ Owner", "Name - Owner", "Owner/Operator Name") count as high
+  confidence. params: `{ campaign_id, lead_id }`
 - `outreach.leads.update` — `excluded` (skip this lead when drafting),
   `trade_override` (include a lead skipped as a different trade), `owner_name`
   (your own entry: high confidence, used in greetings, kept on re-checks;
-  empty string clears). params: `{ campaign_id, lead_id, excluded?, trade_override?, owner_name? }`
+  empty string clears), `excluded_reason` (wholesaler, lead_gen, not_home_service,
+  has_chat_booking, chain, other) and `excluded_note` (optional text). "Not a fit"
+  on the Prospects page = `excluded` plus a reason: no emails or social messages
+  are written for it, it is hidden there until "Show not a fit" is on, and
+  nothing is deleted (unticking restores it and keeps the reason). Prospects also
+  shows Contacted (Email from sent emails, Facebook/Instagram/LinkedIn from
+  "Mark as sent"), a grey "Low gap" hint under gap 30 (a hint only; only the bulk
+  "Write social messages" run leaves those leads out) and HQ's own automatic
+  reason (e.g. Century A/C Supply = wholesaler). HQ's own flags for wholesaler,
+  lead-gen, not home service and chain/franchise also hide the lead behind "Show
+  not a fit" (label "(auto)"); unticking one saves `not_fit_kept: true` ("kept
+  by me"), so later website checks do not flag it again and it is no longer
+  skipped. Only the fields sent change.
+  params: `{ campaign_id, lead_id, excluded?, excluded_reason?, excluded_note?, not_fit_kept?, trade_override?, owner_name? }`
+- `outreach.lead.set_email` — "Edit email" in the Prospects detail panel. Validates
+  the address, saves it on the lead (`email_source: "manual"`, `email_manual_at`,
+  old address in `previous_email`), changes only those fields, moves the To address
+  of unsent drafts (sent emails keep theirs) and never gets replaced by a website
+  check. The bounced / already-contacted checks still run on the new address; a
+  warning comes back when it is blocked. params: `{ campaign_id, lead_id, email }`
 - `outreach.prospects.list` — every lead across all campaigns (slim rows with
   owner, gap score, links and `email_status`); this is what the Prospects page
   shows. params: `{}`
 - Campaign flag `any_trade` (set with `outreach.campaign.update`): "Home
-  services, any trade" turns off the different-trade skip and keeps draft
-  wording trade-neutral.
+  services, any trade" turns off the different-trade skip. It is **on by
+  default** for new campaigns, and a campaign without the field counts as on
+  (only an explicit `false` turns it off). It never changes the Google search
+  terms; the email always names the business's own trade (`real_trade`).
+- The running job (`job`), `browser_checked_ids` and the sender defaults are
+  kept in their own record, apart from the campaign settings, so a job can
+  never undo a settings change. `outreach.campaign.get/list` return both
+  together; `outreach.campaign.update` sends `job` to the job record and
+  everything else to the settings.
 - `outreach.leads.delete` — removes one lead and its drafted (unsent) emails.
   params: `{ campaign_id, lead_id }`
 
@@ -236,11 +271,73 @@ cold strangers.
 - `outreach.emails.review.start` — `{ campaign_id, email_ids? }`: AI reviewer
   job (ready / check / blocked, with reasons). Run it before asking the human
   to approve a send; poll `outreach.campaign.get` `job` (kind `review`).
+  The reviewer also judges **quality** (specific to this business, a clear cost,
+  natural wording, a reason to reply, not templated); a draft that fails gets
+  one rewrite, which must pass the same code checks (no buzzwords or claims
+  about the sender's own trade, no 8+ words copied from the offer or the worked
+  examples or another draft in the campaign, no "after hours" for 24/7 sites,
+  no "HVAC" for another trade) and a second review before it can be "ready".
+  A website with no form, chat or booking gets the `phone_only` angle.
+  Every draft must open with one **true detail** saved from the business's own
+  site or Google (`site_check.details`: since/years in business, family-owned,
+  emergency service, services listed, towns served; plus rating and review
+  count), and its subject must name the business or such a detail, so two
+  emails in a campaign never read alike. Opening hours also come from the
+  business's own contact page or footer (`site_check.site_hours`) when Google
+  has none. "Quick question:" must be followed by a real question; nothing
+  about texting, scheduling, dispatch, quotes or payments (not in the offer).
+  Flagged lead-gen / supplier leads get no details and no claims at all. Lead-gen
+  flags also cover Google Sites pages with a keyword name and few reviews, and an
+  unrelated name on a throwaway domain ending (e.g. `.site`), also when the site
+  does not load because of an invalid certificate.
 - `outreach.browsercheck.plan` / `outreach.browsercheck.start` —
   `{ campaign_id, lead_id? }`: real-browser website check for leads about to
   be emailed or reached another way (costs Apify credits; ALWAYS show the plan's estimated cost to
   the human first). If it fails, drafts are still written but never mention a
   website gap. Facts carry evidence (`site_check.evidence`, `owner_evidence`).
+- **Website facts (plain code, no AI)** — every check saves `site_check.facts`:
+  `not_mobile_friendly` (flagged only when there is no viewport tag or it sets a
+  fixed width such as width=980; `initial-scale=1` alone, as Duda sites use, is
+  mobile friendly), `phone_not_tappable` (number shown as text with no `tel:` link), `no_https` (final address is http
+  or the certificate is invalid) and `old_copyright` (latest year 3+ years old;
+  a range counts as its later year). Each fact is `true`, `false` or `"unknown"`
+  with the page and text it came from. A JavaScript-built site (GoDaddy, Wix,
+  Duda...) checked only by plain download gets `"unknown"` for the mobile and
+  phone facts until a browser check. The writer may use at most ONE fact, only
+  the true tap-to-call fact and only on a phone-call angle, and only when the page
+  sets `<meta name="format-detection" content="telephone=no">` (iPhone Safari
+  turns plain numbers into links on its own, so otherwise the fact is kept on the
+  lead but never offered, and a claim about it is blocked). The code check blocks
+  any claim about the website that does not match a true fact. Facts do not
+  change the gap score. They show as "Website facts" in the lead details and as
+  four CSV columns on Prospects.
+- **Homepage screenshot** — the browser check also saves a 1280x800 JPEG of the
+  homepage (about 150 KB; stored in `agent-hq-lead-screenshots`, never inside the
+  lead). `outreach.lead.screenshot.get { campaign_id, lead_id }` returns it.
+- `outreach.social.write` — `{ campaign_id, lead_ids?, channels?, regenerate? }`:
+  first messages for **Facebook** (40-80 words), **Instagram** (25-50 words) and
+  **LinkedIn** (connection note of at most 200 characters, hello only; plus a first
+  message of 40-80 words), only for leads with a saved page on that channel. No
+  links, no signature, a "30-minute free call". Same skip rules as emails
+  (excluded, do-not-contact, chain/franchise, lead-gen, not home-service, bounced)
+  and the website must be checked first. Order: free code checks, ONE writer retry
+  at most, then the AI reviewer in groups of up to 5; **at most one rewrite per
+  message in total** (writer retry or reviewer rewrite); a message that still
+  fails is `check` and never goes to the reviewer. The app NEVER posts or sends:
+  the human uses Copy, "Open their page" and "Mark as sent on <channel>"
+  (`outreach.social.mark_sent`). The lead detail also shows "Emailed on <date>".
+  Poll `job` (kind `social`). Also `outreach.social.list / update / delete`.
+- **Gemini daily limit** — drafting, review and social jobs now **pause** (job
+  `status: "paused"`, `resume_at` = next midnight US Pacific) instead of failing.
+  `outreach.job.resume { campaign_id, force? }` continues (the dashboard calls it
+  by itself after the reset, and has a "Resume now" button); finished work is
+  never redone. A per-minute limit (429) still waits and retries; an overloaded
+  model (503) still retries and may switch to the second provider.
+- **Models**: defaults are Drafting and Reviewer `gemini-2.5-flash`, Helper
+  `gemini-3.5-flash-lite` (owner reading on About pages, campaign planning). Saved
+  settings are never changed. Each job shows how many Gemini calls it used.
+- **Reviewer batching**: up to 5 drafts per reviewer call (one JSON array keyed by
+  id; a missing or malformed entry is asked again alone, once).
 - Settings: three models (`draft_model`, `review_model`, `helper_model`, each
   with `*_provider` gemini|second), optional second OpenAI-compatible provider
   (`second_ai_base_url`, `second_ai_model`, key via `config.set service:"ai2"`)

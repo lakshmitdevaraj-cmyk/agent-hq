@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { call } from "@/lib/api";
-import { GapBadge, shortDate, type LeadInfo } from "@/lib/leadInfo";
+import { FACT_LABEL, GapBadge, factResult, shortDate, type LeadInfo } from "@/lib/leadInfo";
 
 type LeadRef = LeadInfo & { id: string; campaign_id?: string | null; name?: string };
 
@@ -68,6 +68,30 @@ const Row = ({ label, value, url }: { label: string; value: string; url?: string
   </div>
 );
 
+/** Homepage screenshot taken by the browser check: a small thumbnail that opens full size. */
+function Screenshot({ lead }: { lead: LeadRef }) {
+  const has = !!lead.site_check?.screenshot;
+  const [url, setUrl] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setUrl(null);
+    setErr(false);
+    if (!has || !lead.campaign_id) return;
+    let live = true;
+    call<{ found: boolean; data_url?: string }>("outreach.lead.screenshot.get", { campaign_id: lead.campaign_id, lead_id: lead.id })
+      .then((r) => { if (live && r.found && r.data_url) setUrl(r.data_url); else if (live) setErr(true); })
+      .catch(() => live && setErr(true));
+    return () => { live = false; };
+  }, [lead.id, lead.campaign_id, has, lead.site_check?.screenshot?.saved_at]);
+  if (!has || err) return <p className="text-[11px] text-white/40">No screenshot yet. A browser check takes one of the homepage.</p>;
+  if (!url) return <p className="text-[11px] text-white/40">Loading screenshot…</p>;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" title="Open full size">
+      <img src={url} alt="Homepage screenshot" className="w-48 rounded-md border border-white/15" />
+    </a>
+  );
+}
+
 /** Everything the website check found, with the page each item came from. */
 export function SiteDetails({ lead }: { lead: LeadInfo }) {
   const sc = lead.site_check;
@@ -108,6 +132,18 @@ export function SiteDetails({ lead }: { lead: LeadInfo }) {
           </div>
         ))}
       </div>
+      <Screenshot lead={lead as LeadRef} />
+      {(sc.facts?.length ?? 0) > 0 && (
+        <div className="space-y-1">
+          <div className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Website facts</div>
+          {sc.facts!.map((f) => (
+            <div key={f.key}>
+              <Row label={FACT_LABEL[f.key] ?? f.key} value={factResult(f)} url={f.evidence?.url} />
+              {f.evidence?.text && <div className="pl-28 text-[10px] text-white/35 break-all">{f.evidence.text}</div>}
+            </div>
+          ))}
+        </div>
+      )}
       {sc.not_home_service && <p className="text-[11px] text-amber-300">Check: may not be a home-service business. {sc.not_home_service}.</p>}
       {sc.lead_gen_listing && <p className="text-[11px] text-amber-300">Check: may be a lead-gen listing. {sc.lead_gen_listing}.</p>}
       <p className="text-[10px] text-white/35">Checked {shortDate(sc.checked_at)}. Links only: LinkedIn and Facebook pages are never opened by the app.</p>

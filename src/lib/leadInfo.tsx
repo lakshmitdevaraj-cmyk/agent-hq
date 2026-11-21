@@ -40,6 +40,8 @@ export type LeadInfo = {
     hours_evidence?: string | null;
     not_home_service?: string | null;
     lead_gen_listing?: string | null;
+    facts?: Array<{ key: string; value: boolean | "unknown"; evidence: { url: string; text: string } }>;
+    screenshot?: { saved_at: string; bytes: number } | null;
     error?: string;
   } | null;
 };
@@ -124,4 +126,24 @@ export function shortDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+export const FACT_LABEL: Record<string, string> = {
+  not_mobile_friendly: "Mobile friendly",
+  phone_not_tappable: "Tap-to-call phone link",
+  no_https: "Secure (https)",
+  old_copyright: "Copyright year",
+};
+
+/** "Yes" / "No" / "Unknown" wording for one website fact, written so that the good result reads as good. */
+export function factResult(f: { key: string; value: boolean | "unknown" }): string {
+  if (f.value === "unknown") return "unknown";
+  const bad = f.value === true;
+  switch (f.key) {
+    case "not_mobile_friendly": return bad ? "No (no mobile viewport tag)" : "Yes";
+    case "phone_not_tappable": return bad ? "No (number is plain text)" : "Yes";
+    case "no_https": return bad ? "No" : "Yes";
+    case "old_copyright": return bad ? "Old (3+ years)" : "Current";
+    default: return String(f.value);
+  }
 }

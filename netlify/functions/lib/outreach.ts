@@ -373,7 +373,7 @@ export type SkipReason = {
  * do not overlap.
  */
 export function leadSkipReason(
-  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; trade_override?: boolean; is_test?: boolean; raw?: unknown },
+  lead: { name?: string | null; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; trade_override?: boolean; not_fit_kept?: boolean; is_test?: boolean; raw?: unknown },
   campaign: string | null | undefined | { location?: string | null; query?: string | null; anyTrade?: boolean },
 ): SkipReason | null {
   if (lead.excluded) return { code: "excluded", message: "Excluded by you" };
@@ -382,7 +382,8 @@ export function leadSkipReason(
   const campaignQuery = campaign && typeof campaign === "object" ? campaign.query : null;
   if (isGovEduEmail(lead.email)) return { code: "gov_edu_email", message: "Skipped: .gov/.edu address" };
   if (lead.email && isJunkEmail(lead.email)) return { code: "placeholder_email", message: "Skipped: placeholder email address" };
-  if (isChainBusiness(lead.name, lead.website)) return { code: "chain", message: "Skipped: chain / franchise store" };
+  // A chain the user chose to keep ("kept by me" on the Prospects page) is no longer skipped.
+  if (!lead.not_fit_kept && isChainBusiness(lead.name, lead.website)) return { code: "chain", message: "Skipped: chain / franchise store" };
   const rawState = (lead.raw && typeof lead.raw === "object" ? (lead.raw as { state?: unknown }).state : null) as string | null;
   const leadState = usStateOf(typeof rawState === "string" ? rawState : null) ?? usStateOf(lead.address);
   const wantState = usStateOf(campaignLocation);

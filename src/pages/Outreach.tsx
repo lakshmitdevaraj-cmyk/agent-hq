@@ -21,7 +21,7 @@ import OnboardingWizard from "@/components/OnboardingWizard";
 import WebhookSetupCard from "@/components/WebhookSetupCard";
 import SkillViewerModal from "@/components/SkillViewerModal";
 import AnimatedNumber from "@/components/AnimatedNumber";
-import { call } from "@/lib/api";
+import { call, resumeDueJobs } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 import outreachSkillMd from "../../skills/mission-control-outreach.md?raw";
 
@@ -63,6 +63,9 @@ export default function Outreach() {
   const [skillOpen, setSkillOpen] = useState(false);
   const [config, setConfig] = useState<ConfigStatus | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Jobs paused on Gemini's daily limit continue by themselves once the reset time has passed (checked when the dashboard opens).
+  useEffect(() => { void resumeDueJobs().catch(() => undefined); }, []);
 
   useEffect(() => {
     void refresh();

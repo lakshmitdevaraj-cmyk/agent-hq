@@ -159,6 +159,30 @@ function classifyBookLink(a: Anchor, pageUrl: string): "booking" | "request_form
   return "request_form";
 }
 
+/** Form plugins that build their form with JavaScript, so a plain download of the page does not contain the form. */
+const FORM_PLUGINS: Array<[string, RegExp]> = [
+  ["Ninja Forms", /ninja[-_ ]?forms|nf-form|nfForms/i],
+  ["WPForms", /wpforms/i],
+  ["Gravity Forms", /gravity[-_ ]?forms|gform_wrapper|gform_/i],
+  ["Formidable Forms", /formidable|frm_forms/i],
+  ["Jotform", /jotform/i],
+  ["HubSpot forms", /hbspt\.forms|js\.hsforms\.net|hs-form/i],
+  ["Contact Form 7", /wpcf7|contact-form-7/i],
+  ["Forminator", /forminator/i],
+  ["Fluent Forms", /fluentform|fluent-form/i],
+  ["Typeform", /typeform/i],
+  ["Formstack", /formstack/i],
+  ["Cognito Forms", /cognitoforms/i],
+  ["Wufoo", /wufoo/i],
+  ["Elementor form", /elementor-form|elementor-widget-form/i],
+];
+
+/** The name of a form plugin whose script or markup is on any of the pages, or null when none is there. */
+export function detectFormPlugin(pages: Page[]): string | null {
+  for (const p of pages) for (const [name, rx] of FORM_PLUGINS) if (rx.test(p.html)) return name;
+  return null;
+}
+
 export type SignalResult = { signals: Signals; sources: Record<string, string>; evidence: Record<string, string> };
 
 export function detectSignals(pages: Page[]): SignalResult {
@@ -248,8 +272,9 @@ const ALL_HOURS_RX = /24\s*\/\s*7|24\s*x\s*7|24\s*hours|24-hour|day or night|aro
 const EMERGENCY_RX = /emergency/i;
 
 /** If the site itself says it answers any time, Google's opening hours must not be used. */
-export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advertises_emergency: boolean; evidence: string | null } {
+export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advertises_emergency: boolean; mentions_24_7: boolean; evidence: string | null } {
   let advertises = false;
+  const mentions = pages.some((p) => ALL_HOURS_RX.test(pageText(p.html)));
   for (const p of pages) {
     const t = pageText(p.html);
     if (EMERGENCY_RX.test(t)) advertises = true;
@@ -262,9 +287,9 @@ export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advert
       m = x;
       break;
     }
-    if (m) return { hours_usable: false, advertises_emergency: advertises || EMERGENCY_RX.test(t), evidence: `Site says "${t.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).trim()}" (${p.url})` };
+    if (m) return { hours_usable: false, advertises_emergency: advertises || EMERGENCY_RX.test(t), mentions_24_7: true, evidence: `Site says "${t.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).trim()}" (${p.url})` };
   }
-  return { hours_usable: true, advertises_emergency: advertises, evidence: null };
+  return { hours_usable: true, advertises_emergency: advertises, mentions_24_7: mentions, evidence: null };
 }
 
 const INDUSTRIAL_RX = /\b(industrial|marine|manufactur\w*|wholesale|distribut(?:or|ion)|oem\b|engineered|shipyard|offshore|vessel|oilfield|commercial (?:and|&) industrial|fabricat\w*|chiller|process (?:cooling|control)|replacement parts)\b/gi;
@@ -272,20 +297,233 @@ const RESIDENTIAL_RX = /\b(homeowners?|residential|your home|home comfort|house|
 const LEADGEN_HOSTS = /(?:^|\.)(?:angi|angieslist|homeadvisor|thumbtack|yelp|bbb|yellowpages|manta|mapquest|porch|networx|fixr|buildzoom|houzz|nextdoor|facebook|superpages|chamberofcommerce|cylex|hotfrog|bark|expertise|homeguide|improvenet|fixd)\.(?:com|org|net)$/i;
 const LEADGEN_TEXT = /(?:get|compare)\s+(?:free\s+)?(?:quotes|estimates)\s+from|find\s+(?:a\s+)?(?:local\s+)?(?:pro|contractor|plumber|electrician|hvac|roofer)s?\s+near|we\s+connect\s+(?:you|homeowners)\s+with|top\s+\d+\s+(?:best\s+)?(?:hvac|plumb|electric|roof)|directory\s+of/i;
 
-/** Warning flags: a lead that may not be a home-service company, or is a listing site rather than a business. */
-export function fitFlags(pages: Page[], website?: string | null): { not_home_service: string | null; lead_gen_listing: string | null } {
+export type FitCtx = { name?: string | null; category?: string | null; city?: string | null; reviews_count?: number | null; phone?: string | null; tls_problem?: boolean };
+
+const WHOLESALE_TEXT = /\b(?:wholesale (?:distributor|supplier|only|prices?|and retail)|(?:distributor|supplier) of (?:hvac|plumbing|heating|air|electrical|building|roofing)|supply house|trade[- ]only|(?:dealer|contractor) accounts?|open an account|b2b)\b/i;
+const WHOLESALE_CATEGORY = /\b(?:supplier|wholesaler?|distribut\w+|store|shop|parts|warehouse|manufacturer)\b/i;
+const SERVICE_WORDING = /\b(?:repair|install\w*|maintenance|contractor|service (?:call|technician)|plumber|electrician|technicians?)\b/i;
+
+/** Wholesalers and parts suppliers: they sell to contractors, not to homeowners. Evidence text or null. */
+export function wholesalerFlag(text: string, category?: string | null): string | null {
+  const cat = (category ?? "").trim();
+  const m = WHOLESALE_TEXT.exec(text);
+  if (m) {
+    let from = Math.max(0, m.index - 40);
+    if (from > 0) { const sp = text.indexOf(" ", from); if (sp >= 0 && sp < m.index) from = sp + 1; }
+    return `Site says "${text.slice(from, m.index + m[0].length + 40).replace(/\s+/g, " ").trim()}": it sells to contractors, not homeowners`;
+  }
+  if (cat && WHOLESALE_CATEGORY.test(cat) && !SERVICE_WORDING.test(cat)) return `Google lists it as "${cat}", which is a supplier, not a home-service company`;
+  return null;
+}
+
+const TRADE_WORDS = ["hvac", "ductcleaning", "airduct", "duct", "waterheater", "plumbing", "plumber", "heating", "cooling", "airconditioning", "acrepair", "aircon", "furnace", "electric", "electrician", "roofing", "roofer", "dryervent"];
+const FILLER_TOKENS = ["1st", "first", "choice", "best", "top", "the", "and", "of", "in", "near", "me", "pro", "pros", "services", "service", "company", "repair", "repairs", "install", "installation", "air", "ac", "a", "c", "tx", "texas", "local", "cheap", "affordable", "emergency", "24", "7", "hour", "hr", "guys", "experts", "crew", "co", "inc", "llc"];
+const THROWAWAY_TLD = /\.(?:xyz|site|pro|online|top|club|info|biz|click|live|store|website|space|today|co)$/i;
+const TOLL_FREE = /(?:\+?1[\s.-]?)?\(?\b8(?:00|33|44|55|66|77|88)\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/;
+
+const compact = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** Does the domain's name consist only of trade words, the town and filler (no real brand)? */
+function keywordDomain(host: string, city: string): boolean {
+  const label = compact(host.replace(/\.[a-z]{2,}$/i, "").replace(/\.[a-z]{2,}$/i, ""));
+  if (!label) return false;
+  const hasTrade = TRADE_WORDS.some((w) => label.includes(w));
+  if (!hasTrade) return false;
+  let rest = label;
+  const c = compact(city);
+  if (c.length >= 4) rest = rest.split(c).join("");
+  for (const w of [...TRADE_WORDS, ...FILLER_TOKENS].sort((a, b) => b.length - a.length)) rest = rest.split(w).join("");
+  return rest.replace(/\d+/g, "").length <= 3 && (c.length < 4 ? true : label.includes(c));
+}
+
+/**
+ * Lead-gen / listing / network websites. Needs one strong signal or two weak ones. Label only, never deletes.
+ * Returns evidence text, or null for a normal local company.
+ */
+export function leadGenWebsite(pages: Page[], website: string | null | undefined, ctx: FitCtx = {}): string | null {
+  const strong: string[] = [];
+  const weak: string[] = [];
+  const host = website ? hostOf(website) : "";
+  const text = pages.slice(0, 3).map((p) => pageText(p.html)).join(" ");
+  if (host && LEADGEN_HOSTS.test(host)) strong.push(`The website is ${host}, a listing site`);
+  const dm = LEADGEN_TEXT.exec(text);
+  if (dm) strong.push(`Site wording looks like a directory: "${dm[0].slice(0, 60)}"`);
+  let path = "";
+  try { path = website ? new URL(website).pathname.replace(/\/+$/, "") : ""; } catch { /* ignore */ }
+  const fewReviews = typeof ctx.reviews_count !== "number" || ctx.reviews_count < 30;
+  const kw = host ? keywordDomain(host, ctx.city ?? "") : false;
+  // A page per city on a keyword domain ("hvac-repair-guys.com/Dickinson").
+  if (host && path && /^\/[A-Za-z][A-Za-z-]{2,24}$/.test(path) && TRADE_WORDS.some((w) => compact(host).includes(w))) strong.push(`The address ${host}${path} is one city page on a keyword website (a directory page)`);
+  if (host && THROWAWAY_TLD.test(host) && TRADE_WORDS.some((w) => compact(host).includes(w))) strong.push(`The website name "${host}" is a trade keyword on a throwaway domain ending`);
+  // A Google Sites page with a keyword-stuffed business name and few reviews.
+  if (/(?:^|\.)sites\.google\.com$/i.test(host) && fewReviews && ctx.name && TRADE_WORDS.some((w) => compact(ctx.name!).includes(w))) strong.push("The website is a free Google Sites page and the business name is only trade keywords");
+  // A throwaway domain ending whose name has nothing to do with the business ("Oasis System HVAC" on brooksdaniel.site).
+  if (host && ctx.name && THROWAWAY_TLD.test(host)) {
+    const label = compact(host.replace(/\.[a-z]{2,}$/i, ""));
+    const words = (ctx.name ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !FILLER_TOKENS.includes(w) && !TRADE_WORDS.some((t) => w.includes(t)) && !["system", "systems", "heating", "cooling", "comfort", "mechanical", "home"].includes(w));
+    if (words.length > 0 && !words.some((w) => label.includes(w)) && !TRADE_WORDS.some((t) => label.includes(t))) strong.push(`The website name "${host}" has nothing to do with the business name, on a throwaway domain ending`);
+  }
+  if (ctx.tls_problem) weak.push("The website has an invalid security certificate");
+  if (kw && fewReviews) strong.push(`The website name "${host}" is only trade words and the town, with no company name`);
+  else if (kw) weak.push(`The website name "${host}" is only trade words and the town`);
+  // A footer or pages that list many other companies as a network.
+  if (host) {
+    const others = new Set<string>();
+    for (const p of pages.slice(0, 3)) for (const a of extractAnchors(p.html, p.url)) {
+      const h = hostOf(a.href);
+      if (!h || h === host || LEADGEN_HOSTS.test(h) || /google|facebook|instagram|youtube|twitter|linkedin|godaddy|wix|squarespace|apple|yelp|bbb\.org|maps/i.test(h)) continue;
+      if (/\b(?:duct|hvac|air condition|a\/c|\bac\b|plumb|water heater|heating|cooling|roof|electric|repair|cleaning)/i.test(a.text)) others.add(h);
+    }
+    if (others.size >= 4) strong.push(`The site links to ${others.size} other companies' websites as a network`);
+  }
+  const cityList = (text.match(/\b(?:serving|service areas?|areas? we serve|cities we serve)\b[^.]{0,400}/i)?.[0].match(/[A-Z][a-z]+(?:\s[A-Z][a-z]+)?,/g) ?? []).length;
+  if (cityList >= 8) weak.push(`The site lists ${cityList} towns it serves`);
+  const tf = TOLL_FREE.exec(ctx.phone ?? "") ?? TOLL_FREE.exec(text.slice(0, 1500));
+  if (tf) weak.push(`The main phone number is toll-free (${tf[0].trim()})`);
+  const nameTokens = compact(ctx.name ?? "");
+  if (ctx.name && TRADE_WORDS.some((w) => compact(ctx.name!).includes(w)) && keywordDomain(compact(ctx.name) + ".com", ctx.city ?? "") && fewReviews) weak.push("The business name is only trade words and a town");
+  const title = (pages[0]?.html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").replace(/\s+/g, " ").trim();
+  if (title && nameTokens) {
+    const words = (ctx.name ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !FILLER_TOKENS.includes(w) && !TRADE_WORDS.some((t) => w.includes(t)));
+    if (words.length > 0 && !words.some((w) => title.toLowerCase().includes(w)) && /\b(?:repair|service|company|professional|fast)\b/i.test(title)) weak.push(`The page title ("${title.slice(0, 60)}") does not name the business`);
+  }
+  if (strong.length > 0) return strong[0] + (strong.length > 1 ? `; ${strong[1]}` : "") + (weak.length ? `; ${weak[0]}` : "");
+  if (weak.length >= 2) return `${weak[0]}; ${weak[1]}`;
+  return null;
+}
+
+/** Warning flags: a lead that may not be a home-service company, or is a listing / lead-gen site rather than a business. */
+export function fitFlags(pages: Page[], website?: string | null, ctx: FitCtx = {}): { not_home_service: string | null; lead_gen_listing: string | null } {
   const text = pages.slice(0, 3).map((p) => pageText(p.html)).join(" ");
   const hits = new Set((text.match(INDUSTRIAL_RX) ?? []).map((x) => x.toLowerCase()));
   let notHome: string | null = null;
   if (hits.size >= 2 && !RESIDENTIAL_RX.test(text)) notHome = `Site talks about ${[...hits].slice(0, 4).join(", ")} and nothing about homes`;
-  let lead: string | null = null;
-  const host = website ? hostOf(website) : "";
-  if (host && LEADGEN_HOSTS.test(host)) lead = `The website is ${host}, a listing site`;
-  else {
-    const m = LEADGEN_TEXT.exec(text);
-    if (m) lead = `Site wording looks like a directory: "${m[0].slice(0, 60)}"`;
+  if (!notHome) notHome = wholesalerFlag(text, ctx.category);
+  return { not_home_service: notHome, lead_gen_listing: leadGenWebsite(pages, website, ctx) };
+}
+
+// ── True business details (saved with their evidence, used to make each email specific) ──
+
+export type Detail = { kind: string; text: string; words: string[]; evidence: string };
+
+const SERVICE_VOCAB: Array<[RegExp, string]> = [
+  [/\bac (?:repair|service)|air conditioning (?:repair|service)/i, "AC repair"],
+  [/\b(?:ac|a\/c|air conditioning) (?:install\w*|replacement)/i, "AC installation"],
+  [/\bfurnace (?:repair|service)|heating repair/i, "furnace repair"],
+  [/\bfurnace (?:install\w*|replacement)|heating install\w*/i, "furnace installation"],
+  [/\bduct ?(?:work|cleaning)\b|\bductwork\b/i, "ductwork"],
+  [/\bwater heaters?\b/i, "water heaters"],
+  [/\bindoor air quality\b/i, "indoor air quality"],
+  [/\bthermostats?\b/i, "thermostats"],
+  [/\bheat pumps?\b/i, "heat pumps"],
+  [/\b(?:tune-?ups?|maintenance plans?|preventive maintenance)\b/i, "maintenance plans"],
+  [/\bmini[- ]?splits?|ductless\b/i, "ductless systems"],
+];
+
+/** Things that are true about this business according to its own pages (never invented). */
+export function businessDetails(pages: Page[]): Detail[] {
+  const text = pages.slice(0, 4).map((p) => pageText(p.html)).join(" ");
+  const out: Detail[] = [];
+  const near = (idx: number, len: number) => sentenceAround(text, idx, len);
+  let since: RegExpExecArray | null = null;
+  const sinceRx = /\b(?:since|established(?: in)?|est\.?|founded in)\s*(19[4-9]\d|20[01]\d)\b/gi;
+  for (let m = sinceRx.exec(text); m; m = sinceRx.exec(text)) {
+    // "he has worked in HVAC since 1995" is a person, not the company.
+    if (!/\b(?:he|she|his|her|him)\b|experience|licensed|certified/i.test(text.slice(Math.max(0, m.index - 70), m.index + m[0].length + 30))) { since = m; break; }
   }
-  return { not_home_service: notHome, lead_gen_listing: lead };
+  if (since) out.push({ kind: "since", text: `In business since ${since[1]}`, words: [`since ${since[1]}`, since[1]], evidence: near(since.index, since[0].length) });
+  else {
+    // Business age only: "in business for 40 years", "serving Houston for 30 years". "X years of experience" is a person's, not the company's age.
+    const re = /\b(\d{2})\+?\s*(?:years|yrs)\b/gi;
+    for (let m = re.exec(text); m; m = re.exec(text)) {
+      const n = Number(m[1]);
+      const before = text.slice(Math.max(0, m.index - 70), m.index);
+      const after = text.slice(m.index + m[0].length, m.index + m[0].length + 60);
+      const ctx = `${before} ${m[0]} ${after}`;
+      const aboutPerson = /experience|hands-on|expertise|\b(?:he|she|his|her|him|technicians?|owner|founder|our team|our techs?)\b/i.test(ctx);
+      const aboutBusiness = /\bin business\b|\bserving\b|\bof service\b|\bfamily[- ](?:owned|operated)\b|\bproudly served\b/i.test(ctx);
+      if (n >= 10 && n <= 90 && aboutBusiness && !aboutPerson && !/warrant|guarantee|financ|labor|parts/i.test(ctx)) {
+        out.push({ kind: "years", text: `${n}+ years in business`, words: [`${n} years`, `${n}+ years`, `${n}-year`], evidence: near(m.index, m[0].length) });
+        break;
+      }
+    }
+  }
+  const fam = /\bfamily[- ](?:owned|operated|run)\b|\bfamily business\b/i.exec(text);
+  if (fam) out.push({ kind: "family", text: "Family-owned", words: ["family-owned", "family owned", "family-run", "family business", "family operated", "family-operated"], evidence: near(fam.index, fam[0].length) });
+  const emerg = /\bemergency (?:services?|repairs?|calls?|hvac)\b/i.exec(text);
+  if (emerg) out.push({ kind: "emergency", text: "Emergency service available", words: ["emergency"], evidence: near(emerg.index, emerg[0].length) });
+  const found = SERVICE_VOCAB.filter(([rx]) => rx.test(text)).map(([, label]) => label).slice(0, 3);
+  if (found.length >= 2) out.push({ kind: "services", text: `Services they list: ${found.join(", ")}`, words: found.map((x) => x.toLowerCase().split(" ")[0] === "ac" ? x.toLowerCase() : x.toLowerCase()), evidence: `The site lists ${found.join(", ")}.` });
+  const area = /\bserving\s+((?:[A-Z][a-z]+(?:\s[A-Z][a-z]+)?(?:,\s*|\s+and\s+|\s*&\s*)){1,5}[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/.exec(text);
+  if (area) {
+    const towns = area[1].split(/,\s*|\s+and\s+|\s*&\s*/).map((x) => x.trim()).filter(Boolean);
+    out.push({ kind: "area", text: `Serves ${towns.join(", ")}`, words: towns.map((x) => x.toLowerCase()), evidence: near(area.index, area[0].length) });
+  }
+  return out;
+}
+
+// ── Opening hours from the business's own site ───────────────────────
+
+const DAY_RX = "(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\\.?";
+const TIME_RX = "\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?\\s*(?:-|–|—|to)\\s*\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)";
+const WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/** "Mon - Fri 9:30 am - 5:30 pm, Sat - Sun Closed" -> the same rows Google gives, so hoursInfo() can read them. */
+export function siteHours(pages: Page[]): { openingHours: Array<{ day: string; hours: string }>; evidence: string } | null {
+  const rows = new Map<string, string>();
+  let evidence = "";
+  for (const p of pages) {
+    const t = pageText(p.html);
+    const rx = new RegExp(`${DAY_RX}(?:\\s*(?:-|–|—|to|through|thru|&|and)\\s*${DAY_RX})?\\s*:?\\s*(${TIME_RX}|closed)`, "gi");
+    for (let m = rx.exec(t); m; m = rx.exec(t)) {
+      const a = WEEK.findIndex((d) => d.toLowerCase().startsWith(m[1].toLowerCase().slice(0, 3)));
+      const b = m[2] ? WEEK.findIndex((d) => d.toLowerCase().startsWith(m[2].toLowerCase().slice(0, 3))) : a;
+      if (a < 0 || b < 0) continue;
+      const hours = /closed/i.test(m[3]) ? "Closed" : m[3].replace(/\s+/g, " ");
+      const amp = /(?:&|and)/i.test(m[0].slice(m[1].length, m[1].length + 8));
+      const days = amp && b !== a ? [a, b] : a <= b ? Array.from({ length: b - a + 1 }, (_, i) => a + i) : [a];
+      for (const d of days) if (!rows.has(WEEK[d])) rows.set(WEEK[d], hours);
+      if (!evidence) evidence = t.slice(Math.max(0, m.index - 10), m.index + m[0].length + 40).replace(/\s+/g, " ").trim();
+    }
+    if (rows.size >= 3) break;
+  }
+  if (rows.size < 3) return null;
+  return { openingHours: WEEK.filter((d) => rows.has(d)).map((d) => ({ day: d, hours: rows.get(d)! })), evidence: `Website hours: ${evidence}`.slice(0, 200) };
+}
+
+// ── The business's real trade (never the campaign niche) ──────────────
+
+const HVAC_RX = /hvac|heating|air conditioning|a\/c|\bac\b|furnace|cooling|heat pump/i;
+const TRADE_MAP: Array<[RegExp, string]> = [
+  [/duct|dryer vent/i, "duct cleaning"],
+  [/water heater/i, "water heater"],
+  [/plumb|drain|sewer|septic/i, "plumbing"],
+  [/electric/i, "electrical"],
+  [/roof/i, "roofing"],
+  [/pest|termite|exterminat/i, "pest control"],
+  [/garage door/i, "garage doors"],
+  [/landscap|lawn|tree service/i, "landscaping"],
+  [/pool/i, "pool service"],
+  [/appliance/i, "appliance repair"],
+  [/locksmith/i, "locksmith"],
+  [/handyman/i, "handyman"],
+];
+
+/**
+ * The trade to use in the email, never the campaign niche. The business name and site title say more than a
+ * generic Google category ("HVAC contractor" is given to roofers and duct cleaners found by an HVAC search):
+ * a specific trade in the name or title wins unless the same text also says HVAC. Null when unclear.
+ */
+export function realTrade(category?: string | null, name?: string | null, title?: string | null): string | null {
+  const srcs = [name, title, category].filter((x): x is string => !!x);
+  for (const src of srcs) {
+    if (HVAC_RX.test(src)) continue;
+    for (const [rx, label] of TRADE_MAP) if (rx.test(src)) return label;
+  }
+  if (srcs.some((x) => HVAC_RX.test(x))) return "HVAC";
+  for (const src of srcs) for (const [rx, label] of TRADE_MAP) if (rx.test(src)) return label;
+  for (const src of srcs) if (/clean|maid|janitor/i.test(src)) return "cleaning";
+  return null;
 }
 
 // ── Social and review links (links only) ──────────────────────────────
@@ -423,6 +661,10 @@ const OWNER_PATTERNS: Pat[] = [
   { rx: new RegExp(`(?:[Oo]wned|[Rr]un|[Oo]perated)(?:\\s+and\\s+(?:[Oo]perated|[Oo]wned|[Rr]un))?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "owned by", confidence: "high" },
   { rx: new RegExp(`(?:[Ff]ounded|[Ss]tarted|[Ee]stablished)(?:\\s+in\\s+\\d{4})?\\s+by\\s+${NAME}\\b(?!\\s+and\\b)`, "g"), how: "founded by", confidence: "low", founderOnly: true },
   { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?(?:[Oo]wner|[Pp]resident|CEO)(?:\\s*(?:and|&|/|,)\\s*${ROLE})*\\b`, "g"), how: "name, owner", confidence: "high" },
+  // Team lists: "Al Rubio ~ Owner", "Al Rubio - Owner", "Al Rubio | Owner/Operator", "Al Rubio • President".
+  { rx: new RegExp(`${NAME}\\s*[~\\-–—|•·:/]\\s*(?:[Oo]wner|[Pp]resident|CEO)(?:\\s*(?:and|&|/|-|,)\\s*(?:${ROLE}|[Oo]perator|[Gg]eneral [Mm]anager))*\\b`, "g"), how: "team list: name ~ owner", confidence: "high" },
+  // "Owner/Operator Al Rubio", "Owner-Operator: Al Rubio"
+  { rx: new RegExp(`\\b[Oo]wner\\s*[/-]\\s*[Oo]perator(?:\\s*[:\\-–—|~.]\\s*|\\s+)${NAME}`, "g"), how: "owner/operator: name", confidence: "high" },
   { rx: new RegExp(`${NAME},?\\s+(?:the\\s+|our\\s+|is\\s+the\\s+|is\\s+our\\s+)?[Ff]ounder\\b(?!\\s+(?:and|&|/)\\s+(?:[Oo]wner|[Pp]resident|CEO))`, "g"), how: "name, founder", confidence: "low", founderOnly: true },
   { rx: new RegExp(`\\b(?:[Oo]wner|[Pp]resident|CEO)(?:\\s*(?:and|&|/|,)\\s*${ROLE})*(?:\\s*[:\\-–—|.]\\s*|\\s+)${NAME}`, "g"), how: "owner: name", confidence: "high" },
   { rx: new RegExp(`\\b(?:[Oo]ur\\s+)?[Ff]ounder(?:\\s*[:\\-–—|.,]\\s*|\\s+)${NAME}`, "g"), how: "our founder, name", confidence: "low", founderOnly: true },
@@ -573,7 +815,7 @@ const fmt = (min: number) => {
   return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h >= 12 ? "PM" : "AM"}`;
 };
 
-export type HoursInfo = { summary: string; closedDays: string[]; closesEarlyWeekdays: boolean; closedWeekend: boolean };
+export type HoursInfo = { summary: string; closedDays: string[]; closesEarlyWeekdays: boolean; closedWeekend: boolean; source?: string };
 
 export function hoursInfo(raw: unknown): HoursInfo | null {
   const days = parseOpeningHours(raw);
@@ -597,6 +839,80 @@ export function hoursInfo(raw: unknown): HoursInfo | null {
     i = j + 1;
   }
   return { summary: parts.join("; "), closedDays, closesEarlyWeekdays, closedWeekend };
+}
+
+/** Opening hours: Google first, then the ones on the business own site (contact page, footer). */
+export function leadHours(lead: { raw?: unknown; site_check?: { site_hours?: unknown } | null }): HoursInfo | null {
+  const g = hoursInfo(lead.raw);
+  if (g) return { ...g, source: "Google" };
+  const w = hoursInfo(lead.site_check?.site_hours);
+  return w ? { ...w, source: "their website" } : null;
+}
+
+// ── Website facts (plain code, no AI) ─────────────────────────────────
+
+export type FactKey = "not_mobile_friendly" | "phone_not_tappable" | "no_https" | "old_copyright";
+export type SiteFact = { key: FactKey; value: boolean | "unknown"; evidence: { url: string; text: string }; /** phone_not_tappable only: the page switches off the phone's automatic number links (format-detection telephone=no), so a plain number really is not tappable. */ no_autolink?: boolean };
+
+const PHONE_TEXT_RX = /(?:\(\d{3}\)|\b\d{3})[\s.\-]\d{3}[\s.\-]\d{4}\b/;
+const COPYRIGHT_RX = /(?:©|&copy;|&#169;|copyright)\s*(?:\(c\)\s*)?((?:19|20)\d{2})(?:\s*[-–—]\s*((?:19|20)\d{2}))?/gi;
+
+/**
+ * Four plain facts from the downloaded (or browser-rendered) pages. Each has the page and the text it came
+ * from. A site built with JavaScript (GoDaddy, Wix, Duda...) that was only downloaded plainly gets "unknown" for
+ * the mobile and phone-link facts: the plain download may not show what visitors see. These facts do not change
+ * the gap score.
+ */
+export function websiteFacts(pages: Page[], ctx: { via: "raw" | "browser"; jsBuilt: boolean; tlsProblem?: boolean; now?: Date } = { via: "raw", jsBuilt: false }): SiteFact[] {
+  const home = pages[0];
+  if (!home) return [];
+  const unsure = ctx.jsBuilt && ctx.via !== "browser";
+  const out: SiteFact[] = [];
+  const homeUrl = home.url;
+
+  // 1. Mobile friendliness: flagged only when there is no viewport tag or it sets a fixed pixel width (width=980).
+  //    A tag with initial-scale=1 (and no fixed width) is mobile friendly, like Duda's "initial-scale=1, minimum-scale=1, maximum-scale=5".
+  const viewport = home.html.match(/<meta\b[^>]*name\s*=\s*["']viewport["'][^>]*>/i)?.[0] ?? null;
+  const fixedWidth = viewport ? /[\s;,"']width\s*=\s*\d+/i.test(viewport) : false;
+  if (unsure) out.push({ key: "not_mobile_friendly", value: "unknown", evidence: { url: homeUrl, text: "The site is built with JavaScript; a plain download cannot show how it looks on a phone." } });
+  else if (viewport && !fixedWidth) out.push({ key: "not_mobile_friendly", value: false, evidence: { url: homeUrl, text: viewport.slice(0, 160) } });
+  else out.push({ key: "not_mobile_friendly", value: true, evidence: { url: homeUrl, text: viewport ? `The viewport tag sets a fixed width: ${viewport.slice(0, 120)}` : "The home page has no mobile viewport tag (<meta name=\"viewport\">)." } });
+
+  // 2. A phone number shown as text that is not a tap-to-call link.
+  let telLink: { url: string; text: string } | null = null;
+  let phoneText: { url: string; text: string } | null = null;
+  for (const p of pages.slice(0, 3)) {
+    const tel = p.html.match(/<a\b[^>]*href\s*=\s*["']tel:([^"']+)["']/i);
+    if (tel && !telLink) telLink = { url: p.url, text: `tel:${tel[1]}`.slice(0, 80) };
+    if (!phoneText) { const m = visibleText(p.html).match(PHONE_TEXT_RX); if (m) phoneText = { url: p.url, text: m[0] }; }
+  }
+  if (telLink) out.push({ key: "phone_not_tappable", value: false, evidence: telLink });
+  else if (phoneText && unsure) out.push({ key: "phone_not_tappable", value: "unknown", evidence: { url: phoneText.url, text: "The site is built with JavaScript; a plain download may miss its tap-to-call link." } });
+  else if (phoneText) {
+    // iPhone Safari turns plain numbers into links on its own, so the fact is only usable when the page switches that off.
+    const noAutolink = pages.slice(0, 3).some((p) => /<meta\b[^>]*name\s*=\s*["']format-detection["'][^>]*telephone\s*=\s*no/i.test(p.html));
+    out.push({ key: "phone_not_tappable", value: true, ...(noAutolink ? { no_autolink: true } : {}), evidence: { url: phoneText.url, text: `The number ${phoneText.text} appears as text with no tap-to-call link.` } });
+  }
+  else out.push({ key: "phone_not_tappable", value: "unknown", evidence: { url: homeUrl, text: "No phone number was found in the page text." } });
+
+  // 3. HTTPS.
+  if (ctx.tlsProblem) out.push({ key: "no_https", value: true, evidence: { url: homeUrl, text: "The site's security certificate is not valid." } });
+  else if (/^http:/i.test(homeUrl)) out.push({ key: "no_https", value: true, evidence: { url: homeUrl, text: `The site loads on ${homeUrl} (not https).` } });
+  else out.push({ key: "no_https", value: false, evidence: { url: homeUrl, text: `The site loads on ${homeUrl}.` } });
+
+  // 4. Copyright year (a range counts as its later year); old = 3 or more years behind.
+  const now = ctx.now ?? new Date();
+  let latest = 0; let latestText = ""; let latestUrl = homeUrl;
+  for (const p of pages.slice(0, 3)) {
+    const text = visibleText(p.html);
+    for (const m of text.matchAll(COPYRIGHT_RX)) {
+      const y = Number(m[2] ?? m[1]);
+      if (y > latest && y <= now.getFullYear() + 1) { latest = y; latestText = text.slice(m.index ?? 0, (m.index ?? 0) + m[0].length + 30).replace(/&copy;|&#169;/gi, "©").replace(/\s+/g, " ").trim(); latestUrl = p.url; }
+    }
+  }
+  if (latest === 0) out.push({ key: "old_copyright", value: "unknown", evidence: { url: homeUrl, text: "No copyright year was found on the site." } });
+  else out.push({ key: "old_copyright", value: now.getFullYear() - latest >= 3, evidence: { url: latestUrl, text: latestText.slice(0, 120) } });
+  return out;
 }
 
 // ── Gap score ─────────────────────────────────────────────────────────

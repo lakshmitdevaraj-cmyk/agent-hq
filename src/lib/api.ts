@@ -122,7 +122,7 @@ export async function call<T = unknown>(
  * Start a long task in the background function (no gateway time limit). It answers 202
  * immediately and writes its progress/result to the store; callers then poll via `call`.
  */
-export async function callBackground(task: "draft" | "preview" | "browsercheck" | "review", params: Record<string, unknown>): Promise<void> {
+export async function callBackground(task: "draft" | "preview" | "browsercheck" | "review" | "social", params: Record<string, unknown>): Promise<void> {
   const key = await ensureApiKey();
   const res = await fetch("/.netlify/functions/ai-background", {
     method: "POST",
@@ -133,4 +133,20 @@ export async function callBackground(task: "draft" | "preview" | "browsercheck" 
   if (res.status !== 202 && !res.ok) {
     throw new ApiError(`Could not start the background task (status ${res.status})`, res.status);
   }
+}
+
+/** Continue a job that paused on Gemini's daily limit. `force` = the "Resume now" button; otherwise only when the reset time has passed. */
+export async function resumeJob(campaignId: string, force = false): Promise<void> {
+  const r = await call<{ task: "draft" | "review" | "social"; params: Record<string, unknown> }>("outreach.job.resume", { campaign_id: campaignId, force });
+  await callBackground(r.task, r.params);
+}
+
+/** Dashboard-open resume: paused jobs whose reset time has passed continue by themselves (no scheduled function, so no idle Netlify cost). */
+export async function resumeDueJobs(): Promise<number> {
+  const r = await call<{ due: Array<{ campaign_id: string }> }>("outreach.job.resume_due", {});
+  let n = 0;
+  for (const d of r.due) {
+    try { await resumeJob(d.campaign_id, false); n++; } catch { /* someone else resumed it */ }
+  }
+  return n;
 }
