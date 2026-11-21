@@ -30,6 +30,7 @@ export type LeadFacts = {
     whatsapp_url?: string | null;
     hours_evidence?: string | null;
     needs_browser?: boolean;
+    facts?: Array<{ key: string; value: boolean | "unknown"; evidence: { url: string; text: string }; no_autolink?: boolean }>;
     evidence?: Record<string, string>;
     not_home_service?: string | null;
     lead_gen_listing?: string | null;
@@ -57,7 +58,7 @@ const ANGLES: Record<AngleCode, string> = {
  */
 const NO_HOURS_NOTE = ". Their site says they are available 24/7, so NEVER say \"after hours\", \"closed\", \"evenings\", \"weekends\" or \"overnight\": talk about calls missed while the team is busy on jobs";
 
-export function pickAngle(lead: LeadFacts): AnglePlan {
+function pickAngleBase(lead: LeadFacts): AnglePlan {
   const sc = lead.site_check;
   const noHours = !!sc && (sc.hours_usable === false || sc.mentions_24_7 === true);
   const generalLine = ANGLES.general + (noHours ? NO_HOURS_NOTE : "");
@@ -104,6 +105,19 @@ export function pickAngle(lead: LeadFacts): AnglePlan {
     };
   }
   return general;
+}
+
+/**
+ * The angle plus, at most, ONE website fact that supports it. Only a phone-call angle can use the tap-to-call
+ * fact, and only when the check says "true" AND the page switches off automatic number links (iPhone Safari makes
+ * plain numbers tappable on its own, so otherwise the claim would be wrong for many visitors). The writer picks one fact in total (fact_used).
+ */
+export function pickAngle(lead: LeadFacts): AnglePlan {
+  const plan = pickAngleBase(lead);
+  if (plan.uncertain) return plan;
+  const f = lead.site_check?.facts?.find((x) => x.key === "phone_not_tappable" && x.value === true && x.no_autolink === true);
+  if (!f || !["missed_calls", "after_hours", "phone_only", "general"].includes(plan.angle.code)) return plan;
+  return { ...plan, facts: [...plan.facts, { n: plan.facts.length + 1, text: "On their website the phone number is plain text, not a tap-to-call link, so a visitor on a phone cannot call with one tap.", evidence: `${f.evidence.text} (${f.evidence.url})` }] };
 }
 
 // ── True details about the business (used to make every email specific) ──
@@ -161,6 +175,15 @@ export function cityOf(address: string | null | undefined): string {
 
 export type ModelDraft = { subject: string; body: string; fact_used: number | null; opening_style: string };
 
+/** fact_used is bookkeeping: no facts -> null; out of range or not a number -> null. */
+export const normalizeFactUsed = (v: unknown, factCount: number): number | null => (factCount > 0 && typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= factCount ? v : null);
+
+/** Retry hint when the subject-shape rule failed: show every subject already used and ask for a different kind. */
+export function subjectRetryHint(used: string[], shortName: string): string {
+  const list = used.length ? `Subjects already used in this campaign: ${used.map((x) => `"${x}"`).join(", ")}. ` : "";
+  return `${list}Write a new subject that is a short question (for example "Who answers when ${shortName || "you"} is busy?") or a plain statement, 2-6 words, not "<business name> + one word".`;
+}
+
 export const wordCount = (s: string) => (s.trim().match(/\S+/g) ?? []).length;
 
 const BANNED_BODY: Array<[RegExp, string]> = [
@@ -208,8 +231,12 @@ const PHONE_ONLY_CLAIM = /\b(?:only|just)\s+(?:provides?|offers?|gives?|has|list
 const QUICK_Q = /quick question\s*:\s*([^.!?\n]*)([.!?]?)/i;
 const UNOFFERED: Array<[RegExp, string]> = [
   [/\b(?:texts?|texting|sms)\b/i, "texting"],
-  [/\b(?:schedul(?:e|es|ed|ing)|dispatch\w*|invoic\w+)\b|\bbooks? (?:the |an? )?(?:appointments?|visits?)\b|\bsends? (?:them |you )?(?:a )?quotes?\b|\btakes? payments?\b/i, "scheduling, dispatch, quotes or payments"],
+  // Only when the assistant (or "we"/"it") is said to schedule, book, dispatch, quote, invoice or take payments; "busy schedule" is fine.
+  [/\b(?:assistant|shiftforge(?: ai)?|we|it|our \w+)\b[^.!?\n]{0,50}?\b(?:schedul(?:es|ing)|books?|booking|dispatch(?:es|ing)?|quot(?:es|ing)|invoic(?:es|ing)|takes? payments?|collects? payments?|sends? (?:them |you |customers? )?(?:a )?quotes?)\b(?!\s+(?:an?\s+|the\s+|your\s+)?(?:30|free|quick|short|brief|call|chat|time)\b)/i, "scheduling, dispatch, quotes or payments"],
 ];
+
+/** Hours facts (weekend closure, 24/7, after hours) are saved in the site check but are not in the details list. */
+const HOURS_OPENING = /\b(?:24\/7|24 hours|after[- ]hours|closed (?:on )?(?:the )?(?:weekends?|evenings?|nights?|sundays?|saturdays?)|(?:weekends?|evenings?|nights?)\b[^.!?]{0,40}\bclosed|open (?:late|weekends?)|office (?:hours|is closed))/i;
 
 const detailHit = (text: string, details: Detail[]): boolean => {
   const t = text.toLowerCase();
@@ -231,8 +258,9 @@ export function checkModelDraft(d: ModelDraft, factCount: number, opts: DraftChe
   const qq = QUICK_Q.exec(d.body);
   if (qq && qq[2] !== "?") fails.push('"Quick question:" must be followed by a real question that ends with a question mark');
   for (const [rx, what] of UNOFFERED) if (rx.test(d.body)) fails.push(`it mentions ${what}, which is not part of the offer: only say that the assistant answers calls and website messages, takes the details and sends them to the owner`);
-  const openDetails = opts.details && opts.details.some((x) => x.kind !== "emergency") ? opts.details.filter((x) => x.kind !== "emergency") : opts.details;
-  if (openDetails?.length && !detailHit(openingParagraph(d.body), openDetails)) fails.push(`the opening does not use one true detail about the business (${(openDetails ?? []).slice(0, 4).map((x) => `"${x.text}"`).join(", ")}): open with one of them`);
+  // Any saved fact the opening actually uses counts (emergency service, hours or weekend closure, 24/7, services, rating, years, family-owned, owner, area).
+  const openDetails = opts.details;
+  if (openDetails?.length && !detailHit(openingParagraph(d.body), openDetails) && !HOURS_OPENING.test(openingParagraph(d.body))) fails.push(`the opening does not use one true detail about the business (${(openDetails ?? []).slice(0, 4).map((x) => `"${x.text}"`).join(", ")}): open with one of them`);
   if (opts.businessName !== undefined) {
     const tokens = nameTokens(opts.businessName);
     const sub = d.subject.toLowerCase();
@@ -251,14 +279,33 @@ export function checkModelDraft(d: ModelDraft, factCount: number, opts: DraftChe
   if (/\bAI\b/.test(d.subject)) fails.push('the subject contains "AI"');
   if (/\bleads?\b/i.test(d.subject) || /capture/i.test(d.subject)) fails.push('the subject contains "leads" or "capture"');
   if (!/30-minute free call/i.test(d.body)) fails.push('the body does not ask for a "30-minute free call"');
-  if (factCount === 0) {
-    if (d.fact_used !== null && d.fact_used !== undefined) fails.push("fact_used must be null because no facts were given");
-  } else if (typeof d.fact_used !== "number" || d.fact_used < 1 || d.fact_used > factCount) {
-    fails.push(`fact_used must be a number from 1 to ${factCount}`);
-  }
+  // fact_used is bookkeeping only: it never fails a draft (normalised by normalizeFactUsed when saved).
   return fails;
 }
 
+
+/**
+ * The body-level rules of checkModelDraft that also apply to a short social message (no subject, no 60-100 word
+ * rule): hours wording, wrong trade, unoffered features, phone-calls-only, copied text, banned words and links.
+ */
+export function checkSocialBody(text: string, opts: { callsOnly?: boolean; noHours?: boolean; trade?: string | null; copySources?: string[]; phoneOnlyOk?: boolean } = {}): string[] {
+  const fails: string[] = [];
+  if (!opts.phoneOnlyOk && PHONE_ONLY_CLAIM.test(text)) fails.push("it says the site only has a phone number or no form, which is not confirmed for this business");
+  if (opts.noHours && HOURS_WORDS.test(text)) fails.push("it mentions after hours, closed, evenings, weekends or nights, but their site says they are available 24/7");
+  if (opts.trade && !/hvac/i.test(opts.trade) && HVAC_WORDS.test(text)) fails.push(`it says HVAC or air conditioning, but this business does ${opts.trade}`);
+  for (const [rx, what] of UNOFFERED) if (rx.test(text)) fails.push(`it mentions ${what}, which is not part of the offer`);
+  if (opts.callsOnly && WEB_CHANNEL_RX.test(text)) fails.push("it mentions website messages, chat, forms or booking: talk about phone calls only");
+  // The call-to-action sentence and the greeting are allowed to repeat, like in emails.
+  const stripCta = (t: string) => t.split(/(?<=[.!?])\s+/).filter((x) => !/30-minute free call/i.test(x)).join(" ");
+  const copied = copiedFrom(stripCta(text), (opts.copySources ?? []).map(stripCta));
+  if (copied) fails.push(`it repeats 8+ words from the examples, the offer or another message ("${copied}")`);
+  for (const [rx, why] of BANNED_BODY) if (rx.test(text)) fails.push(`it ${why}`);
+  if (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.test(text)) fails.push("it contains an email address");
+  if (/\b[a-z0-9-]+\.(?:com|net|org|co|io|us|biz)\b/i.test(text)) fails.push("it contains a web address");
+  if (/\p{Extended_Pictographic}/u.test(text)) fails.push("it contains an emoji");
+  if (/#\w+/.test(text)) fails.push("it contains a hashtag");
+  return fails;
+}
 
 // ── Copying and sameness ──────────────────────────────────────────────
 

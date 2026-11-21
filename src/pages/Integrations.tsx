@@ -113,9 +113,14 @@ const ACTIONS: ActionGroup[] = [
         params: "{ campaign_id, sender_name?, sender_company?, sender_offer?, framework? }",
       },
       {
+        action: "outreach.lead.set_email",
+        desc: "Edit a lead's email by hand (Prospects detail panel). Validated; saved on the lead as source manual with the date; unsent drafts for the lead get the new To address; a website check never replaces it. Returns a warning when the address was bounced or already contacted (drafting and sending skip it).",
+        params: "{ campaign_id, lead_id, email }",
+      },
+      {
         action: "outreach.leads.update",
-        desc: "Change things you control on a lead (send only what you want to change): excluded (true = no draft is written for it), trade_override (true = include although it looks like a different trade), owner_name (your own entry; becomes high confidence, is used in greetings and survives re-checks; empty string clears it).",
-        params: "{ campaign_id, lead_id, excluded?, trade_override?, owner_name? }",
+        desc: "Change things you control on a lead (send only what you want to change): excluded (true = Not a fit: no draft or social message is written for it; nothing is deleted; excluded_reason = wholesaler | lead_gen | not_home_service | has_chat_booking | chain | other, excluded_note = optional text; not_fit_kept = true keeps a lead HQ flagged itself), trade_override (true = include although it looks like a different trade), owner_name (your own entry; becomes high confidence, is used in greetings and survives re-checks; empty string clears it).",
+        params: "{ campaign_id, lead_id, excluded?, excluded_reason?, excluded_note?, not_fit_kept?, trade_override?, owner_name? }",
       },
       {
         action: "outreach.campaign.create",
@@ -172,6 +177,26 @@ const ACTIONS: ActionGroup[] = [
         desc: "Runs the AI reviewer over drafts (background job kind review). Each draft gets review_status ready | check | blocked, review_reasons, reviewed_by. Wording-only problems are rewritten once and re-reviewed; fact problems stay blocked. Records the job, then the caller POSTs { task: \"review\", params } to /.netlify/functions/ai-background (same as Generate). Without email_ids it reviews every unsent draft that is unreviewed, check or blocked.",
         params: "{ campaign_id, email_ids? }",
       },
+      {
+        action: "outreach.social.write",
+        desc: "Social messages (job kind social). Writes a first message per lead and channel: Facebook 40-80 words, Instagram 25-50 words, LinkedIn a connection note of at most 200 characters (hello only) plus a first message of 40-80 words; no links, no signature, a 30-minute free call. Only for leads with a saved page on that channel; without lead_ids it covers leads with no usable email. Same skip rules as emails (skipped/excluded, do-not-contact, chain/franchise, lead-gen, not home-service, bounced, no finished website check); the response lists skipped leads and why. Free code checks first (one writer retry at most), then the AI reviewer in groups of up to 5, at most ONE rewrite in total; a message that still fails is review_status check and never reaches the reviewer. Records the job, then the caller POSTs { task: \"social\", params } to ai-background. Nothing is ever posted or sent by the app: the user copies the text and sends it by hand.",
+        params: "{ campaign_id, lead_ids?, lead_id?, channels?, regenerate? }",
+      },
+      { action: "outreach.social.list", desc: "Saved social messages of a campaign (or one lead): parts, review_status, review_reasons, status drafted | sent, sent_at.", params: "{ campaign_id, lead_id? }" },
+      { action: "outreach.social.update", desc: "Save an edited message (code-checked, marked check, not re-reviewed by the AI).", params: "{ campaign_id, lead_id, channel, parts }" },
+      { action: "outreach.social.mark_sent", desc: "Record that the user sent this message by hand on that channel (date saved; shown in Prospects and the CSV). sent:false undoes it.", params: "{ campaign_id, lead_id, channel, sent? }" },
+      { action: "outreach.social.delete", desc: "Delete one saved social message.", params: "{ campaign_id, lead_id, channel }" },
+      {
+        action: "outreach.lead.screenshot.get",
+        desc: "The homepage screenshot (1280x800 JPEG, about 150 KB) saved by a browser check, as a data URL. Stored apart from the lead record; { found: false } when none.",
+        params: "{ campaign_id, lead_id }",
+      },
+      {
+        action: "outreach.job.resume",
+        desc: "Continues a drafting, review or social job that paused on Gemini's daily limit (job.status paused, resume_at = next midnight US Pacific). Without force it only works once resume_at has passed; the Resume now button sends force:true. Returns { kind, task, params }: POST { task, params } to ai-background. Work already saved is never redone.",
+        params: "{ campaign_id, force? }",
+      },
+      { action: "outreach.job.resume_due", desc: "Paused jobs whose reset time has passed. The dashboard calls this when it is opened and resumes each one (there is no scheduled function).", params: "{}" },
       {
         action: "outreach.prospects.list",
         desc: "Every lead across all campaigns as slim rows for the Prospects page: owner, campaign, niche, gap score and reasons, social/contact links, email_status (not_emailed | emailed | replied | bounced | do_not_contact), hours summary. No raw Apify data.",
@@ -558,6 +583,10 @@ THE FLOW:
   outreach.browsercheck.plan  { campaign_id, lead_id? }   (estimate)
   outreach.browsercheck.start { campaign_id, lead_id? }   (Apify credits)
   outreach.emails.review.start { campaign_id, email_ids? }
+  outreach.social.write     { campaign_id, lead_ids?, channels? }   (Facebook / Instagram / LinkedIn messages, sent by hand)
+  outreach.social.list / update / mark_sent / delete
+  outreach.lead.screenshot.get { campaign_id, lead_id }
+  outreach.job.resume       { campaign_id, force? }   (after Gemini's daily limit)
   outreach.prospects.list   {}
                             Apify's Google Maps actor rarely returns
                             emails — most businesses list phone +

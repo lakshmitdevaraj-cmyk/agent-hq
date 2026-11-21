@@ -152,7 +152,26 @@ Gate 2 (real emails to real people). Everything else is autonomous.
 - `outreach.leads.update` — `excluded` (skip this lead when drafting),
   `trade_override` (include a lead skipped as a different trade), `owner_name`
   (your own entry: high confidence, used in greetings, kept on re-checks;
-  empty string clears). params: `{ campaign_id, lead_id, excluded?, trade_override?, owner_name? }`
+  empty string clears), `excluded_reason` (wholesaler, lead_gen, not_home_service,
+  has_chat_booking, chain, other) and `excluded_note` (optional text). "Not a fit"
+  on the Prospects page = `excluded` plus a reason: no emails or social messages
+  are written for it, it is hidden there until "Show not a fit" is on, and
+  nothing is deleted (unticking restores it and keeps the reason). Prospects also
+  shows Contacted (Email from sent emails, Facebook/Instagram/LinkedIn from
+  "Mark as sent"), a grey "Low gap" hint under gap 30 (a hint only; only the bulk
+  "Write social messages" run leaves those leads out) and HQ's own automatic
+  reason (e.g. Century A/C Supply = wholesaler). HQ's own flags for wholesaler,
+  lead-gen, not home service and chain/franchise also hide the lead behind "Show
+  not a fit" (label "(auto)"); unticking one saves `not_fit_kept: true` ("kept
+  by me"), so later website checks do not flag it again and it is no longer
+  skipped. Only the fields sent change.
+  params: `{ campaign_id, lead_id, excluded?, excluded_reason?, excluded_note?, not_fit_kept?, trade_override?, owner_name? }`
+- `outreach.lead.set_email` — "Edit email" in the Prospects detail panel. Validates
+  the address, saves it on the lead (`email_source: "manual"`, `email_manual_at`,
+  old address in `previous_email`), changes only those fields, moves the To address
+  of unsent drafts (sent emails keep theirs) and never gets replaced by a website
+  check. The bounced / already-contacted checks still run on the new address; a
+  warning comes back when it is blocked. params: `{ campaign_id, lead_id, email }`
 - `outreach.prospects.list` — every lead across all campaigns (slim rows with
   owner, gap score, links and `email_status`); this is what the Prospects page
   shows. params: `{}`
@@ -276,6 +295,49 @@ cold strangers.
   be emailed or reached another way (costs Apify credits; ALWAYS show the plan's estimated cost to
   the human first). If it fails, drafts are still written but never mention a
   website gap. Facts carry evidence (`site_check.evidence`, `owner_evidence`).
+- **Website facts (plain code, no AI)** — every check saves `site_check.facts`:
+  `not_mobile_friendly` (flagged only when there is no viewport tag or it sets a
+  fixed width such as width=980; `initial-scale=1` alone, as Duda sites use, is
+  mobile friendly), `phone_not_tappable` (number shown as text with no `tel:` link), `no_https` (final address is http
+  or the certificate is invalid) and `old_copyright` (latest year 3+ years old;
+  a range counts as its later year). Each fact is `true`, `false` or `"unknown"`
+  with the page and text it came from. A JavaScript-built site (GoDaddy, Wix,
+  Duda...) checked only by plain download gets `"unknown"` for the mobile and
+  phone facts until a browser check. The writer may use at most ONE fact, only
+  the true tap-to-call fact and only on a phone-call angle, and only when the page
+  sets `<meta name="format-detection" content="telephone=no">` (iPhone Safari
+  turns plain numbers into links on its own, so otherwise the fact is kept on the
+  lead but never offered, and a claim about it is blocked). The code check blocks
+  any claim about the website that does not match a true fact. Facts do not
+  change the gap score. They show as "Website facts" in the lead details and as
+  four CSV columns on Prospects.
+- **Homepage screenshot** — the browser check also saves a 1280x800 JPEG of the
+  homepage (about 150 KB; stored in `agent-hq-lead-screenshots`, never inside the
+  lead). `outreach.lead.screenshot.get { campaign_id, lead_id }` returns it.
+- `outreach.social.write` — `{ campaign_id, lead_ids?, channels?, regenerate? }`:
+  first messages for **Facebook** (40-80 words), **Instagram** (25-50 words) and
+  **LinkedIn** (connection note of at most 200 characters, hello only; plus a first
+  message of 40-80 words), only for leads with a saved page on that channel. No
+  links, no signature, a "30-minute free call". Same skip rules as emails
+  (excluded, do-not-contact, chain/franchise, lead-gen, not home-service, bounced)
+  and the website must be checked first. Order: free code checks, ONE writer retry
+  at most, then the AI reviewer in groups of up to 5; **at most one rewrite per
+  message in total** (writer retry or reviewer rewrite); a message that still
+  fails is `check` and never goes to the reviewer. The app NEVER posts or sends:
+  the human uses Copy, "Open their page" and "Mark as sent on <channel>"
+  (`outreach.social.mark_sent`). The lead detail also shows "Emailed on <date>".
+  Poll `job` (kind `social`). Also `outreach.social.list / update / delete`.
+- **Gemini daily limit** — drafting, review and social jobs now **pause** (job
+  `status: "paused"`, `resume_at` = next midnight US Pacific) instead of failing.
+  `outreach.job.resume { campaign_id, force? }` continues (the dashboard calls it
+  by itself after the reset, and has a "Resume now" button); finished work is
+  never redone. A per-minute limit (429) still waits and retries; an overloaded
+  model (503) still retries and may switch to the second provider.
+- **Models**: defaults are Drafting and Reviewer `gemini-2.5-flash`, Helper
+  `gemini-3.5-flash-lite` (owner reading on About pages, campaign planning). Saved
+  settings are never changed. Each job shows how many Gemini calls it used.
+- **Reviewer batching**: up to 5 drafts per reviewer call (one JSON array keyed by
+  id; a missing or malformed entry is asked again alone, once).
 - Settings: three models (`draft_model`, `review_model`, `helper_model`, each
   with `*_provider` gemini|second), optional second OpenAI-compatible provider
   (`second_ai_base_url`, `second_ai_model`, key via `config.set service:"ai2"`)

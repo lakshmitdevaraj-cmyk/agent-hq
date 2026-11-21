@@ -100,3 +100,30 @@ export function parseVerdict(raw: unknown): Verdict {
   if (!("verdict" in o)) return { status: "check", reasons: ["The reviewer's answer could not be read."], problem: "none", rewrite: null };
   return { status, reasons, problem, rewrite };
 }
+
+// ── Claims about the website that need a fact ─────────────────────────
+
+type FactLike = { key: string; value: boolean | "unknown"; no_autolink?: boolean };
+
+/** A saved fact as the reviewer sees it. A plain-text phone number only counts as "not tappable" when the page turns automatic number links off. */
+export function factsForReviewer(facts: Array<{ key: string; value: unknown; evidence?: { text?: string }; no_autolink?: boolean }> | null | undefined): Array<{ fact: string; value: unknown; evidence?: string }> {
+  return (facts ?? []).map((f) => ({ fact: f.key, value: f.key === "phone_not_tappable" && f.value === true && !f.no_autolink ? "unconfirmed (iPhone Safari makes plain numbers tappable)" : f.value, evidence: f.evidence?.text }));
+}
+const FACT_CLAIMS: Array<{ key: string; label: string; rx: RegExp }> = [
+  { key: "not_mobile_friendly", label: "the site is not mobile friendly", rx: /\b(?:not|isn['’]t|aren['’]t|n['’]t)\s+(?:very\s+)?(?:mobile[- ]friendly|optimi[sz]ed for (?:mobile|phones))|(?:doesn['’]t|does not|don['’]t)\s+(?:work|display|look)\s+(?:well\s+)?on (?:a |your )?(?:phone|mobile)|mobile[- ]unfriendly/i },
+  { key: "phone_not_tappable", label: "the phone number is not tap-to-call", rx: /(?:can['’]?t|cannot|unable to|not able to)\s+(?:tap|click)[^.]{0,25}(?:call|number)|(?:no|not a)\s+(?:tap|click)[- ]to[- ]call|number\s+(?:isn['’]t|is not)\s+(?:clickable|tappable)/i },
+  { key: "no_https", label: "the site is not secure (no https)", rx: /\bnot secure\b|\bno https\b|isn['’]t secure|without https|\binsecure\b/i },
+  { key: "old_copyright", label: "the site looks out of date", rx: /\bout ?dated\b|hasn['’]t been updated|haven['’]t updated|copyright (?:is|says|shows) (?:19|20)\d{2}/i },
+];
+
+/** A claim in the text that a saved website fact does not back (fact false, unknown, or never recorded). */
+export function unbackedFactClaims(text: string, facts: FactLike[] | null | undefined): string[] {
+  const out: string[] = [];
+  for (const c of FACT_CLAIMS) {
+    const m = c.rx.exec(text);
+    if (!m) continue;
+    const f = facts?.find((x) => x.key === c.key);
+    if (f?.value !== true || (c.key === "phone_not_tappable" && !f.no_autolink)) out.push(`Says ${c.label} ("${m[0].trim().slice(0, 60)}"), but the saved website check does not confirm it${f ? ` (${String(f.value)})` : " (no saved fact)"}.`);
+  }
+  return out;
+}

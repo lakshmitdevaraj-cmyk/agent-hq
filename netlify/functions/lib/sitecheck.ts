@@ -849,6 +849,72 @@ export function leadHours(lead: { raw?: unknown; site_check?: { site_hours?: unk
   return w ? { ...w, source: "their website" } : null;
 }
 
+// ── Website facts (plain code, no AI) ─────────────────────────────────
+
+export type FactKey = "not_mobile_friendly" | "phone_not_tappable" | "no_https" | "old_copyright";
+export type SiteFact = { key: FactKey; value: boolean | "unknown"; evidence: { url: string; text: string }; /** phone_not_tappable only: the page switches off the phone's automatic number links (format-detection telephone=no), so a plain number really is not tappable. */ no_autolink?: boolean };
+
+const PHONE_TEXT_RX = /(?:\(\d{3}\)|\b\d{3})[\s.\-]\d{3}[\s.\-]\d{4}\b/;
+const COPYRIGHT_RX = /(?:©|&copy;|&#169;|copyright)\s*(?:\(c\)\s*)?((?:19|20)\d{2})(?:\s*[-–—]\s*((?:19|20)\d{2}))?/gi;
+
+/**
+ * Four plain facts from the downloaded (or browser-rendered) pages. Each has the page and the text it came
+ * from. A site built with JavaScript (GoDaddy, Wix, Duda...) that was only downloaded plainly gets "unknown" for
+ * the mobile and phone-link facts: the plain download may not show what visitors see. These facts do not change
+ * the gap score.
+ */
+export function websiteFacts(pages: Page[], ctx: { via: "raw" | "browser"; jsBuilt: boolean; tlsProblem?: boolean; now?: Date } = { via: "raw", jsBuilt: false }): SiteFact[] {
+  const home = pages[0];
+  if (!home) return [];
+  const unsure = ctx.jsBuilt && ctx.via !== "browser";
+  const out: SiteFact[] = [];
+  const homeUrl = home.url;
+
+  // 1. Mobile friendliness: flagged only when there is no viewport tag or it sets a fixed pixel width (width=980).
+  //    A tag with initial-scale=1 (and no fixed width) is mobile friendly, like Duda's "initial-scale=1, minimum-scale=1, maximum-scale=5".
+  const viewport = home.html.match(/<meta\b[^>]*name\s*=\s*["']viewport["'][^>]*>/i)?.[0] ?? null;
+  const fixedWidth = viewport ? /[\s;,"']width\s*=\s*\d+/i.test(viewport) : false;
+  if (unsure) out.push({ key: "not_mobile_friendly", value: "unknown", evidence: { url: homeUrl, text: "The site is built with JavaScript; a plain download cannot show how it looks on a phone." } });
+  else if (viewport && !fixedWidth) out.push({ key: "not_mobile_friendly", value: false, evidence: { url: homeUrl, text: viewport.slice(0, 160) } });
+  else out.push({ key: "not_mobile_friendly", value: true, evidence: { url: homeUrl, text: viewport ? `The viewport tag sets a fixed width: ${viewport.slice(0, 120)}` : "The home page has no mobile viewport tag (<meta name=\"viewport\">)." } });
+
+  // 2. A phone number shown as text that is not a tap-to-call link.
+  let telLink: { url: string; text: string } | null = null;
+  let phoneText: { url: string; text: string } | null = null;
+  for (const p of pages.slice(0, 3)) {
+    const tel = p.html.match(/<a\b[^>]*href\s*=\s*["']tel:([^"']+)["']/i);
+    if (tel && !telLink) telLink = { url: p.url, text: `tel:${tel[1]}`.slice(0, 80) };
+    if (!phoneText) { const m = visibleText(p.html).match(PHONE_TEXT_RX); if (m) phoneText = { url: p.url, text: m[0] }; }
+  }
+  if (telLink) out.push({ key: "phone_not_tappable", value: false, evidence: telLink });
+  else if (phoneText && unsure) out.push({ key: "phone_not_tappable", value: "unknown", evidence: { url: phoneText.url, text: "The site is built with JavaScript; a plain download may miss its tap-to-call link." } });
+  else if (phoneText) {
+    // iPhone Safari turns plain numbers into links on its own, so the fact is only usable when the page switches that off.
+    const noAutolink = pages.slice(0, 3).some((p) => /<meta\b[^>]*name\s*=\s*["']format-detection["'][^>]*telephone\s*=\s*no/i.test(p.html));
+    out.push({ key: "phone_not_tappable", value: true, ...(noAutolink ? { no_autolink: true } : {}), evidence: { url: phoneText.url, text: `The number ${phoneText.text} appears as text with no tap-to-call link.` } });
+  }
+  else out.push({ key: "phone_not_tappable", value: "unknown", evidence: { url: homeUrl, text: "No phone number was found in the page text." } });
+
+  // 3. HTTPS.
+  if (ctx.tlsProblem) out.push({ key: "no_https", value: true, evidence: { url: homeUrl, text: "The site's security certificate is not valid." } });
+  else if (/^http:/i.test(homeUrl)) out.push({ key: "no_https", value: true, evidence: { url: homeUrl, text: `The site loads on ${homeUrl} (not https).` } });
+  else out.push({ key: "no_https", value: false, evidence: { url: homeUrl, text: `The site loads on ${homeUrl}.` } });
+
+  // 4. Copyright year (a range counts as its later year); old = 3 or more years behind.
+  const now = ctx.now ?? new Date();
+  let latest = 0; let latestText = ""; let latestUrl = homeUrl;
+  for (const p of pages.slice(0, 3)) {
+    const text = visibleText(p.html);
+    for (const m of text.matchAll(COPYRIGHT_RX)) {
+      const y = Number(m[2] ?? m[1]);
+      if (y > latest && y <= now.getFullYear() + 1) { latest = y; latestText = text.slice(m.index ?? 0, (m.index ?? 0) + m[0].length + 30).replace(/&copy;|&#169;/gi, "©").replace(/\s+/g, " ").trim(); latestUrl = p.url; }
+    }
+  }
+  if (latest === 0) out.push({ key: "old_copyright", value: "unknown", evidence: { url: homeUrl, text: "No copyright year was found on the site." } });
+  else out.push({ key: "old_copyright", value: now.getFullYear() - latest >= 3, evidence: { url: latestUrl, text: latestText.slice(0, 120) } });
+  return out;
+}
+
 // ── Gap score ─────────────────────────────────────────────────────────
 
 export type GapResult = { score: number; reasons: string[] };

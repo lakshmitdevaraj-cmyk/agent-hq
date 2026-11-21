@@ -22,16 +22,29 @@ export const estimateBrowserCost = (leads: number): { pages: number; usd: number
 /** Runs inside the actor's browser: wait for late widgets, then return the page as the browser sees it. */
 export const BROWSER_PAGE_FUNCTION = `async function pageFunction(context) {
   const { page, request } = context;
+  const ud = request.userData || {};
+  let shot = null;
+  if (ud.home) { try { await page.setViewportSize({ width: 1280, height: 800 }); } catch (e) {} }
   await page.waitForTimeout(6000);
   const html = await page.content();
-  return { lead_id: request.userData && request.userData.lead_id, url: page.url(), html: html.slice(0, 600000) };
+  if (ud.home) {
+    // Homepage only: one 1280x800 JPEG, quality stepped down until it is about 150 KB.
+    try {
+      for (const q of [72, 55, 40, 30]) {
+        const buf = await page.screenshot({ type: "jpeg", quality: q });
+        shot = buf.toString("base64");
+        if (buf.length <= 150000) break;
+      }
+    } catch (e) { shot = null; }
+  }
+  return { lead_id: ud.lead_id, url: page.url(), html: html.slice(0, 600000), screenshot: shot };
 }`;
 
 export function browserInput(sites: Array<{ lead_id: string; base: string }>): Record<string, unknown> {
-  const startUrls: Array<{ url: string; userData: { lead_id: string } }> = [];
+  const startUrls: Array<{ url: string; userData: { lead_id: string; home: boolean } }> = [];
   for (const s of sites) {
     for (const p of BROWSER_PATHS) {
-      try { startUrls.push({ url: new URL(p, s.base).toString(), userData: { lead_id: s.lead_id } }); } catch { /* bad URL: skip */ }
+      try { startUrls.push({ url: new URL(p, s.base).toString(), userData: { lead_id: s.lead_id, home: p === "" } }); } catch { /* bad URL: skip */ }
     }
   }
   return {
@@ -79,5 +92,16 @@ export function pagesByLead(items: Array<Record<string, unknown>>): Map<string, 
     out.set(id, list);
   }
   for (const list of out.values()) list.sort((a, b) => a.url.length - b.url.length);
+  return out;
+}
+
+/** The homepage screenshot (base64 JPEG) per lead, from the same dataset items. */
+export function screenshotsByLead(items: Array<Record<string, unknown>>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const it of items) {
+    const id = typeof it.lead_id === "string" ? it.lead_id : null;
+    const shot = typeof it.screenshot === "string" && it.screenshot.length > 500 ? it.screenshot : null;
+    if (id && shot && !out.has(id)) out.set(id, shot);
+  }
   return out;
 }

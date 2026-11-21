@@ -31,12 +31,13 @@ import {
   ShieldX,
 } from "lucide-react";
 import { OwnerField, SiteDetails } from "@/components/SiteDetails";
+import { SocialMessages } from "@/components/SocialMessages";
 import { GapBadge, LinkIcons, foundSocialText, leadLinks, ownerText, reachAnotherWay, shortDate, type LeadInfo } from "@/lib/leadInfo";
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/components/Modal";
 import AnimatedNumber from "@/components/AnimatedNumber";
-import { call, callBackground } from "@/lib/api";
+import { call, callBackground, resumeJob } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { mergeRecent, noteCreated, noteDeleted, recentlyCreated, noteExcluded, applyExcluded } from "@/lib/recent";
 import { timeAgo } from "@/lib/utils";
@@ -75,9 +76,11 @@ type Campaign = {
 // campaign so its progress survives page reloads and navigation. Progress
 // itself is derived from the data (drafts / leads stamped since started_at).
 type Job = {
-  kind: "generate" | "enrich" | "sitecheck" | "browsercheck" | "review";
+  kind: "generate" | "enrich" | "sitecheck" | "browsercheck" | "review" | "social";
   resume?: boolean; // continue a stopped website check: keep its original start time
-  status: "running" | "done" | "stopped";
+  status: "running" | "done" | "stopped" | "paused";
+  resume_at?: string; // paused on the Gemini daily limit: when it resumes by itself
+  calls?: { drafter_calls?: number; reviewer_calls?: number; helper_calls?: number; drafts_per_reviewer_call?: number[] };
   total: number;
   started_at: string;
   progress_at?: string;
@@ -203,6 +206,23 @@ export default function CampaignDetail() {
   // up a little only while a drafting/finding job is running in another tab.
   const jobRunning = campaign?.job?.status === "running";
   usePolling(() => { if (id) void refresh(); }, jobRunning ? 10_000 : 30_000, [id, jobRunning]);
+
+  // Paused on Gemini's daily limit: once the reset time has passed, carry on by ourselves (once per pause).
+  const resumedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const job = campaign?.job;
+    if (!id || job?.status !== "paused" || !job.resume_at) return;
+    const at = Date.parse(job.resume_at);
+    const run = () => {
+      if (resumedFor.current === job.resume_at) return;
+      resumedFor.current = job.resume_at ?? null;
+      void resumeJob(id, false).then(() => refresh()).catch(() => { resumedFor.current = null; });
+    };
+    if (at <= Date.now()) { run(); return; }
+    const t = setTimeout(run, Math.min(at - Date.now() + 1500, 2_000_000_000));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, campaign?.job?.status, campaign?.job?.resume_at]);
 
   // Sync: while a scrape runs it imports the leads when Apify finishes (every
   // 8s); otherwise, once a minute, it refreshes sent-email statuses from
@@ -447,6 +467,19 @@ export default function CampaignDetail() {
     }
   }
 
+  // Social messages (Facebook, Instagram, LinkedIn) for leads with no usable email, or for the given leads. Runs in the background.
+  async function startSocial(leadIds?: string[], regenerate = false) {
+    if (!id) return;
+    setErr(null);
+    try {
+      const r = await call<{ total: number; params: Record<string, unknown> }>("outreach.social.write", { campaign_id: id, ...(leadIds ? { lead_ids: leadIds } : {}), ...(regenerate ? { regenerate: true } : {}) });
+      await callBackground("social", r.params);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not start writing social messages");
+    }
+  }
+
   async function markReady(email: EmailRow) {
     if (!id) return;
     try {
@@ -542,7 +575,7 @@ export default function CampaignDetail() {
       }
     }
     // Drafting, reviewing and the browser check run on the server and report their own count; other jobs are derived from the data.
-    if ((job.kind === "generate" || job.kind === "browsercheck" || job.kind === "review") && typeof job.done === "number") {
+    if ((job.kind === "generate" || job.kind === "browsercheck" || job.kind === "review" || job.kind === "social") && typeof job.done === "number") {
       done = job.done;
       lastActivity = Date.parse(job.progress_at ?? job.started_at);
     }
@@ -550,7 +583,7 @@ export default function CampaignDetail() {
     done = Math.min(done, job.total);
     // 'running' with no loop in this tab (or no server progress) for a while = interrupted.
     // A server-side draft waits up to ~60 s per Gemini call plus a retry, so give it 4 minutes.
-    const serverJob = job.kind === "generate" || job.kind === "browsercheck" || job.kind === "review";
+    const serverJob = job.kind === "generate" || job.kind === "browsercheck" || job.kind === "review" || job.kind === "social";
     const interrupted =
       job.status === "running" &&
       (serverJob || localJob !== job.kind) &&
@@ -669,10 +702,11 @@ export default function CampaignDetail() {
       {/* Persistent job progress — stays until the job finishes (survives reloads) */}
       {jobView && (() => {
         const { job, done, found, interrupted } = jobView;
-        const noun = job.kind === "generate" ? "drafts" : job.kind === "review" ? "drafts reviewed" : job.kind === "browsercheck" ? "sites opened in the browser" : job.kind === "sitecheck" ? "checked" : "sites checked";
-        const title = job.kind === "generate" ? "Drafting" : job.kind === "review" ? "Reviewing drafts" : job.kind === "browsercheck" ? "Browser check" : job.kind === "sitecheck" ? "Checking websites" : "Finding emails";
-        const again = job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "review" ? "Click Review all to carry on." : job.kind === "browsercheck" ? "Click Check in browser to try again." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Check websites to continue.";
+        const noun = job.kind === "social" ? "social messages" : job.kind === "generate" ? "drafts" : job.kind === "review" ? "drafts reviewed" : job.kind === "browsercheck" ? "sites opened in the browser" : job.kind === "sitecheck" ? "checked" : "sites checked";
+        const title = job.kind === "social" ? "Writing social messages" : job.kind === "generate" ? "Drafting" : job.kind === "review" ? "Reviewing drafts" : job.kind === "browsercheck" ? "Browser check" : job.kind === "sitecheck" ? "Checking websites" : "Finding emails";
+        const again = job.kind === "social" ? "Click Write social messages to carry on." : job.kind === "generate" ? "Click Generate emails to finish the rest (existing drafts are kept)." : job.kind === "review" ? "Click Review all to carry on." : job.kind === "browsercheck" ? "Click Check in browser to try again." : job.kind === "sitecheck" ? "Click Check websites to carry on with the rest." : "Click Check websites to continue.";
         const running = job.status === "running" && !interrupted;
+        const paused = job.status === "paused";
         const tone = running
           ? "border-primary/40 bg-primary/10 text-primary"
           : job.status === "done" && !(job.failures?.length)
@@ -684,14 +718,19 @@ export default function CampaignDetail() {
               {running ? <Loader2 size={15} className="animate-spin shrink-0" /> : <AlertCircle size={15} className="shrink-0" />}
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold">
-                  {running
+                  {paused
+                    ? `Paused: Gemini daily limit reached. Resumes automatically at ${job.resume_at ? new Date(job.resume_at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "the reset"}. ${done} of ${job.total} ${noun} so far.`
+                    : running
                     ? `${title}: ${done} of ${job.total} ${noun}${job.kind === "enrich" ? ` · ${found} email${found === 1 ? "" : "s"} found` : ""}${job.message && job.kind === "browsercheck" ? ` · ${job.message}` : ""}`
                     : interrupted
-                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" || job.kind === "review" || job.kind === "browsercheck" ? "It stopped making progress." : "The tab driving it was closed."} ${again}`
+                      ? `Stopped at ${done} of ${job.total} ${noun}. ${job.kind === "generate" || job.kind === "review" || job.kind === "browsercheck" || job.kind === "social" ? "It stopped making progress." : "The tab driving it was closed."} ${again}`
                       : job.status === "stopped"
                         ? `Stopped at ${done} of ${job.total} ${noun}. ${job.message ?? ""}`
                         : `Finished: ${done} of ${job.total} ${noun}. ${job.message ?? ""}`}
                 </div>
+                {job.calls && (job.calls.drafter_calls || job.calls.reviewer_calls) ? (
+                  <div className="mt-1 text-xs opacity-80">Gemini calls: {job.calls.drafter_calls ?? 0} drafting, {job.calls.reviewer_calls ?? 0} reviewing{job.calls.drafts_per_reviewer_call?.length ? ` (drafts per review call: ${job.calls.drafts_per_reviewer_call.join(", ")})` : ""}</div>
+                ) : null}
                 {job.kind === "browsercheck" && (job.apify_status || job.log_tail) && (
                   <div className="mt-1 text-xs opacity-90">
                     {job.apify_status && <div>Apify run: {job.apify_status}{job.apify_message ? ` · ${job.apify_message}` : ""}</div>}
@@ -707,7 +746,10 @@ export default function CampaignDetail() {
                   </ul>
                 )}
               </div>
-              {!running && (
+              {paused && id && (
+                <button onClick={() => void resumeJob(id, true).then(() => refresh()).catch((e) => setErr(e instanceof Error ? e.message : "Could not resume"))} className="shrink-0 rounded-md border border-amber-400/50 px-2.5 py-1 text-xs font-semibold hover:bg-amber-400/10">Resume now</button>
+              )}
+              {!running && !paused && (
                 <button onClick={() => void saveJob(null)} className="shrink-0 text-xs underline opacity-80 hover:opacity-100">Dismiss</button>
               )}
             </div>
@@ -1043,6 +1085,22 @@ export default function CampaignDetail() {
                 >
                   {running ? <Loader2 size={13} className="animate-spin" /> : <Radar size={13} />}
                   {running ? "Browser check running…" : `Check in browser (${needing})`}
+                </button>
+              );
+            })()}
+            {(() => {
+              const reach = leads.filter((l) => !l.email && !l.is_test && !l.excluded && !l.do_not_contact && !l.skip_reason && !(typeof l.gap_score === "number" && l.gap_score < 30) && (l.social?.facebook || l.social?.instagram || l.social?.linkedin_company || l.social?.linkedin_person)).length;
+              const running = campaign.job?.kind === "social" && campaign.job.status === "running";
+              if (reach === 0 && !running) return null;
+              return (
+                <button
+                  onClick={() => void startSocial()}
+                  disabled={running}
+                  title="Writes a short first message for each lead you can only reach on Facebook, Instagram or LinkedIn. You copy and send them yourself; the app never posts anything."
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-xs font-bold tracking-wide transition disabled:opacity-50"
+                >
+                  {running ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
+                  {running ? "Writing social messages…" : `Write social messages (${reach})`}
                 </button>
               );
             })()}
@@ -1384,6 +1442,10 @@ export default function CampaignDetail() {
       {leadDetail && (
         <LeadDetailModal
           lead={leadDetail}
+          emailedOn={emailedAt.get(leadDetail.id) ?? leadDetail.contacted_at ?? null}
+          socialBusy={campaign?.job?.kind === "social" && campaign.job.status === "running"}
+          socialJobSeq={campaign?.job?.kind === "social" ? `${campaign.job.status}-${campaign.job.progress_at ?? ""}` : ""}
+          onWriteSocial={(regen) => void startSocial([leadDetail.id], regen)}
           onClose={() => setLeadDetail(null)}
           onChanged={(patch) => {
             setLeadDetail((cur) => (cur ? ({ ...cur, ...patch } as Lead) : cur));
@@ -1878,7 +1940,7 @@ function GenerateEmailsModal({
   );
 }
 
-function LeadDetailModal({ lead, onClose, onChanged }: { lead: Lead; onClose: () => void; onChanged: (patch: Record<string, unknown>) => void }) {
+function LeadDetailModal({ lead, emailedOn, socialBusy, socialJobSeq, onWriteSocial, onClose, onChanged }: { lead: Lead; emailedOn: string | null; socialBusy: boolean; socialJobSeq: string; onWriteSocial: (regenerate: boolean) => void; onClose: () => void; onChanged: (patch: Record<string, unknown>) => void }) {
   return (
     <Modal
       open={true}
@@ -1902,6 +1964,8 @@ function LeadDetailModal({ lead, onClose, onChanged }: { lead: Lead; onClose: ()
           <p className="text-[10px] uppercase tracking-wider text-white/50 font-bold mb-2">Website check</p>
           <SiteDetails lead={lead} />
         </div>
+
+        <SocialMessages lead={lead} emailedOn={emailedOn} busy={socialBusy} jobSeq={socialJobSeq} onWrite={onWriteSocial} />
 
         {/* Metadata block */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
