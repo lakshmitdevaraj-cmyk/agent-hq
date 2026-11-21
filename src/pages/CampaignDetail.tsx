@@ -173,6 +173,14 @@ export default function CampaignDetail() {
   const [generateProgress, setGenerateProgress] = useState<{ done: number; total: number } | null>(null);
   // Which job THIS tab is driving right now (so the banner can tell "running"
   // from "interrupted": a job left 'running' by a closed tab).
+  // A setting the user just saved is kept on screen until the server copy agrees (reads can be ~1 minute stale).
+  const pendingTrade = useRef<{ value: boolean; at: number } | null>(null);
+  function withPending(c: Campaign): Campaign {
+    const p = pendingTrade.current;
+    if (!p) return c;
+    if ((c.any_trade !== false) === p.value || Date.now() - p.at > 120_000) { pendingTrade.current = null; return c; }
+    return { ...c, any_trade: p.value };
+  }
   const [localJob, setLocalJob] = useState<"generate" | "enrich" | "sitecheck" | null>(null);
   const [reviewFilter, setReviewFilter] = useState<"all" | "ready" | "check" | "blocked">("all");
   const [localDone, setLocalDone] = useState<number | null>(null);
@@ -228,7 +236,7 @@ export default function CampaignDetail() {
         call<EmailRow[]>("outreach.emails.list", { campaign_id: id }),
         call<Reply[]>("outreach.replies.list", { campaign_id: id, limit: 20 }),
       ]);
-      setCampaign(c);
+      setCampaign(withPending(c));
       setLeads(applyExcluded(mergeRecent("lead", ls, (l) => l.campaign_id === id)));
       setEmails(mergeRecent("email", es, (e) => e.campaign_id === id));
       setReplies(rs);
@@ -286,8 +294,9 @@ export default function CampaignDetail() {
   async function setAnyTrade(on: boolean) {
     if (!id) return;
     try {
-      setCampaign(await call<Campaign>("outreach.campaign.update", { id, any_trade: on }));
-      await refresh();
+      pendingTrade.current = { value: on, at: Date.now() };
+      setCampaign((c) => (c ? { ...c, any_trade: on } : c));
+      setCampaign(withPending(await call<Campaign>("outreach.campaign.update", { id, any_trade: on })));
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not update the campaign");
     }
@@ -297,7 +306,7 @@ export default function CampaignDetail() {
     if (!id) return;
     try {
       const c = await call<Campaign>("outreach.campaign.update", { id, job });
-      setCampaign(c);
+      setCampaign(withPending(c));
     } catch {
       // Progress display only — never block the work on it.
     }
@@ -480,7 +489,8 @@ export default function CampaignDetail() {
     const prev = campaign?.job;
     const resume = prev?.kind === "sitecheck" && prev.status === "running";
     const since = resume ? Date.parse(prev!.started_at) : Date.now() - 5_000;
-    const targets = leads.filter((l) => l.website && !l.is_test && !(resume && l.site_check?.checked_at && Date.parse(l.site_check.checked_at) >= since));
+    // Leads without a website are included: no download, they just get the "No website" gap and the lead-gen label.
+    const targets = leads.filter((l) => !l.is_test && !(resume && l.site_check?.checked_at && Date.parse(l.site_check.checked_at) >= since));
     if (targets.length === 0) return;
     setLocalJob("sitecheck");
     setLocalDone(0);
@@ -773,7 +783,7 @@ export default function CampaignDetail() {
               <SenderNameEditor campaign={campaign} onUpdate={() => void refresh()} />
               <span className="text-white/20">·</span>
               <label className="flex items-center gap-1.5 text-xs text-white/65 cursor-pointer" title="Turns off the 'different trade' skip and keeps the email wording trade-neutral">
-                <input type="checkbox" className="accent-primary" checked={campaign.any_trade === true} onChange={(e) => void setAnyTrade(e.target.checked)} />
+                <input type="checkbox" className="accent-primary" checked={campaign.any_trade !== false} onChange={(e) => void setAnyTrade(e.target.checked)} />
                 Home services, any trade
               </label>
             </div>
@@ -1004,7 +1014,7 @@ export default function CampaignDetail() {
             <span className="text-xs font-mono text-white/50">({leads.length})</span>
           </div>
           <div className="flex items-center gap-2">
-            {leads.some((l) => l.website && !l.is_test) && (() => {
+            {leads.some((l) => !l.is_test) && (() => {
               const checking = localJob === "sitecheck";
               const stopped = jobView?.job.kind === "sitecheck" && jobView.interrupted;
               return (

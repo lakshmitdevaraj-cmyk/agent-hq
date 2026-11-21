@@ -4,12 +4,12 @@
  * cheap code-side checks run on every model answer before the AI reviewer.
  * Pure functions, no network.
  */
-import { hoursInfo } from "./sitecheck";
+import { leadHours, type Detail } from "./sitecheck";
 
 export type Fact = { n: number; text: string; evidence: string };
-export type AngleCode = "after_hours" | "instant_answers" | "missed_calls" | "general";
+export type AngleCode = "after_hours" | "instant_answers" | "missed_calls" | "phone_only" | "general";
 export type Angle = { code: AngleCode; line: string };
-export type AnglePlan = { angle: Angle; facts: Fact[]; uncertain: string | null };
+export type AnglePlan = { angle: Angle; facts: Fact[]; uncertain: string | null; /** The email must talk about phone calls only (the site already has chat or booking, or the angle says so). */ calls_only?: boolean; /** The site says 24/7 / any time: never talk about after hours, closed, evenings or weekends. */ no_hours?: boolean };
 
 export type LeadFacts = {
   rating?: number | null;
@@ -24,16 +24,25 @@ export type LeadFacts = {
     request_form?: boolean;
     hours_usable?: boolean;
     advertises_emergency?: boolean;
+    mentions_24_7?: boolean;
+    whatsapp_url?: string | null;
     hours_evidence?: string | null;
     needs_browser?: boolean;
     evidence?: Record<string, string>;
+    not_home_service?: string | null;
+    lead_gen_listing?: string | null;
+    real_trade?: string | null;
+    site_hours?: unknown;
+    details?: Detail[];
   } | null;
+  name?: string | null;
 };
 
 const ANGLES: Record<AngleCode, string> = {
   after_hours: "Calls when the office is closed (they advertise emergency service but the office is closed on evenings or weekends)",
   instant_answers: "Website visitors get an instant answer (today the only option is waiting for a call back)",
   missed_calls: "Calls missed while the team is out on jobs. PHONE CALLS ONLY: never mention website messages, chat, forms or booking",
+  phone_only: "Website visitors can only call: the site has no form, chat or online booking, so anyone who would rather send a message or book online has no way to",
   general: "Calls missed while the team is out on jobs or after hours (general; no claim about this business). PHONE CALLS ONLY: never mention website messages, chat, forms or booking, because the business may already have them",
 };
 
@@ -44,19 +53,27 @@ const ANGLES: Record<AngleCode, string> = {
  *  - already has chat or booking -> missed calls (never pitch chat)
  * Uncertain facts (never checked, site needs a browser check) -> no claim about the business at all.
  */
+const NO_HOURS_NOTE = ". Their site says they are available 24/7, so NEVER say \"after hours\", \"closed\", \"evenings\", \"weekends\" or \"overnight\": talk about calls missed while the team is busy on jobs";
+
 export function pickAngle(lead: LeadFacts): AnglePlan {
   const sc = lead.site_check;
-  const general: AnglePlan = { angle: { code: "general", line: ANGLES.general }, facts: [], uncertain: null };
+  const noHours = !!sc && (sc.hours_usable === false || sc.mentions_24_7 === true);
+  const generalLine = ANGLES.general + (noHours ? NO_HOURS_NOTE : "");
+  const general: AnglePlan = { angle: { code: "general", line: generalLine }, facts: [], uncertain: null, no_hours: noHours };
+  // A listing / lead-gen site or a supplier is never pitched as a normal local business: no claims about it at all.
+  if (sc && (sc.lead_gen_listing || sc.not_home_service)) return { ...general, uncertain: `Flagged (${sc.lead_gen_listing ?? sc.not_home_service}), so no claim is made about this business.` };
   if (!sc || sc.error) return { ...general, uncertain: "The website was not checked, so no claim is made about it." };
   if (sc.needs_browser && sc.via !== "browser") return { ...general, uncertain: "The site needs a browser check, so no gap is mentioned." };
 
-  const h = sc.hours_usable === false ? null : hoursInfo(lead.raw);
+  const hasWeb = !!(sc.chat_widget || sc.booking_tool);
+  const h = sc.hours_usable === false ? null : leadHours(lead);
   const closedLate = !!h && (h.closedWeekend || h.closesEarlyWeekdays);
   if (closedLate && sc.advertises_emergency && h) {
     const closedBit = h.closedWeekend ? `closed ${h.closedDays.length ? h.closedDays.join(" and ") : "on weekends"}` : "closed by 5 PM on weekdays";
     return {
-      angle: { code: "after_hours", line: ANGLES.after_hours },
-      facts: [{ n: 1, text: `Their office is ${closedBit} (${h.summary}), and their website says emergency service is available.`, evidence: `Google hours: ${h.summary}. Site mentions emergency service.` }],
+      angle: { code: "after_hours", line: ANGLES.after_hours + (hasWeb ? ". PHONE CALLS ONLY: they already have chat or online booking on the site, so never mention website messages, chat, forms or booking" : "") },
+      calls_only: hasWeb,
+      facts: [{ n: 1, text: `Their office is ${closedBit} (${h.summary}), and their website says emergency service is available.`, evidence: `${h.source ?? "Google"} hours: ${h.summary}. Site mentions emergency service.` }],
       uncertain: null,
     };
   }
@@ -67,8 +84,50 @@ export function pickAngle(lead: LeadFacts): AnglePlan {
       uncertain: null,
     };
   }
-  if (sc.chat_widget || sc.booking_tool) return { angle: { code: "missed_calls", line: ANGLES.missed_calls }, facts: [], uncertain: null };
+  if (sc.chat_widget || sc.booking_tool) return { angle: { code: "missed_calls", line: ANGLES.missed_calls + (noHours ? NO_HOURS_NOTE : "") }, facts: [], uncertain: null, no_hours: noHours };
+  // Nothing but a phone number: no chat, no booking, no form (checked in a browser, or a plain site a browser would not change).
+  if (!sc.chat_widget && !sc.booking_tool && !sc.has_contact_form && !sc.request_form && !sc.whatsapp_url) {
+    const is247 = sc.hours_usable === false;
+    return {
+      angle: { code: "phone_only", line: ANGLES.phone_only + (noHours ? NO_HOURS_NOTE.replace("talk about calls missed while the team is busy on jobs", "you may mention that they are available 24/7") : "") },
+      facts: [{ n: 1, text: `Their website gives visitors only a phone number: no contact form, live chat or online booking${is247 ? ", even though the site says they are available 24/7" : ""}.`, evidence: [`Checked${sc.via === "browser" ? " in a real browser" : ""}: no chat, booking tool or contact form found.`, is247 ? sc.hours_evidence : null].filter(Boolean).join(" ") }],
+      uncertain: null,
+      no_hours: noHours,
+    };
+  }
   return general;
+}
+
+// ── True details about the business (used to make every email specific) ──
+
+/** Rating, plus whatever the site check saved (years in business, family-owned, services, area, emergency service). */
+export function leadDetails(lead: LeadFacts): Detail[] {
+  // A flagged listing or supplier gets no claims about it at all, so no details either.
+  if (lead.site_check?.lead_gen_listing || lead.site_check?.not_home_service) return [];
+  const out: Detail[] = [];
+  const r = lead.rating;
+  const n = lead.reviews_count;
+  if (typeof r === "number" && r >= 4.3 && typeof n === "number" && n >= 5) {
+    out.push({ kind: "rating", text: `${r.toFixed(1)} rating from ${n} Google reviews`, words: [r.toFixed(1), `${n} reviews`, `${n} google reviews`, `${n} five-star`, `${n} 5-star`], evidence: `Google: ${r} stars, ${n} reviews.` });
+  }
+  return [...out, ...(lead.site_check?.details ?? [])];
+}
+
+/** Words of the business name worth looking for in a subject (generic trade words and filler dropped). */
+export function nameTokens(name: string | null | undefined): string[] {
+  const drop = new Set(["the", "and", "llc", "inc", "co", "company", "service", "services", "heating", "cooling", "air", "hvac", "conditioning", "repair", "plumbing", "roofing", "home", "pros", "pro", "of", "ac", "heat"]);
+  return (name ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !drop.has(w));
+}
+
+/** A plain way to say the detail about the business, used as a suggested opening for the writer. */
+export function detailPhrase(d: Detail, name: string): string {
+  const n = name.replace(/\s+(?:llc|inc\.?|ltd\.?|co\.?)$/i, "");
+  if (d.kind === "since") return `${n} has been in business ${d.text.replace(/^In business /i, "")}`;
+  if (d.kind === "years") return `${n} has been in business for ${d.text.replace(/ in business$/i, "")}`;
+  if (d.kind === "family") return `${n} is a family-owned business`;
+  if (d.kind === "rating") return `${n} has ${d.text.replace(/^(\S+) rating from (\d+) Google reviews$/, "$2 Google reviews averaging $1 stars")}`;
+  if (d.kind === "services") return `${n} lists ${d.text.replace(/^Services they list: /, "")} on its website`;
+  return `${n}: ${d.text}`;
 }
 
 // ── Opening style rotation ─────────────────────────────────────────────
@@ -102,15 +161,74 @@ const BANNED_BODY: Array<[RegExp, string]> = [
   [/capture/i, 'uses the word "capture"'],
   [/following up|follow(?:ing)? up on/i, 'says "following up"'],
   [/https?:\/\/|www\./i, "contains a link"],
+  [/\b(?:intelligent|seamless(?:ly)?|leverag(?:e|es|ed|ing)|cutting-edge|game-?chang\w+|revolutioni[sz]\w*)\b/i, "uses a buzzword (intelligent, seamless, leverage, cutting-edge, game-changer, revolutionize)"],
+  [/\b(?:implement(?:s|ed|ing)?|deploy\w*|configur\w+|solutions?|digital helper|automated (?:digital )?(?:helper|assistant|voice))\b/i, "uses a stiff word (implements, deploys, configures, solution, automated digital helper): say sets up, answers, takes the details, sends them to you"],
+  [/\bin our (?:line of work|industry|trade|field)\b|\bas (?:a )?(?:fellow )?(?:contractor|tradesman|tradesperson|business owner)s?\b|\bfellow (?:contractor|business owner)s?\b|\bwe(?:'ve| have) (?:worked|been) (?:in|with) (?:the )?(?:hvac|trade|industry)/i, "makes a claim about the sender's own trade or background (the sender is not a contractor)"],
 ];
+
+/** Words that talk about the time of day / being closed: never used for a business whose site says it is available 24/7. */
+const HOURS_WORDS = /\b(?:after[- ]hours|off[- ]hours|outside (?:of )?(?:normal |regular |business |office )?hours|closed|closing|evenings?|weekends?|overnight|nights?)\b/i;
+const HVAC_WORDS = /\bhvac\b|air[- ]conditioning|\bA\/C\b|heating (?:and|&) (?:cooling|air)/i;
 
 /** Plain failures a model can fix on a retry. Empty list = passed. */
 /** Angles that must talk about phone calls only (the business may already have chat or booking). */
 export const callsOnly = (code: AngleCode): boolean => code === "general" || code === "missed_calls";
 const WEB_CHANNEL_RX = /\b(?:website|web ?site|web) (?:messages?|chat|visitors?|enquir\w+|inquir\w+|forms?|leads?)|\b(?:live|web|site) ?chat\b|\bchat(?: ?bot| widget)?\b|\bonline (?:form|booking|chat|messages?)|\b(?:contact|request|call-?back) forms?\b|\btext messages?\b|\bsms\b/i;
 
-export function checkModelDraft(d: ModelDraft, factCount: number, opts: { callsOnly?: boolean } = {}): string[] {
+export type DraftChecks = {
+  callsOnly?: boolean;
+  /** The site says 24/7: no after hours / closed / evenings wording. */
+  noHours?: boolean;
+  /** The business's real trade ("duct cleaning"); the email must not call a non-HVAC business HVAC. */
+  trade?: string | null;
+  /** Texts the draft must not repeat 8+ words in a row from (the offer, the worked examples). */
+  copySources?: string[];
+  /** Other first emails already in this campaign. */
+  others?: Array<{ subject: string; body: string }>;
+  /** Names to ignore when comparing subjects (business, city). */
+  ignoreWords?: string[];
+  /** True details about the business: the opening paragraph must use one of them. */
+  details?: Detail[];
+  /** The business name: the subject must name the business or use a true detail. */
+  businessName?: string | null;
+};
+
+const QUICK_Q = /quick question\s*:\s*([^.!?\n]*)([.!?]?)/i;
+const UNOFFERED: Array<[RegExp, string]> = [
+  [/\b(?:texts?|texting|sms)\b/i, "texting"],
+  [/\b(?:schedul(?:e|es|ed|ing)|dispatch\w*|invoic\w+)\b|\bbooks? (?:the |an? )?(?:appointments?|visits?)\b|\bsends? (?:them |you )?(?:a )?quotes?\b|\btakes? payments?\b/i, "scheduling, dispatch, quotes or payments"],
+];
+
+const detailHit = (text: string, details: Detail[]): boolean => {
+  const t = text.toLowerCase();
+  return details.some((d) => d.words.some((w) => t.includes(w.toLowerCase())));
+};
+
+/** The opening paragraph: everything between the greeting and the first blank line after it. */
+const openingParagraph = (body: string): string => {
+  const parts = body.replace(/\r/g, "").split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
+  if (parts.length && /^(?:hi|hello|hey)\b[^.!?]{0,40},?$/i.test(parts[0])) parts.shift();
+  return parts[0] ?? "";
+};
+
+export function checkModelDraft(d: ModelDraft, factCount: number, opts: DraftChecks = {}): string[] {
   const fails: string[] = [];
+  if (opts.noHours && HOURS_WORDS.test(`${d.subject} ${d.body}`)) fails.push('it mentions after hours, closed, evenings, weekends or nights, but their site says they are available 24/7: talk about calls missed while the team is busy on jobs');
+  if (opts.trade && !/hvac/i.test(opts.trade) && HVAC_WORDS.test(`${d.subject} ${d.body}`)) fails.push(`it says HVAC or air conditioning, but this business does ${opts.trade}: use its real trade or no trade word`);
+  const qq = QUICK_Q.exec(d.body);
+  if (qq && qq[2] !== "?") fails.push('"Quick question:" must be followed by a real question that ends with a question mark');
+  for (const [rx, what] of UNOFFERED) if (rx.test(d.body)) fails.push(`it mentions ${what}, which is not part of the offer: only say that the assistant answers calls and website messages, takes the details and sends them to the owner`);
+  const openDetails = opts.details && opts.details.some((x) => x.kind !== "emergency") ? opts.details.filter((x) => x.kind !== "emergency") : opts.details;
+  if (openDetails?.length && !detailHit(openingParagraph(d.body), openDetails)) fails.push(`the opening does not use one true detail about the business (${(openDetails ?? []).slice(0, 4).map((x) => `"${x.text}"`).join(", ")}): open with one of them`);
+  if (opts.businessName !== undefined) {
+    const tokens = nameTokens(opts.businessName);
+    const sub = d.subject.toLowerCase();
+    if ((tokens.length || opts.details?.length) && !tokens.some((t) => sub.includes(t)) && !(opts.details && detailHit(d.subject, opts.details.filter((x) => x.kind !== "area")))) fails.push("the subject is generic: it must name the business or one true detail about it");
+  }
+  const copied = copiedFrom(d.body, opts.copySources ?? []);
+  if (copied) fails.push(`it repeats 8+ words from the examples or the offer ("${copied}"): write your own sentences`);
+  const same = opts.others?.length ? samenessProblem(d, opts.others, opts.ignoreWords ?? []) : null;
+  if (same) fails.push(same);
   if (opts.callsOnly && WEB_CHANNEL_RX.test(d.body)) fails.push("the body mentions website messages, chat, forms or booking: talk about phone calls only");
   const words = wordCount(d.body);
   if (words < 50 || words > 110) fails.push(`the body has ${words} words (must be 60-100)`);
@@ -126,4 +244,66 @@ export function checkModelDraft(d: ModelDraft, factCount: number, opts: { callsO
     fails.push(`fact_used must be a number from 1 to ${factCount}`);
   }
   return fails;
+}
+
+
+// ── Copying and sameness ──────────────────────────────────────────────
+
+const wordsOf = (t: string): string[] => t.toLowerCase().replace(/[^a-z0-9'\s-]/g, " ").split(/\s+/).filter(Boolean);
+
+/** Body without the greeting line and without the call-to-action sentence (both are allowed to repeat). */
+function comparable(body: string): string {
+  const lines = body.replace(/\r/g, "").split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length && /^(?:hi|hello|hey)\b[^.!?]{0,40},?$/i.test(lines[0])) lines.shift();
+  return lines.join(" ").split(/(?<=[.!?])\s+/).filter((x) => !/30-minute free call/i.test(x)).join(" ");
+}
+
+/** The longest run of words that two texts share (case and punctuation ignored); "" when shorter than min. */
+export function sharedRun(a: string, b: string, min = 8): string {
+  const x = wordsOf(comparable(a));
+  const y = wordsOf(comparable(b));
+  if (x.length < min || y.length < min) return "";
+  const at = new Map<string, number[]>();
+  y.forEach((w, i) => at.set(w, [...(at.get(w) ?? []), i]));
+  let best = 0;
+  let bestAt = 0;
+  for (let i = 0; i < x.length; i++) {
+    for (const j of at.get(x[i]) ?? []) {
+      let k = 0;
+      while (i + k < x.length && j + k < y.length && x[i + k] === y[j + k]) k++;
+      if (k > best) { best = k; bestAt = i; }
+    }
+  }
+  return best >= min ? x.slice(bestAt, bestAt + Math.min(best, 12)).join(" ") : "";
+}
+
+/** The first phrase of `body` (8+ words in a row) that also appears in one of the sources; null when the draft is its own. */
+export function copiedFrom(body: string, sources: string[], min = 8): string | null {
+  for (const src of sources) {
+    if (!src) continue;
+    const r = sharedRun(body, src, min);
+    if (r) return r;
+  }
+  return null;
+}
+
+const openingKey = (body: string): string => wordsOf(comparable(body).split(/(?<=[.!?:])\s+/)[0] ?? "").slice(0, 3).join(" ");
+const subjectKey = (subject: string, ignore: string[]): string => {
+  const drop = new Set(ignore.flatMap((x) => wordsOf(x)));
+  return wordsOf(subject).filter((w) => !drop.has(w)).join(" ");
+};
+
+/** Too close to another first email in the same campaign (8+ shared words, same opening as the last two, same subject pattern). */
+export function samenessProblem(d: { subject: string; body: string }, others: Array<{ subject: string; body: string }>, ignoreWords: string[] = []): string | null {
+  for (const o of others) {
+    const r = sharedRun(d.body, o.body);
+    if (r) return `it repeats 8+ words from another email in this campaign ("${r}"): use different wording`;
+  }
+  const lastTwo = others.slice(-2);
+  const open = openingKey(d.body);
+  if (lastTwo.length === 2 && open && lastTwo.every((o) => openingKey(o.body) === open)) return `it opens like the last two emails ("${open} ..."): open differently`;
+  if (/^[^:]{2,40}:\s*\S/.test(d.subject.trim()) && others.some((o) => /^[^:]{2,40}:\s*\S/.test(o.subject.trim()))) return 'its subject uses the "<name>: <detail>" shape that another email already uses: write the subject like a person would, in a different shape';
+  const sk = subjectKey(d.subject, ignoreWords);
+  if (sk && others.some((o) => subjectKey(o.subject, ignoreWords) === sk)) return "its subject follows the same pattern as another email in this campaign: vary the subject";
+  return null;
 }

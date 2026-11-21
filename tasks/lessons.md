@@ -6,3 +6,6 @@
 - **Test leads named after real businesses:** the greeting helper treated a test lead's name as a person's name. The code (not the model) decides the greeting; only a confirmed owner counts.
 - **Uncertain facts must not leak into the pitch:** when a gap is unknown, the fallback pitches phone calls only; code check rejects chat/website wording.
 - **Prove an external-service fix locally when the key is not available:** replay the same navigation in real Chromium (playwright-core + cached Chrome) and run the same detectors on the output.
+- **Same-looking emails are a data problem, not a wording problem:** a reviewer that flags "too similar" is right. Give the writer real, saved, business-specific details (from the site and Google), make the opening use one, and check it in code; never loosen the similarity check.
+- **A weak model makes the code checks look broken:** when a draft model keeps failing the same check, say so and test with the stronger model; do not weaken the check. Local runs on a free key can run out of daily quota, so switch the reviewer model only for the local test and say so.
+

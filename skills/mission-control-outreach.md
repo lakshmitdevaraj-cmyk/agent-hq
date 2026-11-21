@@ -103,7 +103,7 @@ Gate 2 (real emails to real people). Everything else is autonomous.
 - `outreach.campaign.list` — all campaigns, newest first.
 - `outreach.campaign.get` — one campaign by id.
   params: `{ id }`
-- `outreach.campaign.update` — patch (e.g. rename).
+- `outreach.campaign.update` — patch (e.g. rename, `any_trade`). A `job` in the patch goes to the separate job record.
   params: `{ id, ...patch }`
 - `outreach.campaign.run` — **fires Apify**. Blocks 30s–3min. Writes
   one lead record per result. Only call after Gate 1.
@@ -139,7 +139,16 @@ Gate 2 (real emails to real people). Everything else is autonomous.
 - `outreach.leads.check_site` — the same website check, **information only**,
   for any lead (also already emailed ones). Never drafts or sends; never
   changes do-not-contact / contacted / bounced flags. Use it to re-check a
-  whole campaign, one lead per call. params: `{ campaign_id, lead_id }`
+  whole campaign, one lead per call. Leads **without a website** are checked
+  too (instant, no download): they get the "No website" gap and the lead-gen
+  label. The check also records, as labels only (nothing is deleted):
+  `lead_gen_listing` (exact-match keyword domains, network footers,
+  toll-free main numbers, directory pages, throwaway domain endings),
+  `not_home_service` (industrial, **wholesalers / suppliers / parts stores**),
+  `real_trade` (duct cleaning, plumbing, water heater, HVAC, ... used in the
+  email instead of the campaign niche) and `mentions_24_7`. Owner lines in team
+  lists ("Name ~ Owner", "Name - Owner", "Owner/Operator Name") count as high
+  confidence. params: `{ campaign_id, lead_id }`
 - `outreach.leads.update` — `excluded` (skip this lead when drafting),
   `trade_override` (include a lead skipped as a different trade), `owner_name`
   (your own entry: high confidence, used in greetings, kept on re-checks;
@@ -148,8 +157,15 @@ Gate 2 (real emails to real people). Everything else is autonomous.
   owner, gap score, links and `email_status`); this is what the Prospects page
   shows. params: `{}`
 - Campaign flag `any_trade` (set with `outreach.campaign.update`): "Home
-  services, any trade" turns off the different-trade skip and keeps draft
-  wording trade-neutral.
+  services, any trade" turns off the different-trade skip. It is **on by
+  default** for new campaigns, and a campaign without the field counts as on
+  (only an explicit `false` turns it off). It never changes the Google search
+  terms; the email always names the business's own trade (`real_trade`).
+- The running job (`job`), `browser_checked_ids` and the sender defaults are
+  kept in their own record, apart from the campaign settings, so a job can
+  never undo a settings change. `outreach.campaign.get/list` return both
+  together; `outreach.campaign.update` sends `job` to the job record and
+  everything else to the settings.
 - `outreach.leads.delete` — removes one lead and its drafted (unsent) emails.
   params: `{ campaign_id, lead_id }`
 
@@ -236,6 +252,25 @@ cold strangers.
 - `outreach.emails.review.start` — `{ campaign_id, email_ids? }`: AI reviewer
   job (ready / check / blocked, with reasons). Run it before asking the human
   to approve a send; poll `outreach.campaign.get` `job` (kind `review`).
+  The reviewer also judges **quality** (specific to this business, a clear cost,
+  natural wording, a reason to reply, not templated); a draft that fails gets
+  one rewrite, which must pass the same code checks (no buzzwords or claims
+  about the sender's own trade, no 8+ words copied from the offer or the worked
+  examples or another draft in the campaign, no "after hours" for 24/7 sites,
+  no "HVAC" for another trade) and a second review before it can be "ready".
+  A website with no form, chat or booking gets the `phone_only` angle.
+  Every draft must open with one **true detail** saved from the business's own
+  site or Google (`site_check.details`: since/years in business, family-owned,
+  emergency service, services listed, towns served; plus rating and review
+  count), and its subject must name the business or such a detail, so two
+  emails in a campaign never read alike. Opening hours also come from the
+  business's own contact page or footer (`site_check.site_hours`) when Google
+  has none. "Quick question:" must be followed by a real question; nothing
+  about texting, scheduling, dispatch, quotes or payments (not in the offer).
+  Flagged lead-gen / supplier leads get no details and no claims at all. Lead-gen
+  flags also cover Google Sites pages with a keyword name and few reviews, and an
+  unrelated name on a throwaway domain ending (e.g. `.site`), also when the site
+  does not load because of an invalid certificate.
 - `outreach.browsercheck.plan` / `outreach.browsercheck.start` —
   `{ campaign_id, lead_id? }`: real-browser website check for leads about to
   be emailed or reached another way (costs Apify credits; ALWAYS show the plan's estimated cost to

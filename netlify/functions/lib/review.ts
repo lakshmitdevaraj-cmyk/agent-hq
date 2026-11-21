@@ -6,10 +6,13 @@
 export type ReviewStatus = "ready" | "check" | "blocked";
 export type Verdict = { status: ReviewStatus; reasons: string[]; problem: "none" | "wording" | "facts"; rewrite: { subject: string; body: string } | null };
 
+import { cityOf, leadDetails, type LeadFacts } from "./angle";
+
 const FORMER_WORDS = /\b(retired|former(?:ly)?|sold the|the late|passed away|stepped down|previous owner)\b/i;
 
 export type ReviewLead = {
   name?: string | null;
+  address?: string | null;
   category?: string | null;
   contact_name?: string | null;
   is_test?: boolean;
@@ -31,8 +34,13 @@ export type ReviewLead = {
     evidence?: Record<string, string>;
     not_home_service?: string | null;
     lead_gen_listing?: string | null;
+    real_trade?: string | null;
+    site_hours?: unknown;
+    details?: Array<{ kind: string; text: string; words: string[]; evidence: string }>;
   } | null;
   hours_summary?: string | null;
+  rating?: number | null;
+  reviews_count?: number | null;
 };
 
 /** Everything the reviewer may rely on, as a compact JSON object. */
@@ -40,6 +48,7 @@ export function evidenceFor(lead: ReviewLead): Record<string, unknown> {
   const sc = lead.site_check ?? {};
   return {
     business: lead.name ?? null,
+    city: cityOf(lead.address) || null,
     category: lead.category ?? null,
     owner: lead.owner_name ? { name: lead.owner_name, confidence: lead.owner_confidence ?? null, evidence_sentence: lead.owner_evidence ?? null, source: lead.owner_source ?? null } : null,
     website_checked: !!lead.site_check && !sc.error,
@@ -52,6 +61,8 @@ export function evidenceFor(lead: ReviewLead): Record<string, unknown> {
     opening_hours_may_be_used: sc.hours_usable !== false,
     site_says_open_any_time: sc.hours_usable === false ? sc.hours_evidence ?? true : false,
     evidence: sc.evidence ?? {},
+    real_trade: sc.real_trade ?? null,
+    true_details: leadDetails(lead as LeadFacts).map((d) => `${d.text} (${d.evidence})`),
     fit_warnings: [sc.not_home_service, sc.lead_gen_listing].filter(Boolean),
   };
 }
@@ -72,8 +83,8 @@ export function codeReview(lead: ReviewLead, greeting: string | null, usedFact: 
   }
   if (usedFact && (!sc || sc.error)) blocked.push("Mentions something about the website, but the website was never checked.");
   if (usedFact && sc?.needs_browser && sc.via !== "browser") blocked.push("Mentions a website gap, but the site still needs a browser check.");
-  if (sc?.not_home_service) check.push("May not be a home-service business.");
-  if (sc?.lead_gen_listing) check.push("May be a lead-gen listing, not a real company.");
+  if (sc?.not_home_service) check.push(`May not be a home-service business: ${sc.not_home_service}`.slice(0, 220));
+  if (sc?.lead_gen_listing) check.push(`May be a lead-gen listing, not a real company: ${sc.lead_gen_listing}`.slice(0, 220));
   return { blocked, check };
 }
 

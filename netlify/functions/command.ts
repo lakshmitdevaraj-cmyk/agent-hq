@@ -1,5 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { connectLambda } from "@netlify/blobs";
+import https from "node:https";
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson, listJsonFast } from "./lib/blobs";
 import { getOrCreateApiKey, identifyApiKey, createAgentKey, hasApiKey, rotateApiKey } from "./lib/auth";
@@ -21,11 +22,11 @@ import {
   isAutoReply,
 } from "./lib/outreach";
 import {
-  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing,
+  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, leadHours, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing, realTrade, businessDetails, siteHours,
   type Page, type Owner,
 } from "./lib/sitecheck";
-import { pickAngle, pickOpeningStyle, cityOf, checkModelDraft, callsOnly, type AngleCode, type ModelDraft, type Fact } from "./lib/angle";
-import { DRAFT_SYSTEM_PROMPT, OPENING_STYLE_HELP, REVIEW_SYSTEM_PROMPT } from "./lib/prompts";
+import { pickAngle, pickOpeningStyle, leadDetails, detailPhrase, cityOf, checkModelDraft, callsOnly, copiedFrom, type AngleCode, type ModelDraft, type Fact } from "./lib/angle";
+import { DRAFT_SYSTEM_PROMPT, OPENING_STYLE_HELP, REVIEW_SYSTEM_PROMPT, EXAMPLE_BODIES } from "./lib/prompts";
 import { evidenceFor, codeReview, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
 import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
@@ -75,6 +76,7 @@ const MOVABLE_STORES = [
   "agent-hq-activity",
 ];
 const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
+const OUTREACH_STATE = "agent-hq-outreach-campaign-state"; // running-job + sender defaults, kept apart from campaign settings (batch 7)
 const OUTREACH_LEADS = "agent-hq-outreach-leads"; // key: `<campaign_id>/<lead_id>`
 const OUTREACH_EMAILS = "agent-hq-outreach-emails"; // key: `<campaign_id>/<email_id>`
 const OUTREACH_REPLIES = "agent-hq-outreach-replies"; // inbound replies from AgentMail
@@ -717,34 +719,56 @@ type FirstEmailLead = {
   name?: string; contact_name?: string; address?: string; category?: string; is_test?: boolean; website?: string | null; owner_name?: string | null; owner_confidence?: string | null;
   rating?: number | null; reviews_count?: number | null; raw?: unknown; site_check?: Record<string, unknown> | null;
 };
-type FirstEmailMeta = { written_by: string; fact_used: number | null; draft_facts: Fact[]; angle: string; opening_style: string; gap_note: string | null; check_reasons: string[] };
+type FirstEmailMeta = { trade?: string; written_by: string; fact_used: number | null; draft_facts: Fact[]; angle: string; opening_style: string; gap_note: string | null; check_reasons: string[] };
+
+/** First emails written by this process, per campaign (the email list can lag behind a fresh write). */
+const firstDraftMemo = new Map<string, Array<{ id: string; subject: string; body: string }>>();
+
+const DEFAULT_OFFER = "We set up AI assistants that answer calls and website messages for home-service businesses, take the details and pass every enquiry to the owner.";
 
 async function generateFirstEmail(
   lead: FirstEmailLead,
   sender: { sender_offer?: string },
-  ctx: { draftsSoFar: number; any_trade: boolean; query: string },
+  ctx: { draftsSoFar: number; any_trade: boolean; query: string; others?: Array<{ subject: string; body: string }> },
   ai: GeminiAiOpts,
 ): Promise<{ draft: EmailDraft; meta: FirstEmailMeta }> {
   const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
   const style = pickOpeningStyle(ctx.draftsSoFar, plan.facts.length > 0);
   const greetingLine = greetingFor(lead) ?? "Hi there";
-  const trade = ctx.any_trade ? "home services" : (lead.category || ctx.query || "home services").slice(0, 60);
-  const offer = sender.sender_offer?.trim() || "We set up AI assistants that answer calls and website messages for home-service businesses, take the details and pass every enquiry to the owner.";
+  // The business's own trade (from its site or Google category), never the campaign niche.
+  const realTradeNow = ((lead.site_check as { real_trade?: string | null } | null | undefined)?.real_trade) ?? realTrade(lead.category, lead.name);
+  const trade = realTradeNow ?? (ctx.any_trade ? "home services" : (lead.category || ctx.query || "home services")).slice(0, 60);
+  const others = ctx.others ?? [];
+  const offer = sender.sender_offer?.trim() || DEFAULT_OFFER;
+  const details = leadDetails(lead as Parameters<typeof leadDetails>[0]);
+  const detailLine = details.length ? details.map((d, i) => `${i + 1}. ${d.text}`).join("\n") : null;
+  // Years in business, family-owned and the rating read best in an opening; a list of services only when nothing else is known.
+  const strong = details.filter((d) => ["since", "years", "family", "rating"].includes(d.kind));
+  const openable = strong.length ? strong : details.filter((d) => d.kind !== "emergency" && d.kind !== "area");
+  const mustOpen = (openable.length ? openable : details)[ctx.draftsSoFar % Math.max(1, (openable.length ? openable : details).length)];
+  const shortName = (lead.name ?? "").replace(/\s+(?:llc|inc\.?|ltd\.?|co\.?)$/i, "").split(/\s+/).slice(0, 3).join(" ");
   const user = [
     `BUSINESS: ${lead.name ?? "the business"}`,
     `GREETING: ${greetingLine}`,
     `CITY: ${cityOf(lead.address) || "(unknown)"}`,
     `TRADE: ${trade}`,
     plan.facts.length ? `FACTS YOU MAY USE:\n${plan.facts.map((f) => `${f.n}. ${f.text}`).join("\n")}` : "FACTS YOU MAY USE:\n(none: write without any claim about their business)",
+    detailLine ? `TRUE DETAILS ABOUT THEM (the opening MUST use one of these, and different emails use different ones; this campaign has ${ctx.draftsSoFar} so far, so use this one in the opening, in your own words, for example "${detailPhrase(mustOpen, shortName)}"):\n${detailLine}\nSUBJECT: 2-6 words, written like a person (for example "Weekend calls at Tri City" or "Website enquiries at Absolute Value AC"); name the business or one detail; never the "<name>: <detail>" shape; make it different from the subjects already used` : null,
     `ANGLE: ${plan.angle.line}`,
     `OPENING STYLE: ${style} - ${OPENING_STYLE_HELP[style]}`,
     `OFFER (background only, rewrite in your own words, tied to the angle, never paste it): "${offer}"`,
-  ].join("\n");
+    others.length ? `SUBJECTS ALREADY USED IN THIS CAMPAIGN (do not reuse the pattern): ${others.slice(-6).map((o) => `"${o.subject}"`).join(", ")}` : null,
+  ].filter(Boolean).join("\n");
+  const checks = { callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: realTradeNow, copySources: [offer, ...EXAMPLE_BODIES], others, ignoreWords: [lead.name ?? "", cityOf(lead.address)], details, businessName: lead.name ?? "" };
   let failures: string[] = [];
   let ans: AiJsonResult | null = null;
   let md: ModelDraft = { subject: "", body: "", fact_used: null, opening_style: style };
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const prompt = attempt === 0 ? user : `${user}\n\nYOUR LAST ANSWER FAILED THESE CHECKS: ${failures.join("; ")}. Write it again and fix them. Output JSON only.`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const hints = [
+      failures.some((f) => /true detail/.test(f)) && mustOpen ? `The first paragraph must say something like: "${detailPhrase(mustOpen, shortName)}".` : "",
+      failures.some((f) => /repeats 8\+ words/.test(f)) ? 'Do not start the offer paragraph with "At ShiftForge AI, we set up": describe what the owner gets, in a different sentence shape.' : "",
+    ].filter(Boolean).join(" ");
+    const prompt = attempt === 0 ? user : `${user}\n\nYOUR LAST ANSWER FAILED THESE CHECKS: ${failures.join("; ")}. Write it again and fix them. ${hints} Output JSON only.`;
     ans = await aiJson("draft", { system: DRAFT_SYSTEM_PROMPT, user: prompt, temperature: 0.4 }, ai);
     const o = (ans.json && typeof ans.json === "object" ? ans.json : {}) as Record<string, unknown>;
     md = {
@@ -753,13 +777,13 @@ async function generateFirstEmail(
       fact_used: typeof o.fact_used === "number" ? o.fact_used : null,
       opening_style: String(o.opening_style ?? style),
     };
-    failures = md.body ? checkModelDraft(md, plan.facts.length, { callsOnly: callsOnly(plan.angle.code) }) : ["the body is empty"];
+    failures = md.body ? checkModelDraft(md, plan.facts.length, checks) : ["the body is empty"];
     if (failures.length === 0) break;
   }
   const draft = normalizeDraft({ subject: md.subject || "Quick question", body_text: md.body, body_html: textToHtml(md.body) }, greetingFor(lead), { firstEmail: true });
   return {
     draft,
-    meta: { written_by: ans?.model ?? "", fact_used: md.fact_used, draft_facts: plan.facts, angle: plan.angle.code, opening_style: md.opening_style, gap_note: plan.uncertain, check_reasons: failures },
+    meta: { trade, written_by: ans?.model ?? "", fact_used: md.fact_used, draft_facts: plan.facts, angle: plan.angle.code, opening_style: md.opening_style, gap_note: plan.uncertain, check_reasons: failures },
   };
 }
 
@@ -772,26 +796,56 @@ type ReviewOutcome = {
   rewritten?: { subject: string; body_text: string; body_html: string; original: { subject: string; body_text: string; body_html: string } };
 };
 
-type ReviewableEmail = { subject: string; body_text: string; body_html: string; sequence_position?: number; fact_used?: number | null; draft_facts?: Fact[]; check_reasons?: string[]; angle?: string };
+type ReviewableEmail = { subject: string; body_text: string; body_html: string; sequence_position?: number; fact_used?: number | null; draft_facts?: Fact[]; check_reasons?: string[]; angle?: string; created_at?: string };
+type ReviewContext = { offer?: string; others?: Array<{ subject: string; body: string }> };
 
 /**
  * Checks one draft against the lead's saved evidence. Code-only checks come first (a wrong
  * owner or an unchecked website claim is blocked without asking a model). A reviewer that
- * cannot answer gives "check", never "ready".
+ * cannot answer gives "check", never "ready". Wording and quality problems get one rewrite,
+ * which must pass the same code checks and a second review before it can be "ready".
  */
-async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<string, unknown>, ai: GeminiAiOpts): Promise<ReviewOutcome> {
+async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<string, unknown>, ai: GeminiAiOpts, rctx: ReviewContext = {}): Promise<ReviewOutcome> {
   const greeting = greetingFor(lead as Parameters<typeof greetingFor>[0]);
-  const hours = hoursInfo((lead as { raw?: unknown }).raw);
+  const hours = leadHours(lead as Parameters<typeof leadHours>[0]);
   const forModel: ReviewLead = { ...lead, hours_summary: hours?.summary ?? null };
   const cr = codeReview(forModel, greeting, typeof email.fact_used === "number");
-  const writerNotes = email.check_reasons ?? [];
+  // A claim about how long the business has existed must be backed by a saved detail from its own site (a person's years of experience does not count).
+  const ageClaim = /\bin business\b|\bsince (?:19|20)\d\d\b|\b(?:over|more than|nearly)?\s*\d{2}\+?[- ]years?\b[^.]{0,30}\b(?:business|serving|family|company)\b|\bfor (?:over |more than )?\d{2}\+? years\b/i.exec(email.body_text);
+  if (ageClaim && !leadDetails(lead as Parameters<typeof leadDetails>[0]).some((d) => d.kind === "since" || d.kind === "years")) cr.blocked.push(`Says how long the business has been around ("${ageClaim[0].trim()}"), but no page of its own site says so. Re-check the website.`);
   if (cr.blocked.length > 0) return { status: "blocked", reasons: [...cr.blocked, ...cr.check], reviewed_by: "code checks" };
-  const ask = async (subject: string, body: string) => {
+  const firstEmail = (email.sequence_position ?? 1) <= 1;
+  const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
+  const realTradeNow = (lead.site_check as { real_trade?: string | null } | null | undefined)?.real_trade ?? realTrade(lead.category as string | null, lead.name as string | null);
+  const offer = rctx.offer?.trim() ?? "";
+  const details = leadDetails(lead as Parameters<typeof leadDetails>[0]);
+  const codeChecks = (subject: string, body: string): string[] =>
+    firstEmail
+      ? checkModelDraft(
+          { subject, body, fact_used: email.fact_used ?? null, opening_style: "" },
+          email.draft_facts?.length ?? (typeof email.fact_used === "number" ? 1 : 0),
+          { callsOnly: plan.calls_only ?? callsOnly((email.angle ?? "") as AngleCode), noHours: plan.no_hours === true, trade: realTradeNow, copySources: offer ? [offer, ...EXAMPLE_BODIES] : EXAMPLE_BODIES, others: rctx.others ?? [], ignoreWords: [String(lead.name ?? ""), cityOf(String(lead.address ?? ""))], details, businessName: String(lead.name ?? "") },
+        )
+      : [];
+  const found = codeChecks(email.subject, email.body_text);
+  const ask = async (subject: string, body: string, findings: string[], retryOf?: string) => {
     const r = await aiJson(
       "review",
       {
         system: REVIEW_SYSTEM_PROMPT,
-        user: JSON.stringify({ DRAFT: { subject, body }, GREETING_EXPECTED: greeting ? `${greeting},` : "Hi there,", EMAIL_STEP: email.sequence_position ?? 1, FACTS_GIVEN_TO_WRITER: email.draft_facts ?? "unknown (older draft)", SAVED_EVIDENCE: evidenceFor(forModel) }),
+        user: JSON.stringify({
+          DRAFT: { subject, body },
+          GREETING_EXPECTED: greeting ? `${greeting},` : "Hi there,",
+          EMAIL_STEP: email.sequence_position ?? 1,
+          FACTS_GIVEN_TO_WRITER: email.draft_facts ?? "unknown (older draft)",
+          SAVED_EVIDENCE: evidenceFor(forModel),
+          CODE_FINDINGS: findings,
+          ANGLE_GIVEN_TO_WRITER: plan.angle.line,
+          ...(retryOf ? { YOUR_LAST_REWRITE_FAILED_CODE_CHECKS: retryOf } : {}),
+          SENDER_OFFER: offer || null,
+          WRITER_EXAMPLES: EXAMPLE_BODIES,
+          OTHER_EMAILS_IN_CAMPAIGN: (rctx.others ?? []).slice(-5).map((o) => o.body.slice(0, 500)),
+        }),
         temperature: 0,
       },
       ai,
@@ -799,20 +853,31 @@ async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<str
     return { verdict: parseVerdict(r.json), model: r.model };
   };
   try {
-    const first = await ask(email.subject, email.body_text);
+    const first = await ask(email.subject, email.body_text, found);
     const v = first.verdict;
-    const extra = [...cr.check, ...writerNotes.map((n) => `Writer check: ${n}`)];
-    if (v.status === "blocked") return { status: "blocked", reasons: [...v.reasons, ...extra], reviewed_by: first.model };
+    const extra = [...cr.check, ...found.map((f) => `Check: ${f}`)];
+    if (v.status === "blocked") return { status: "blocked", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: first.model };
     if (v.status === "ready" && extra.length === 0) return { status: "ready", reasons: v.reasons, reviewed_by: first.model };
-    if (v.status === "ready") return { status: "check", reasons: [...v.reasons, ...extra], reviewed_by: first.model };
-    // Wording-only problem with a rewrite: fix it, then review the new version once more.
+    if (v.status === "ready") return { status: "check", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: first.model };
+    // Wording or quality problem with a rewrite: fix it, then review the new version once more.
     if (v.problem === "wording" && v.rewrite) {
-      const body_text = normalizeDraft({ subject: v.rewrite.subject, body_text: v.rewrite.body, body_html: "" }, greeting, { firstEmail: (email.sequence_position ?? 1) <= 1 }).body_text;
-      const subject = v.rewrite.subject;
-      const codeFails = (email.sequence_position ?? 1) <= 1 ? checkModelDraft({ subject, body: body_text, fact_used: email.fact_used ?? null, opening_style: "" }, email.draft_facts?.length ?? (typeof email.fact_used === "number" ? 1 : 0), { callsOnly: callsOnly((email.angle ?? "") as AngleCode) }) : [];
+      let rw = v.rewrite;
+      let body_text = normalizeDraft({ subject: rw.subject, body_text: rw.body, body_html: "" }, greeting, { firstEmail }).body_text;
+      let subject = rw.subject;
+      let codeFails = codeChecks(subject, body_text);
+      if (codeFails.length > 0) {
+        // One more try: tell the reviewer which code check its rewrite failed.
+        const again = await ask(email.subject, email.body_text, [...found, ...codeFails], codeFails.join("; "));
+        if (again.verdict.rewrite) {
+          rw = again.verdict.rewrite;
+          body_text = normalizeDraft({ subject: rw.subject, body_text: rw.body, body_html: "" }, greeting, { firstEmail }).body_text;
+          subject = rw.subject;
+          codeFails = codeChecks(subject, body_text);
+        }
+      }
       if (codeFails.length === 0) {
-        const second = await ask(subject, body_text);
-        if (second.verdict.status === "ready" && extra.length === 0) {
+        const second = await ask(subject, body_text, []);
+        if (second.verdict.status === "ready" && cr.check.length === 0) {
           return {
             status: "ready",
             reasons: [`Reworded by the reviewer: ${v.reasons.join(" ")}`.slice(0, 300)],
@@ -820,12 +885,14 @@ async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<str
             rewritten: { subject, body_text, body_html: textToHtml(body_text), original: { subject: email.subject, body_text: email.body_text, body_html: email.body_html } },
           };
         }
+        return { status: "check", reasons: [...v.reasons, ...second.verdict.reasons.map((r) => `After rewrite: ${r}`), ...cr.check].slice(0, 6), reviewed_by: second.model };
       }
+      return { status: "check", reasons: [...v.reasons, ...codeFails.map((f) => `The rewrite still failed: ${f}`), ...cr.check].slice(0, 6), reviewed_by: first.model };
     }
     return { status: "check", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: first.model };
   } catch (err) {
     const why = err instanceof Error ? err.message : "the reviewer did not answer";
-    return { status: "check", reasons: [`Not reviewed yet: ${why}`.slice(0, 200), ...cr.check], reviewed_by: null };
+    return { status: "check", reasons: [`Not reviewed yet: ${why}`.slice(0, 200), ...cr.check, ...found.map((f) => `Check: ${f}`)].slice(0, 6), reviewed_by: null };
   }
 }
 
@@ -1042,7 +1109,9 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], viaIn: 
   }
 
   const wording = siteHoursWording(pages);
-  const fit = fitFlags(pages, typeof lead.website === "string" ? lead.website : null);
+  const homeTitle = (pages[0]?.html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").replace(/\s+/g, " ").trim();
+  const fit = fitFlags(pages, typeof lead.website === "string" ? lead.website : null, { name, category: typeof lead.category === "string" ? lead.category : null, city: cityOf(typeof lead.address === "string" ? lead.address : ""), reviews_count: typeof lead.reviews_count === "number" ? lead.reviews_count : null, phone: typeof lead.phone === "string" ? lead.phone : null, tls_problem: (lead.site_check as { tls_problem?: boolean } | undefined)?.tls_problem === true });
+  const tradeNow = realTrade(typeof lead.category === "string" ? lead.category : null, name, homeTitle);
   const nb: { needs: boolean; reason: string | null } = via === "browser" ? { needs: false, reason: null } : needsBrowserCheck(pages, signals);
   const gap = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, signals, { hoursUsable: wording.hours_usable });
   const fields: Record<string, unknown> = {
@@ -1055,6 +1124,10 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], viaIn: 
       evidence,
       hours_usable: wording.hours_usable,
       advertises_emergency: wording.advertises_emergency,
+      mentions_24_7: wording.mentions_24_7,
+      real_trade: tradeNow,
+      details: businessDetails(pages),
+      site_hours: siteHours(pages),
       hours_evidence: wording.evidence,
       needs_browser: nb.needs,
       needs_browser_reason: nb.reason,
@@ -1083,10 +1156,21 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], viaIn: 
 function noWebsiteFields(lead: Record<string, unknown>, checkedAt: string): Record<string, unknown> {
   const g = gapScore(lead as { rating?: number | null; reviews_count?: number | null; raw?: unknown }, null);
   return {
-    site_check: { checked_at: checkedAt, error: "no website", lead_gen_listing: looksLikeLeadGenListing(lead as { name?: string; website?: string; reviews_count?: number }) },
+    site_check: { checked_at: checkedAt, error: "no website", real_trade: realTrade(typeof lead.category === "string" ? lead.category : null, typeof lead.name === "string" ? lead.name : null), lead_gen_listing: looksLikeLeadGenListing(lead as { name?: string; website?: string; reviews_count?: number }) },
     gap_score: g.score,
     gap_reasons: g.reasons,
   };
+}
+
+/** True when the site answers only if its certificate is ignored (expired, wrong name, self-signed). */
+function tlsProblem(base: URL): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (base.protocol !== "https:") return resolve(false);
+    const req = https.request({ host: base.hostname, port: base.port || 443, path: "/", method: "HEAD", rejectUnauthorized: false, timeout: 5000 }, (res) => { res.resume(); resolve(true); });
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+    req.on("error", () => resolve(false));
+    req.end();
+  });
 }
 
 async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckResult> {
@@ -1103,7 +1187,13 @@ async function checkLeadSite(lead: Record<string, unknown>): Promise<SiteCheckRe
   // Several paths can redirect to the same page: keep each page once.
   const seen = new Set<string>();
   const pages = got.filter((p): p is Page => !!p).filter((p) => { const k = p.url.replace(/\/$/, ""); if (seen.has(k)) return false; seen.add(k); return true; });
-  if (pages.length === 0) return { fields: { site_check: { checked_at: checkedAt, error: "website did not load (it may block automated visits)", needs_browser: true, needs_browser_reason: "The site did not load for a plain download; a browser may open it" } }, emails: [], fetched: 0, tried };
+  if (pages.length === 0) {
+    // Nothing loaded. The address itself can still tell us something (an unrelated throwaway domain), and a bad certificate is worth knowing.
+    const tls = await tlsProblem(base);
+    const name = typeof lead.name === "string" ? lead.name : null;
+    const fit = fitFlags([], typeof lead.website === "string" ? lead.website : null, { name, category: typeof lead.category === "string" ? lead.category : null, city: cityOf(typeof lead.address === "string" ? lead.address : ""), reviews_count: typeof lead.reviews_count === "number" ? lead.reviews_count : null, phone: typeof lead.phone === "string" ? lead.phone : null, tls_problem: tls });
+    return { fields: { site_check: { checked_at: checkedAt, error: tls ? "website has an invalid security certificate, so it did not load" : "website did not load (it may block automated visits)", needs_browser: !tls, needs_browser_reason: tls ? null : "The site did not load for a plain download; a browser may open it", tls_problem: tls || undefined, lead_gen_listing: fit.lead_gen_listing, real_trade: realTrade(typeof lead.category === "string" ? lead.category : null, name) } }, emails: [], fetched: 0, tried };
+  }
   const res = await analyzeSite(lead, pages, "raw", started);
   return { ...res, tried };
 }
@@ -1237,7 +1327,7 @@ type CampaignRecord = Record<string, unknown> & { query?: string; structured_que
 /** What leadSkipReason needs to know about a campaign: where it searches and for which trade. */
 function campaignSkipCtx(c: CampaignRecord | null | undefined): { location: string | null; query: string; anyTrade: boolean } {
   const sq = c?.structured_query;
-  return { location: sq?.location ?? null, query: [c?.query ?? "", ...(Array.isArray(sq?.searchTerms) ? sq!.searchTerms! : [])].join(" "), anyTrade: c?.any_trade === true };
+  return { location: sq?.location ?? null, query: [c?.query ?? "", ...(Array.isArray(sq?.searchTerms) ? sq!.searchTerms! : [])].join(" "), anyTrade: c?.any_trade !== false };
 }
 
 /**
@@ -1325,8 +1415,7 @@ export async function draftOne(p: {
   const { campaign_id, lead_id, sender_name, sender_company, sender_offer, framework, step, total_steps, leadHint } = p;
   if (!(await aiAvailable())) return draftFail(400, "Gemini key not configured");
 
-  const cs = store(OUTREACH_CAMPAIGNS);
-  const campaign = await readJson<CampaignRecord>(cs, campaign_id);
+  const campaign = await readCampaign<CampaignRecord>(campaign_id);
   if (!campaign) return draftFail(404, "campaign not found");
 
   // Normalize framework + step inputs. Default = one-off at step 1.
@@ -1372,7 +1461,7 @@ export async function draftOne(p: {
 
   // A draft for this (lead, step) already exists: return it (sequences need one per step).
   const es = store(OUTREACH_EMAILS);
-  const existingEmails = await listJson<{ id: string; lead_id: string; sequence_position?: number }>(es, `${campaign_id}/`);
+  const existingEmails = await listJson<{ id: string; lead_id: string; sequence_position?: number; subject?: string; body_text?: string }>(es, `${campaign_id}/`);
   const existing = existingEmails.find((e) => e.lead_id === lead_id && (e.sequence_position ?? 1) === stepNum);
   if (existing) return { ok: true, data: { ...existing, skipped: true } };
 
@@ -1389,13 +1478,18 @@ export async function draftOne(p: {
     const isSeq = fw !== "one-off";
     let draft: EmailDraft;
     let meta: Record<string, unknown> = {};
+    const firstOnes = existingEmails.filter((e) => (e.sequence_position ?? 1) === 1);
+    // Drafts made earlier in this run may not be listed yet (reads lag): remember them here too.
+    const seenIds = new Set(firstOnes.map((e) => e.id));
+    const priorFirst = [...firstOnes.map((e) => ({ subject: e.subject ?? "", body: e.body_text ?? "" })), ...(firstDraftMemo.get(campaign_id) ?? []).filter((m) => !seenIds.has(m.id))].filter((o) => o.body);
     if (!isSeq) {
       // First email: the code picks the one confident fact and angle, a small model writes it.
-      const sameStep = existingEmails.filter((e) => (e.sequence_position ?? 1) === 1).length;
+      const others = priorFirst;
+      const sameStep = Math.max(firstOnes.length, others.length);
       const first = await generateFirstEmail(
         { ...(lead as FirstEmailLead), site_check: (lead.site_check as Record<string, unknown> | null | undefined) ?? null },
         { sender_offer: typeof sender_offer === "string" ? sender_offer : undefined },
-        { draftsSoFar: sameStep, any_trade: campaign.any_trade === true, query: String(campaign.query ?? "") },
+        { draftsSoFar: sameStep, any_trade: campaign.any_trade !== false, query: String(campaign.query ?? ""), others },
         p.ai ?? {},
       );
       draft = first.draft;
@@ -1418,14 +1512,14 @@ export async function draftOne(p: {
           rating: typeof lead.rating === "number" ? lead.rating : null,
           reviews_count: typeof lead.reviews_count === "number" ? lead.reviews_count : null,
           gap_reasons: pickAngle({ site_check: lead.site_check as never }).uncertain ? [] : Array.isArray(lead.gap_reasons) ? (lead.gap_reasons as string[]).filter((r) => /chat|booking|whatsapp|contact form/i.test(r)) : [],
-          hours_summary: (lead.site_check as { hours_usable?: boolean } | undefined)?.hours_usable === false ? null : hoursInfo(lead.raw)?.summary ?? null,
+          hours_summary: (lead.site_check as { hours_usable?: boolean } | undefined)?.hours_usable === false ? null : leadHours(lead as Parameters<typeof leadHours>[0])?.summary ?? null,
         },
         {
           sender_name: typeof sender_name === "string" ? sender_name : undefined,
           sender_company: typeof sender_company === "string" ? sender_company : undefined,
           sender_offer: typeof sender_offer === "string" ? sender_offer : undefined,
           campaign_query: campaign.query as string,
-          any_trade: campaign.any_trade === true,
+          any_trade: campaign.any_trade !== false,
         },
         { framework: fw, step: stepNum, total_steps: totalNum, previous_steps: previousSteps },
         p.ai ?? {},
@@ -1455,23 +1549,21 @@ export async function draftOne(p: {
     };
     // Review right away (background jobs only): the Send button only sends "ready" drafts.
     if (p.review) {
-      const outcome = await reviewDraft(record as unknown as ReviewableEmail, lead as ReviewLead & Record<string, unknown>, p.ai ?? {});
+      const outcome = await reviewDraft(record as unknown as ReviewableEmail, lead as ReviewLead & Record<string, unknown>, p.ai ?? {}, { offer: (typeof sender_offer === "string" && sender_offer.trim()) || DEFAULT_OFFER, others: priorFirst });
       Object.assign(record, reviewFields(outcome));
     } else {
       Object.assign(record, { review_status: "check", review_reasons: ["Not reviewed yet"], reviewed_by: null, reviewed_at: null });
     }
     await writeJson(es, `${campaign_id}/${createdAt}-${emailId}`, record);
-    // Persist the sender context + default framework on the campaign (re-read: a job may have updated it meanwhile).
-    const fresh = (await readJson<CampaignRecord>(cs, campaign_id)) ?? campaign;
-    await writeJson(cs, campaign_id, {
-      ...fresh,
-      default_sender_name: (typeof sender_name === "string" && sender_name) || (fresh.default_sender_name as string | undefined) || null,
-      default_sender_company: (typeof sender_company === "string" && sender_company) || (fresh.default_sender_company as string | undefined) || null,
-      default_sender_offer: (typeof sender_offer === "string" && sender_offer) || (fresh.default_sender_offer as string | undefined) || null,
+    if (stepNum === 1) firstDraftMemo.set(campaign_id, [...(firstDraftMemo.get(campaign_id) ?? []), { id: emailId, subject: draft.subject, body: draft.body_text }].slice(-60));
+    // Remember the sender context + default framework (runtime state; campaign settings are not touched).
+    const prev = await readState(campaign_id);
+    await patchState(campaign_id, {
+      default_sender_name: (typeof sender_name === "string" && sender_name) || (prev.default_sender_name as string | undefined) || (campaign.default_sender_name as string | undefined) || null,
+      default_sender_company: (typeof sender_company === "string" && sender_company) || (prev.default_sender_company as string | undefined) || (campaign.default_sender_company as string | undefined) || null,
+      default_sender_offer: (typeof sender_offer === "string" && sender_offer) || (prev.default_sender_offer as string | undefined) || (campaign.default_sender_offer as string | undefined) || null,
       default_framework: fw,
       default_sequence_total: totalNum,
-      emails_generated: (fresh.emails_generated as number ?? 0) + 1,
-      updated_at: new Date().toISOString(),
     });
     return { ok: true, data: record };
   } catch (err) {
@@ -1496,7 +1588,7 @@ type PlannedPair = { lead: Record<string, unknown> & { id: string; name?: string
 
 /** Which (lead, step) drafts a run would create: leads with a real address that are not skipped, excluded, contacted elsewhere or already drafted. */
 async function planDraftPairs(campaign_id: string, framework: unknown, hints?: unknown): Promise<{ pairs: PlannedPair[]; totalSteps: number; fw: "one-off" | "pas" | "aida" | "sdr" }> {
-  const campaign = await readJson<CampaignRecord>(store(OUTREACH_CAMPAIGNS), campaign_id);
+  const campaign = await readCampaign<CampaignRecord>(campaign_id);
   if (!campaign) throw new Error("campaign not found");
   const fw = typeof framework === "string" && ["pas", "aida", "sdr"].includes(framework) ? (framework as "pas" | "aida" | "sdr") : "one-off";
   const totalSteps = fw === "one-off" ? 1 : 3;
@@ -1527,17 +1619,45 @@ async function planDraftPairs(campaign_id: string, framework: unknown, hints?: u
   return { pairs, totalSteps, fw };
 }
 
-// What this run has already written to campaign.job. Blobs reads can be a little stale, so a patch
+// ── Campaign runtime state (batch 7) ──────────────────────────────────
+// Background jobs used to read the WHOLE campaign record and write it back. With Blobs reads up to a
+// minute stale, that undid recent settings changes (e.g. "Home services, any trade"). Now the running
+// job, the browser-checked ids and the sender defaults live in their own record per campaign; jobs
+// only write that record, and campaign settings are only written by campaign.update.
+const STATE_KEYS = ["job", "browser_checked_ids", "default_sender_name", "default_sender_company", "default_sender_offer", "default_framework", "default_sequence_total"] as const;
+
+async function readState(campaign_id: string): Promise<Record<string, unknown>> {
+  return (await readJson<Record<string, unknown>>(store(OUTREACH_STATE), campaign_id)) ?? {};
+}
+
+/** Merge a patch into the campaign's state record (read, merge, write). */
+async function patchState(campaign_id: string, patch: Record<string, unknown>): Promise<void> {
+  const cur = await readState(campaign_id);
+  await writeJson(store(OUTREACH_STATE), campaign_id, { ...cur, ...patch, updated_at: new Date().toISOString() });
+}
+
+/** A campaign record with its runtime state laid over it (state wins; old records that still hold the fields inline keep working). */
+function withState<T extends Record<string, unknown>>(c: T, st: Record<string, unknown>): T {
+  const out: Record<string, unknown> = { ...c };
+  for (const k of STATE_KEYS) if (k in st) out[k] = st[k];
+  return out as T;
+}
+
+async function readCampaign<T extends Record<string, unknown> = CampaignRecord & Record<string, unknown>>(campaign_id: string): Promise<T | null> {
+  const c = await readJson<T>(store(OUTREACH_CAMPAIGNS), campaign_id);
+  if (!c) return null;
+  return withState(c, await readState(campaign_id));
+}
+
+// What this run has already written to the job. Blobs reads can be a little stale, so a patch
 // is merged onto this memory too; otherwise a stale read could wipe the run's earlier progress.
 const jobMemo = new Map<string, Record<string, unknown>>();
 
 async function patchJob(campaign_id: string, patch: Record<string, unknown>): Promise<void> {
-  const cs = store(OUTREACH_CAMPAIGNS);
-  const c = await readJson<CampaignRecord>(cs, campaign_id);
-  if (!c) return;
+  const st = await readState(campaign_id);
   const memo = { ...(jobMemo.get(campaign_id) ?? {}), ...patch };
   jobMemo.set(campaign_id, memo);
-  await writeJson(cs, campaign_id, { ...c, job: { ...(c.job as object | undefined), ...memo, progress_at: new Date().toISOString() }, updated_at: new Date().toISOString() });
+  await writeJson(store(OUTREACH_STATE), campaign_id, { ...st, job: { ...(st.job as object | undefined), ...memo, progress_at: new Date().toISOString() }, updated_at: new Date().toISOString() });
 }
 
 /**
@@ -1546,9 +1666,8 @@ async function patchJob(campaign_id: string, patch: Record<string, unknown>): Pr
  * exit without doing anything. Wait up to ~30 s for the matching running job to appear.
  */
 async function waitForJob(campaign_id: string, kind: string): Promise<boolean> {
-  const cs = store(OUTREACH_CAMPAIGNS);
   for (let i = 0; i < 20; i++) {
-    const c = await readJson<CampaignRecord & { job?: { status?: string; kind?: string } }>(cs, campaign_id);
+    const c = await readCampaign<CampaignRecord & { job?: { status?: string; kind?: string } }>(campaign_id);
     if (c?.job && c.job.kind === kind && c.job.status === "running") {
       jobMemo.set(campaign_id, { ...(c.job as Record<string, unknown>) });
       return true;
@@ -1570,7 +1689,6 @@ export type DraftJobParams = {
 /** The drafting job: one email at a time with a pause between (free Gemini tier: 15 requests/minute), progress written after each. */
 export async function runDraftJob(p: DraftJobParams): Promise<void> {
   const { campaign_id } = p;
-  const cs = store(OUTREACH_CAMPAIGNS);
   if (!(await waitForJob(campaign_id, "generate"))) return; // nothing was started
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const t0 = Date.now();
@@ -1653,7 +1771,7 @@ function browserEligible(lead: Record<string, unknown>, ctx: BrowserCtx, forced:
 }
 
 async function planBrowserCheck(campaign_id: string, leadId?: string): Promise<{ lead_ids: string[]; names: string[]; leads: number; pages: number; est_usd: number; cap: number; used: number; remaining: number }> {
-  const campaign = await readJson<CampaignRecord & { browser_checked_ids?: string[] }>(store(OUTREACH_CAMPAIGNS), campaign_id);
+  const campaign = await readCampaign<CampaignRecord & { browser_checked_ids?: string[] }>(campaign_id);
   if (!campaign) throw new Error("campaign not found");
   const ctx = campaignSkipCtx(campaign);
   const settings = await readOutreachSettings();
@@ -1680,7 +1798,6 @@ async function patchLeadFields(campaign_id: string, lead_id: string, patch: Reco
 
 export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[] }): Promise<void> {
   const { campaign_id } = p;
-  const cs = store(OUTREACH_CAMPAIGNS);
   if (!(await waitForJob(campaign_id, "browsercheck"))) return;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const t0 = Date.now();
@@ -1729,7 +1846,7 @@ export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[]
     if (!datasetId) throw new Error(`The browser run ended without results (${status}).${runMessage ? ` ${runMessage}` : ""}`);
     const items = await getApifyDatasetItems(apify, datasetId, 600);
     const byLead = pagesByLead(items);
-    const checkedIds = new Set(((await readJson<{ browser_checked_ids?: string[] }>(cs, campaign_id))?.browser_checked_ids) ?? []);
+    const checkedIds = new Set(((await readState(campaign_id)).browser_checked_ids as string[] | undefined) ?? (await readCampaign<{ browser_checked_ids?: string[] }>(campaign_id))?.browser_checked_ids ?? []);
     for (const lead of leads) {
       const pages = byLead.get(lead.id);
       const nowIso = new Date().toISOString();
@@ -1743,8 +1860,7 @@ export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[]
         await patchLeadFields(campaign_id, lead.id, { site_check: { ...sc, needs_browser: true, needs_browser_reason: "The browser check could not open this site", browser_error: "no pages loaded", browser_attempted_at: nowIso } });
       }
     }
-    const fresh = await readJson<Record<string, unknown>>(cs, campaign_id);
-    if (fresh) await writeJson(cs, campaign_id, { ...fresh, browser_checked_ids: [...checkedIds] });
+    await patchState(campaign_id, { browser_checked_ids: [...checkedIds] });
     if (status !== "SUCCEEDED") stopped = `The browser run ended early (${status}${runMessage ? `: ${runMessage}` : ""}). Leads without results stay marked "needs browser check".`;
     else if (leads.every((l) => !byLead.get(l.id)?.length)) stopped = `The browser could not open the websites (run ${status}${runMessage ? `: ${runMessage}` : ""}). Leads stay marked "needs browser check"; drafting still works.`;
   } catch (err) {
@@ -1771,7 +1887,6 @@ async function planReview(campaign_id: string, emailIds?: string[]): Promise<Arr
 /** The review job: one draft at a time, progress written after each (runs in ai-background). */
 export async function runReviewJob(p: { campaign_id: string; email_ids?: string[] }): Promise<void> {
   const { campaign_id } = p;
-  const cs = store(OUTREACH_CAMPAIGNS);
   if (!(await waitForJob(campaign_id, "review"))) return;
   const t0 = Date.now();
   let done = 0;
@@ -1779,13 +1894,16 @@ export async function runReviewJob(p: { campaign_id: string; email_ids?: string[
   try {
     const todo = await planReview(campaign_id, p.email_ids);
     const es = store(OUTREACH_EMAILS);
+    const offer = ((await readState(campaign_id)).default_sender_offer as string | undefined)?.trim() || (await readOutreachSettings()).default_sender_offer?.trim() || DEFAULT_OFFER;
+    const allFirst = (await listJson<{ id: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string }>(es, `${campaign_id}/`)).filter((e) => (e.sequence_position ?? 1) === 1 && e.body_text).sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")));
     for (let i = 0; i < todo.length && !stopped; i++) {
       if (Date.now() - t0 > JOB_MAX_MS) { stopped = `Time limit reached after ${done} reviews. Click Review again to continue.`; break; }
       const { key, row } = todo[i];
       if (i > 0) await new Promise((r) => setTimeout(r, 1500));
       const found = await findLeadRow(campaign_id, String(row.lead_id));
       if (!found) { done++; continue; }
-      const outcome = await reviewDraft(row as unknown as ReviewableEmail, found.lead as ReviewLead & Record<string, unknown>, BACKGROUND_AI);
+      const earlier = allFirst.filter((e) => String(e.created_at ?? "") < String(row.created_at ?? "") && e.id !== row.id).map((e) => ({ subject: e.subject ?? "", body: e.body_text ?? "" }));
+      const outcome = await reviewDraft(row as unknown as ReviewableEmail, found.lead as ReviewLead & Record<string, unknown>, BACKGROUND_AI, { offer, others: earlier });
       // Re-read: if the draft was edited or sent while the reviewer worked, the verdict no longer applies.
       const fresh = await readJson<Record<string, unknown>>(es, key);
       if (fresh && fresh.status === "drafted" && fresh.updated_at === row.updated_at) {
@@ -2434,8 +2552,7 @@ export const handler: Handler = async (event) => {
         const { campaign_id, email_ids } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         if (!(await aiAvailable())) return fail(400, "No AI provider is set up. Add the Gemini key in Settings.");
-        const cs = store(OUTREACH_CAMPAIGNS);
-        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        const campaign = await readCampaign<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(campaign_id);
         if (!campaign) return fail(404, "campaign not found");
         const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
         if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
@@ -2445,7 +2562,7 @@ export const handler: Handler = async (event) => {
         const todo = await planReview(campaign_id, ids);
         if (todo.length === 0) return fail(400, "No drafts to review.");
         const now = new Date().toISOString();
-        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "review", status: "running", total: todo.length, done: 0, started_at: now, progress_at: now }, updated_at: now });
+        await patchState(campaign_id, { job: { kind: "review", status: "running", total: todo.length, done: 0, started_at: now, progress_at: now } });
         return ok({ total: todo.length, started_at: now });
       }
 
@@ -2465,8 +2582,7 @@ export const handler: Handler = async (event) => {
         const { campaign_id, lead_id } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         if (!(await readServiceKey("apify"))) return fail(400, "Apify key not configured. Add it in Settings to use the browser check.");
-        const cs = store(OUTREACH_CAMPAIGNS);
-        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        const campaign = await readCampaign<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(campaign_id);
         if (!campaign) return fail(404, "campaign not found");
         const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
         if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
@@ -2475,7 +2591,7 @@ export const handler: Handler = async (event) => {
         const plan = await planBrowserCheck(campaign_id, typeof lead_id === "string" ? lead_id : undefined);
         if (plan.leads === 0) return fail(400, plan.remaining <= 0 && plan.used > 0 ? `The browser check limit for this campaign (${plan.cap} leads) is reached. You can raise it in Settings.` : "No lead needs a browser check right now.");
         const now = new Date().toISOString();
-        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "browsercheck", status: "running", total: plan.leads, done: 0, started_at: now, progress_at: now, message: "Starting the browser…" }, updated_at: now });
+        await patchState(campaign_id, { job: { kind: "browsercheck", status: "running", total: plan.leads, done: 0, started_at: now, progress_at: now, message: "Starting the browser…" } });
         return ok({ ...plan, started_at: now });
       }
 
@@ -2485,8 +2601,7 @@ export const handler: Handler = async (event) => {
         const { campaign_id, framework, leads } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         if (!(await aiAvailable())) return fail(400, "Gemini key not configured");
-        const cs = store(OUTREACH_CAMPAIGNS);
-        const campaign = await readJson<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cs, campaign_id);
+        const campaign = await readCampaign<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(campaign_id);
         if (!campaign) return fail(404, "campaign not found");
         const last = Date.parse(campaign.job?.progress_at ?? campaign.job?.started_at ?? "");
         if (campaign.job?.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) {
@@ -2495,7 +2610,7 @@ export const handler: Handler = async (event) => {
         const plan = await planDraftPairs(campaign_id, framework, leads);
         if (plan.pairs.length === 0) return fail(400, "Nothing to draft: every eligible lead already has a draft, or all were skipped.");
         const now = new Date().toISOString();
-        await writeJson(cs, campaign_id, { ...campaign, job: { kind: "generate", status: "running", total: plan.pairs.length, done: 0, made: 0, started_at: now, progress_at: now }, updated_at: now });
+        await patchState(campaign_id, { job: { kind: "generate", status: "running", total: plan.pairs.length, done: 0, made: 0, started_at: now, progress_at: now } });
         return ok({ total: plan.pairs.length, started_at: now });
       }
 
@@ -2511,6 +2626,7 @@ export const handler: Handler = async (event) => {
           query: query.trim(),
           description: typeof description === "string" ? description : "",
           structured_query: (structured_query as StructuredQuery) ?? null,
+          any_trade: true, // "Home services, any trade" is on for new campaigns (batch 7)
           status: "draft" as const, // draft | searching | ready | sending | completed | failed
           total_leads_found: 0,
           leads_imported: 0,
@@ -2537,39 +2653,50 @@ export const handler: Handler = async (event) => {
       case "outreach.campaign.list": {
         const all = await listJsonFast<{ id: string; created_at: string }>(store(OUTREACH_CAMPAIGNS));
         all.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        return ok(await Promise.all(all.map(async (c) => deriveCampaign(await withLeadCount(c as Record<string, unknown>), await campaignEmails(c.id)))));
+        return ok(await Promise.all(all.map(async (c) => deriveCampaign(await withLeadCount(withState(c as Record<string, unknown>, await readState(c.id))), await campaignEmails(c.id)))));
       }
 
       case "outreach.campaign.get": {
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
-        const record = await readJson(store(OUTREACH_CAMPAIGNS), id);
+        const record = await readCampaign<Record<string, unknown>>(id);
         if (!record) return fail(404, "campaign not found");
-        return ok(deriveCampaign(await withLeadCount(record as Record<string, unknown>), await campaignEmails(id)));
+        return ok(deriveCampaign(await withLeadCount(record), await campaignEmails(id)));
       }
 
       case "outreach.campaign.update": {
+        // Settings (name, any_trade, ...) go to the campaign record; the running job and sender defaults go to the
+        // campaign's state record, so a job and a settings change can never overwrite each other (batch 7).
         const { id, ...patch } = params as Record<string, unknown>;
         if (!id || typeof id !== "string") return fail(400, "id required");
         const s = store(OUTREACH_CAMPAIGNS);
-        const existing = await readJson<Record<string, unknown>>(s, id);
-        if (!existing) return fail(404, "campaign not found");
+        const first = await readJson<Record<string, unknown>>(s, id);
+        if (!first) return fail(404, "campaign not found");
         const now = new Date().toISOString();
-        // A job that starts running is stamped with the SERVER clock, so the UI can
-        // count "drafts created since the job started" without clock-skew errors.
-        const job = (patch as { job?: { status?: string } | null }).job;
-        const resuming = !!job && (job as { resume?: boolean }).resume === true && typeof (existing.job as { started_at?: string } | null | undefined)?.started_at === "string";
-        if (job && job.status === "running" && resuming) (patch as { job: Record<string, unknown> }).job.started_at = (existing.job as { started_at: string }).started_at;
-        else if (job && job.status === "running") (patch as { job: Record<string, unknown> }).job.started_at = now;
-        // A finishing update keeps the ORIGINAL server start time (the browser's copy of it
-        // can be stale or from its own clock, which made finished jobs count 0 drafts).
-        else if (job) {
-          const prevStart = (existing.job as { started_at?: string } | null | undefined)?.started_at;
-          if (prevStart) (patch as { job: Record<string, unknown> }).job.started_at = prevStart;
+        const statePatch: Record<string, unknown> = {};
+        const settingsPatch: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(patch)) (STATE_KEYS as readonly string[]).includes(k) ? (statePatch[k] = v) : (settingsPatch[k] = v);
+        if ("job" in statePatch) {
+          // A job that starts running is stamped with the SERVER clock, so the UI can count "drafts created
+          // since the job started" without clock-skew errors; a finishing update keeps the ORIGINAL start time.
+          const cur = ((await readState(id)).job ?? first.job) as { started_at?: string } | null | undefined;
+          const job = statePatch.job as Record<string, unknown> | null;
+          if (job) {
+            const resuming = job.resume === true && typeof cur?.started_at === "string";
+            if (job.status === "running" && resuming) job.started_at = cur!.started_at;
+            else if (job.status === "running") job.started_at = now;
+            else if (cur?.started_at) job.started_at = cur.started_at;
+          }
         }
-        const updated = { ...existing, ...patch, id, updated_at: now };
-        await writeJson(s, id, updated);
-        return ok(updated);
+        if (Object.keys(statePatch).length) await patchState(id, statePatch);
+        let record = first;
+        if (Object.keys(settingsPatch).length) {
+          // Re-read right before writing so only the changed fields are replaced.
+          const latest = (await readJson<Record<string, unknown>>(s, id)) ?? first;
+          record = { ...latest, ...settingsPatch, id, updated_at: now };
+          await writeJson(s, id, record);
+        }
+        return ok(withState(record, await readState(id)));
       }
 
       case "outreach.campaign.delete": {
@@ -2589,6 +2716,7 @@ export const handler: Handler = async (event) => {
           draftsDeleted++;
         }
         await store(OUTREACH_CAMPAIGNS).delete(id);
+        try { await store(OUTREACH_STATE).delete(id); } catch { /* none */ }
         return ok({ id, deleted: true, leads_deleted: leadsDeleted, drafts_deleted: draftsDeleted, sent_kept: sentKept });
       }
 
@@ -2882,7 +3010,7 @@ export const handler: Handler = async (event) => {
           const em = byLead.get(l.id as string);
           const contactedAt = (l.contacted_at as string | undefined) ?? null;
           const email_status = l.do_not_contact ? "do_not_contact" : em?.bounced ? "bounced" : em?.replied ? "replied" : em?.sent || contactedAt ? "emailed" : "not_emailed";
-          const h = hoursInfo(l.raw);
+          const h = leadHours(l as Parameters<typeof leadHours>[0]);
           const social = (l.social as Record<string, string | null> | undefined) ?? {};
           const sc = (l.site_check as Record<string, unknown> | undefined) ?? {};
           return {
@@ -3137,13 +3265,10 @@ export const handler: Handler = async (event) => {
           updated_at: createdAt,
         };
         await writeJson(es, `${campaign_id}/${createdAt}-${emailId}`, record);
-        await writeJson(cs, campaign_id, {
-          ...campaign,
+        await patchState(campaign_id, {
           default_sender_name: (typeof sender_name === "string" && sender_name) || (campaign.default_sender_name as string | undefined) || null,
           default_framework: fw,
           default_sequence_total: totalNum,
-          emails_generated: (campaign.emails_generated as number ?? 0) + 1,
-          updated_at: new Date().toISOString(),
         });
         await logActivity({
           agent_id: identity?.kind === "agent" ? identity.agent_id : null,
@@ -3352,7 +3477,7 @@ export const handler: Handler = async (event) => {
         // can't drift from the real email.
         const { campaign_id, email_id } = params as Record<string, string>;
         if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
-        const campaign = await readJson<Record<string, unknown>>(store(OUTREACH_CAMPAIGNS), campaign_id);
+        const campaign = await readCampaign<Record<string, unknown>>(campaign_id);
         const es = store(OUTREACH_EMAILS);
         const { blobs } = await es.list({ prefix: `${campaign_id}/` });
         for (const b of blobs) {
@@ -3596,7 +3721,7 @@ export const handler: Handler = async (event) => {
         const inbox = await getOrCreateCampaignInbox(agentmailKey, campaign.name as string, (await readOutreachSettings()).sending_inbox_id || undefined);
 
         // Sender display name — per-email overrides campaign-level.
-        const campaignSenderName = (campaign.default_sender_name as string | undefined) ?? "";
+        const campaignSenderName = ((await readState(campaign_id)).default_sender_name as string | undefined) ?? (campaign.default_sender_name as string | undefined) ?? "";
         // Patch the inbox's display_name if it doesn't match the campaign's
         // sender. AgentMail strips custom per-message From headers, so the
         // inbox display_name is the only knob that controls what recipients

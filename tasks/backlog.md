@@ -10,3 +10,6 @@
 - John Moore Services (and other sites) answer 403 to automated visits: the check reports "website did not load" and moves on. We do not disguise the request.
 - Owner found only by the Gemini fallback is stored as low confidence (shown for review, not used in greetings). Retype it on the lead to confirm.
 - Re-check of an old campaign refreshes gap/social/owner only; it only fills an email for a lead that has none (never replaces one).
+
+## Later: stale-read hardening, remaining whole-record campaign writers (batch 7 item 9)
+Batch 7 moved the running job, browser_checked_ids and sender defaults into their own record and made `campaign.update` re-read before writing. These handlers still read the whole campaign record and write it back, so with ~1 minute stale reads they could in theory undo a recent settings change: campaign.run / sync (status), leads import and delete (counters), send (`status: "sending"`, counters), webhook-receive (reply and bounce counters). Idea: derive counters from emails/leads (already done for emails) and keep a separate small status record.

@@ -124,7 +124,7 @@ const ACTIONS: ActionGroup[] = [
       },
       { action: "outreach.campaign.list", desc: "All campaigns, newest first." },
       { action: "outreach.campaign.get", desc: "One campaign by id.", params: "{ id }" },
-      { action: "outreach.campaign.update", desc: "Patch fields on a campaign (e.g. rename).", params: "{ id, ...patch }" },
+      { action: "outreach.campaign.update", desc: "Patch fields on a campaign (e.g. rename, any_trade: on by default; absent = on). A job in the patch is stored apart from the settings, so jobs never undo a settings change.", params: "{ id, ...patch }" },
       {
         action: "outreach.campaign.run",
         desc: "Starts the Apify Google Maps actor asynchronously and returns immediately. Client polls outreach.campaign.sync to finalize. ALWAYS show the human the structured_query preview and get explicit approval (GATE 1) before calling this — Apify costs real credits.",
@@ -154,7 +154,7 @@ const ACTIONS: ActionGroup[] = [
       },
       {
         action: "outreach.leads.check_site",
-        desc: "Same website check as enrich_one but INFORMATION ONLY and for any lead, including already emailed ones. Never drafts or sends and never changes do-not-contact / contacted / bounced flags. Use it to re-check a whole campaign, one lead per call.",
+        desc: "Same website check as enrich_one but INFORMATION ONLY and for any lead, including already emailed ones. Never drafts or sends and never changes do-not-contact / contacted / bounced flags. Use it to re-check a whole campaign, one lead per call. Leads without a website are included (no download: No website gap + lead-gen label). Also records labels only: lead_gen_listing (keyword domains, network footers, toll-free numbers, directory pages), not_home_service (industrial, wholesalers, suppliers) and real_trade (the business's own trade, used in emails). It also saves true business details (years in business, family-owned, emergency service, services, towns) and opening hours found on the business's own site, used to make each draft specific.",
         params: "{ campaign_id, lead_id }",
       },
       {
