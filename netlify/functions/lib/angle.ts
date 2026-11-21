@@ -21,6 +21,8 @@ export type LeadFacts = {
     chat_widget?: string | null;
     booking_tool?: string | null;
     has_contact_form?: boolean;
+    /** null = looked and none found; a name = a JavaScript form plugin is on the site; undefined = a check saved before this was recorded. */
+    form_plugin?: string | null;
     request_form?: boolean;
     hours_usable?: boolean;
     advertises_emergency?: boolean;
@@ -85,6 +87,12 @@ export function pickAngle(lead: LeadFacts): AnglePlan {
     };
   }
   if (sc.chat_widget || sc.booking_tool) return { angle: { code: "missed_calls", line: ANGLES.missed_calls + (noHours ? NO_HOURS_NOTE : "") }, facts: [], uncertain: null, no_hours: noHours };
+  // "Phone only / no form" may be claimed only when a browser saw the page, or the plain page has no form-plugin script at all
+  // (a form built by JavaScript, like Ninja Forms, is invisible to a plain download). A check saved before form_plugin existed is not trusted.
+  const formUnseen = sc.via !== "browser" && sc.form_plugin !== null;
+  if (formUnseen && !sc.chat_widget && !sc.booking_tool && !sc.has_contact_form && !sc.request_form && !sc.whatsapp_url) {
+    return { ...general, uncertain: sc.form_plugin ? `The site uses a form plugin (${sc.form_plugin}) that a plain download cannot see, so "no form" is not claimed.` : "This check does not show whether the site has a form, so \"no form\" is not claimed." };
+  }
   // Nothing but a phone number: no chat, no booking, no form (checked in a browser, or a plain site a browser would not change).
   if (!sc.chat_widget && !sc.booking_tool && !sc.has_contact_form && !sc.request_form && !sc.whatsapp_url) {
     const is247 = sc.hours_usable === false;
@@ -191,7 +199,11 @@ export type DraftChecks = {
   details?: Detail[];
   /** The business name: the subject must name the business or use a true detail. */
   businessName?: string | null;
+  /** True only for the confirmed "phone only" angle: otherwise the email must not say the site has only a phone number or no form. */
+  phoneOnlyOk?: boolean;
 };
+
+const PHONE_ONLY_CLAIM = /\b(?:only|just)\s+(?:provides?|offers?|gives?|has|lists?|shows?|displays?)\s+(?:a\s+|its\s+|their\s+)?(?:phone|telephone)(?:\s+number)?\b|\bno\s+(?:contact\s+|online\s+)?form\b|\bwithout\s+a\s+(?:contact\s+)?form\b|\bonly\s+(?:way|option)\s+(?:to\s+reach|is\s+(?:to\s+)?call)/i;
 
 const QUICK_Q = /quick question\s*:\s*([^.!?\n]*)([.!?]?)/i;
 const UNOFFERED: Array<[RegExp, string]> = [
@@ -215,6 +227,7 @@ export function checkModelDraft(d: ModelDraft, factCount: number, opts: DraftChe
   const fails: string[] = [];
   if (opts.noHours && HOURS_WORDS.test(`${d.subject} ${d.body}`)) fails.push('it mentions after hours, closed, evenings, weekends or nights, but their site says they are available 24/7: talk about calls missed while the team is busy on jobs');
   if (opts.trade && !/hvac/i.test(opts.trade) && HVAC_WORDS.test(`${d.subject} ${d.body}`)) fails.push(`it says HVAC or air conditioning, but this business does ${opts.trade}: use its real trade or no trade word`);
+  if (!opts.phoneOnlyOk && PHONE_ONLY_CLAIM.test(d.body)) fails.push('it says the site only has a phone number or no form, which is not confirmed for this business: do not claim that');
   const qq = QUICK_Q.exec(d.body);
   if (qq && qq[2] !== "?") fails.push('"Quick question:" must be followed by a real question that ends with a question mark');
   for (const [rx, what] of UNOFFERED) if (rx.test(d.body)) fails.push(`it mentions ${what}, which is not part of the offer: only say that the assistant answers calls and website messages, takes the details and sends them to the owner`);
@@ -293,6 +306,20 @@ const subjectKey = (subject: string, ignore: string[]): string => {
   return wordsOf(subject).filter((w) => !drop.has(w)).join(" ");
 };
 
+const QQ_OPEN = /^quick question\b/i;
+
+/** The form of a subject line, so a campaign does not repeat one form: "Innovative Air Producers calls" = name_word. */
+export function subjectShape(subject: string): string {
+  const t = subject.trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  if (/\?$/.test(t)) return "question";
+  if (/^[^:]{2,40}:\s*\S/.test(t)) return "colon";
+  if (words.length >= 2 && /^[a-z][a-z'-]*$/.test(words[words.length - 1]) && words.slice(0, -1).every((w) => /^[A-Z0-9&(]/.test(w))) return "name_word";
+  if (/\bsince\s+(?:19|20)\d{2}\b/i.test(t)) return "since_year";
+  if (/\s(?:at|for|in)\s+[A-Z0-9]/.test(t)) return "detail_at_name";
+  return "other";
+}
+
 /** Shared words between two emails of one campaign that count as copying. (Copying from the offer or the examples stays at 8.) */
 export const CROSS_EMAIL_WORDS = 12;
 
@@ -313,6 +340,16 @@ export function samenessProblem(d: { subject: string; body: string }, others: Ar
     const r = sharedRun(withoutServiceDescription(d.body), withoutServiceDescription(o.body), CROSS_EMAIL_WORDS);
     if (r) return `it repeats ${CROSS_EMAIL_WORDS}+ words from another email in this campaign ("${r}"): use different wording`;
   }
+  // At most 1 in 4 emails of a campaign may open with "Quick question".
+  if (QQ_OPEN.test(openingParagraph(d.body))) {
+    const used = others.filter((o) => QQ_OPEN.test(openingParagraph(o.body))).length;
+    const allowed = Math.max(1, Math.floor((others.length + 1) / 4));
+    if (used + 1 > allowed) return `it opens with "Quick question", and ${used} of the ${others.length} other emails in this campaign already do (at most 1 in 4 may): open differently, for example with "I saw that...", a plain statement, or the customer's problem`;
+  }
+  // Subjects: "<business name> + one word" (e.g. "Innovative Air Producers calls") at most once per campaign, and no more than two subjects of any one shape.
+  const shape = subjectShape(d.subject);
+  if (shape === "name_word" && others.some((o) => subjectShape(o.subject) === "name_word")) return 'its subject is "<business name> + one word", which another email in this campaign already uses (at most one may): write a different kind of subject, such as a short question or a plain statement';
+  if (shape !== "other" && others.filter((o) => subjectShape(o.subject) === shape).length >= 2) return `its subject has the same shape ("${shape.replace("_", " ")}") as two other emails in this campaign: change the form of the subject, not just the words`;
   const lastTwo = others.slice(-2);
   const open = openingKey(d.body);
   if (lastTwo.length === 2 && open && lastTwo.every((o) => openingKey(o.body) === open)) return `it opens like the last two emails ("${open} ..."): open differently`;

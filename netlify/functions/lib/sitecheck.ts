@@ -159,6 +159,30 @@ function classifyBookLink(a: Anchor, pageUrl: string): "booking" | "request_form
   return "request_form";
 }
 
+/** Form plugins that build their form with JavaScript, so a plain download of the page does not contain the form. */
+const FORM_PLUGINS: Array<[string, RegExp]> = [
+  ["Ninja Forms", /ninja[-_ ]?forms|nf-form|nfForms/i],
+  ["WPForms", /wpforms/i],
+  ["Gravity Forms", /gravity[-_ ]?forms|gform_wrapper|gform_/i],
+  ["Formidable Forms", /formidable|frm_forms/i],
+  ["Jotform", /jotform/i],
+  ["HubSpot forms", /hbspt\.forms|js\.hsforms\.net|hs-form/i],
+  ["Contact Form 7", /wpcf7|contact-form-7/i],
+  ["Forminator", /forminator/i],
+  ["Fluent Forms", /fluentform|fluent-form/i],
+  ["Typeform", /typeform/i],
+  ["Formstack", /formstack/i],
+  ["Cognito Forms", /cognitoforms/i],
+  ["Wufoo", /wufoo/i],
+  ["Elementor form", /elementor-form|elementor-widget-form/i],
+];
+
+/** The name of a form plugin whose script or markup is on any of the pages, or null when none is there. */
+export function detectFormPlugin(pages: Page[]): string | null {
+  for (const p of pages) for (const [name, rx] of FORM_PLUGINS) if (rx.test(p.html)) return name;
+  return null;
+}
+
 export type SignalResult = { signals: Signals; sources: Record<string, string>; evidence: Record<string, string> };
 
 export function detectSignals(pages: Page[]): SignalResult {

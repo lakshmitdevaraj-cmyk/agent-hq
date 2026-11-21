@@ -9,7 +9,7 @@
 
 export const OPENING_STYLE_HELP: Record<string, string> = {
   saw: 'Start with "I saw that ..." (state the one fact).',
-  question: 'Start with a short question or "Quick question: ..." about the one fact.',
+  question: 'Start with a short question about the one fact. Do NOT start with the words "Quick question" (they are rationed: at most 1 in 4 emails of a campaign).',
   problem: "Start with the customer's problem (what their customer goes through), then tie it to the one fact. For general angles with no fact, describe the problem in general terms, not about them.",
 };
 
@@ -60,8 +60,8 @@ RULES:
 - Never start with "I noticed". Never write "We build". Never write "following up".
 - Never use the word "capture" or "captures". Write the call to action with the exact words "30-minute free call".
 - No signature, no links, no company line at the end.
-- Subject: 2-6 words, must name the business or one true detail written like a person (for example "Weekend calls at Tri City"), never "<name>: <detail>" and a different shape in every email, no "AI", no "leads", no "capture". Never "Missing calls in <city>" for more than one email: use a different pattern each time.
-- If you write "Quick question:", it must be followed by a real question ending in a question mark.
+- Subject: 2-6 words, must name the business or one true detail written like a person (for example "Weekend calls at Tri City"), never "<name>: <detail>", never just "<business name> + one word" (like "Acme Air calls"; at most one subject per campaign may look like that), and a different shape in every email (a question, a plain statement, "<detail> at <name>", a year or rating...), no "AI", no "leads", no "capture". Never "Missing calls in <city>" for more than one email: use a different pattern each time.
+- Do not start more than about 1 in 4 emails with "Quick question". If you write "Quick question:", it must be followed by a real question ending in a question mark.
 - Never describe things the offer does not do: no texting, SMS, scheduling, dispatching, quotes or payments. The assistant only answers calls and website messages, takes the details and sends them to the owner.
 - Separate the paragraphs with a blank line.
 - The two examples below show STRUCTURE and TONE only. Never reuse their sentences or any 8 words in a row from them or from the OFFER.

@@ -22,7 +22,7 @@ import {
   isAutoReply,
 } from "./lib/outreach";
 import {
-  SITE_CHECK_PATHS, detectSignals, extractSocial, findOwner, gapScore, hoursInfo, leadHours, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing, realTrade, businessDetails, siteHours,
+  SITE_CHECK_PATHS, detectSignals, detectFormPlugin, extractSocial, findOwner, gapScore, hoursInfo, leadHours, pageText, validPersonName, siteHoursWording, fitFlags, needsBrowserCheck, looksLikeLeadGenListing, realTrade, businessDetails, siteHours,
   type Page, type Owner,
 } from "./lib/sitecheck";
 import { pickAngle, pickOpeningStyle, leadDetails, detailPhrase, cityOf, checkModelDraft, callsOnly, copiedFrom, type AngleCode, type ModelDraft, type Fact } from "./lib/angle";
@@ -759,7 +759,7 @@ async function generateFirstEmail(
     `OFFER (background only, rewrite in your own words, tied to the angle, never paste it): "${offer}"`,
     others.length ? `SUBJECTS ALREADY USED IN THIS CAMPAIGN (do not reuse the pattern): ${others.slice(-6).map((o) => `"${o.subject}"`).join(", ")}` : null,
   ].filter(Boolean).join("\n");
-  const checks = { callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: realTradeNow, copySources: [offer, ...EXAMPLE_BODIES], others, ignoreWords: [lead.name ?? "", cityOf(lead.address)], details, businessName: lead.name ?? "" };
+  const checks = { phoneOnlyOk: plan.angle.code === "phone_only", callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: realTradeNow, copySources: [offer, ...EXAMPLE_BODIES], others, ignoreWords: [lead.name ?? "", cityOf(lead.address)], details, businessName: lead.name ?? "" };
   let failures: string[] = [];
   let ans: AiJsonResult | null = null;
   let md: ModelDraft = { subject: "", body: "", fact_used: null, opening_style: style };
@@ -824,7 +824,7 @@ async function reviewDraft(email: ReviewableEmail, lead: ReviewLead & Record<str
       ? checkModelDraft(
           { subject, body, fact_used: email.fact_used ?? null, opening_style: "" },
           email.draft_facts?.length ?? (typeof email.fact_used === "number" ? 1 : 0),
-          { callsOnly: plan.calls_only ?? callsOnly((email.angle ?? "") as AngleCode), noHours: plan.no_hours === true, trade: realTradeNow, copySources: offer ? [offer, ...EXAMPLE_BODIES] : EXAMPLE_BODIES, others: rctx.others ?? [], ignoreWords: [String(lead.name ?? ""), cityOf(String(lead.address ?? ""))], details, businessName: String(lead.name ?? "") },
+          { phoneOnlyOk: email.angle === "phone_only", callsOnly: plan.calls_only ?? callsOnly((email.angle ?? "") as AngleCode), noHours: plan.no_hours === true, trade: realTradeNow, copySources: offer ? [offer, ...EXAMPLE_BODIES] : EXAMPLE_BODIES, others: rctx.others ?? [], ignoreWords: [String(lead.name ?? ""), cityOf(String(lead.address ?? ""))], details, businessName: String(lead.name ?? "") },
         )
       : [];
   const found = codeChecks(email.subject, email.body_text);
@@ -1119,6 +1119,8 @@ async function analyzeSite(lead: Record<string, unknown>, pages: Page[], viaIn: 
       checked_at: checkedAt,
       via,
       ...signals,
+      // null = looked and found no form plugin; a name = a JavaScript form plugin is on the site (a plain download cannot see its form).
+      form_plugin: detectFormPlugin(pages),
       pages_checked: pages.length,
       sources: { ...sources, ...socialSources },
       evidence,
