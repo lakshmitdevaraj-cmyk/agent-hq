@@ -33,6 +33,7 @@ import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, 
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
+import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
 import { channelsFor, socialSkipReason, precheckSocial, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart } from "./lib/social";
 
@@ -797,6 +798,7 @@ async function generateFirstEmail(
       opening_style: String(o.opening_style ?? style),
     };
     failures = md.body ? checkModelDraft(md, plan.facts.length, checks) : ["the body is empty"];
+    debugLog(attempt === 0 && !ctx.priorFailures ? "draft" : "rewrite", { lead: lead.name, attempt: attempt + 1, model: ans.model, subject: md.subject, body: md.body, code_failures: failures });
     if (failures.length === 0) break;
   }
   const draft = normalizeDraft({ subject: md.subject || "Quick question", body_text: md.body, body_html: textToHtml(md.body) }, greetingFor(lead), { firstEmail: true });
@@ -961,6 +963,7 @@ async function reviewMany(items: ReviewItem[], ai: GeminiAiOpts, onOutcome: (id:
     const finish = async (p: Prep, o: ReviewOutcome) => {
       const out: ReviewOutcome = { ...o, rewrites_used: Math.max(o.rewrites_used ?? 0, p.rewritesUsed) };
       if (p.redrafted && !out.rewritten) out.rewritten = { subject: p.subject, body_text: p.body, body_html: textToHtml(p.body), original: { subject: p.item.email.subject, body_text: p.item.email.body_text, body_html: p.item.email.body_html } };
+      debugLog("review", { lead: p.item.lead.name, status: out.status, reasons: out.reasons, reviewed_by: out.reviewed_by, rewrites_used: out.rewrites_used ?? 0, ...(out.rewritten ? { rewritten_subject: out.rewritten.subject, rewritten_body: out.rewritten.body_text, original_subject: out.rewritten.original.subject } : {}) });
       await onOutcome(p.item.id, out);
     };
     let answers: Map<string, VerdictAnswer | null>;
@@ -2239,6 +2242,7 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
     factUsed = normalizeFactUsed(o.fact_used, plan.facts.length);
     failures = precheckSocial(item.channel, parts, { ...checks, factCount: plan.facts.length, factUsed });
     for (const k of Object.keys(parts)) if (k !== "note" && parts[k] && !parts[k].toLowerCase().startsWith(greeting.toLowerCase())) failures.push(`${k === "dm" ? "the first message" : "the message"} must start with "${greeting},"`);
+    debugLog("social", { lead: lead.name, channel: item.channel, attempt: attempt + 1, parts, code_failures: failures });
     if (failures.length === 0) break;
   }
   const now = new Date().toISOString();
@@ -2316,6 +2320,7 @@ async function reviewSocialRecords(campaign_id: string, recs: SocialRecord[], ai
       const now = new Date().toISOString();
       await writeJson(ss, key, { ...fresh, ...patch, reviewed_at: now, review_history: [...(fresh.review_history ?? []), { at: now, status: history.status, reasons: history.reasons }].slice(-6), updated_at: now });
     }
+    debugLog("social-review", { lead_id: rec.lead_id, channel: rec.channel, status: history.status, reasons: history.reasons });
     done++;
     await onDone(done);
   };
