@@ -67,6 +67,19 @@ out("an unknown result is refused", bad2.status === 400);
 const clr = await api("outreach.lead.fb_checked", { campaign_id: camp, lead_id: L2, result: null });
 out("clearing the mark", clr.fb_checked === null);
 
+// Two emails + two Facebook messages on one lead, kept in order; a legacy "sent" Facebook message carries over
+const L3 = `l3-${stamp}`;
+await setup("agent-hq-outreach-leads", [[`${camp}/${t0}-${L3}`, lead(L3, "Two And Two Heating", { email: "owner@twoandtwo-heating.com" })]]);
+await setup("agent-hq-outreach-emails", [
+  [`${camp}/e3a`, { id: "e3a", campaign_id: camp, lead_id: L3, to_email: "owner@twoandtwo-heating.com", status: "delivered", sequence_position: 1, subject: "first", body_text: "email one", sent_at: "2026-11-05T15:00:00.000Z", created_at: t0 }],
+  [`${camp}/e3b`, { id: "e3b", campaign_id: camp, lead_id: L3, to_email: "owner@twoandtwo-heating.com", status: "delivered", sequence_position: 2, subject: "second", body_text: "email two", sent_at: "2026-11-15T15:00:00.000Z", created_at: t0 }],
+]);
+await setup("agent-hq-outreach-social", [[`${camp}/${L3}/facebook`, rec(L3, { status: "sent", sent_at: "2026-11-22T09:30:00.000Z", parts: [{ key: "message", label: "Message", text: "Legacy message marked sent on 22 Nov." }] })]]);
+const h3 = await api("outreach.social.record_hand", { campaign_id: camp, lead_id: L3, channel: "facebook", text: "Earlier Facebook note.", sent_on: "2026-11-08" });
+out("legacy sent Facebook message (22 Nov) still shows, once", h3.touches.filter((t) => /Legacy message/.test(t.text)).length === 1);
+out("2 emails + 2 Facebook messages, all kept, in date order", h3.touches.map((t) => t.channel + ":" + t.sent_at.slice(5, 10)).join(",") === "email:11-05,facebook:11-08,email:11-15,facebook:11-22", h3.touches.map((t) => t.channel + ":" + t.sent_at.slice(5, 10)).join(","));
+out("summary: Email x2, Facebook x2, last 22 Nov", h3.summary.counts.email === 2 && h3.summary.counts.facebook === 2 && h3.summary.last_at.startsWith("2026-11-22"));
+
 // reply stops social planning
 await setup("agent-hq-outreach-replies", [[`r-${stamp}`, { id: `r-${stamp}`, campaign_id: camp, lead_id: L1, original_email_id: "e1", from: "tester.one@example.net", is_test: false, received_at: t0, agentmail_message_id: `m-${stamp}` }]]);
 const plan3 = await api("outreach.social.plan", { leads: [{ campaign_id: camp, lead_id: L1 }], channels: ["facebook"], regenerate: true });

@@ -222,6 +222,8 @@ function classifyGeminiError(status: number, text: string, model: string): Gemin
  */
 type GeminiAiOpts = { budgetMs?: number; timeoutMs?: number; retryOnTimeout?: boolean; stats?: CallStats };
 
+// Tests only: point AgentMail calls at a local mock (tasks/tests-8b/mock-agentmail.mjs). Unset in production.
+const AGENTMAIL_BASE = process.env.AGENTMAIL_TEST_BASE_URL || "https://api.agentmail.to/v0";
 // Tests only: point Gemini calls at a local mock (tasks/tests-8b/mock-gemini.mjs). Unset in production.
 const GEMINI_BASE = process.env.GEMINI_TEST_BASE_URL || "https://generativelanguage.googleapis.com";
 
@@ -486,7 +488,7 @@ async function testServiceKey(name: ServiceKey, key: string, model?: string, ext
     }
     if (name === "agentmail") {
       // AgentMail "inboxes" list is a cheap authenticated GET.
-      const r = await fetch("https://api.agentmail.to/v0/inboxes?limit=1", {
+      const r = await fetch(`${AGENTMAIL_BASE}/inboxes?limit=1`, {
         headers: { Authorization: `Bearer ${key}` },
       });
       if (r.ok) return { ok: true, message: "AgentMail key verified" };
@@ -517,7 +519,7 @@ async function logActivity(entry: {
 // bundle small and avoid @agentmail/sdk's surface area surprises.
 
 async function agentmailFetch(key: string, path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`https://api.agentmail.to/v0${path}`, {
+  return fetch(`${AGENTMAIL_BASE}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${key}`,
@@ -3318,7 +3320,7 @@ export const handler: Handler = async (event) => {
         const at = parseSentOn(sent_on);
         if (!at) return fail(400, "That date is not valid or is in the future.");
         const before = await leadTouchState(campaign_id, lead_id);
-        const had = before.touches.some((t) => t.channel === channel);
+        const had = before.touches.some((t) => t.channel === channel && t.sent_at < at); // earlier touches decide first or follow-up
         const k = kind === "first" || kind === "follow_up" ? kind : had ? "follow_up" : "first";
         const touch = touchFromSent({ id: nanoid(10), lead_id, campaign_id, channel: channel as TouchChannel, kind: k, sent_at: at, text: body, source: "manual" });
         await writeTouch(touch);

@@ -42,7 +42,7 @@ function Shell() {
       <Sidebar />
       <VoiceInvitationBanner />
       <LiveAgentFeed />
-      <main className="flex-1 min-w-0 px-10 py-8 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 min-w-0 px-4 sm:px-10 py-8 max-w-[1600px] mx-auto w-full">
         <Routes>
           <Route path="/" element={<Office />} />
           <Route path="/tasks" element={<Tasks />} />

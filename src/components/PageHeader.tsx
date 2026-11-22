@@ -8,8 +8,8 @@ type Props = {
 
 export default function PageHeader({ title, subtitle, right }: Props) {
   return (
-    <div className="flex items-end justify-between mb-8 gap-6">
-      <div>
+    <div className="flex flex-wrap items-end justify-between mb-8 gap-x-6 gap-y-4">
+      <div className="min-w-0">
         <h1 className="page-title">{title}</h1>
         {subtitle && <p className="text-white/75 mt-3 max-w-2xl font-medium">{subtitle}</p>}
       </div>
