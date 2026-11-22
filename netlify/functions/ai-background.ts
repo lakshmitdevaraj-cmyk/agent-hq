@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { connectLambda } from "@netlify/blobs";
 import { identifyApiKey } from "./lib/auth";
-import { runDraftJob, runPreviewJob, runBrowserJob, runReviewJob, runSocialJob } from "./command";
+import { runDraftJob, runPreviewJob, runBrowserJob, runReviewJob, runSocialJob, runSocialBatchJob } from "./command";
 
 /**
  * Netlify "background function" (the -background suffix is what makes it one): the caller gets
@@ -35,6 +35,8 @@ export const handler: Handler = async (event) => {
     await runReviewJob(params as unknown as Parameters<typeof runReviewJob>[0]);
   } else if (body.task === "social" && typeof params.campaign_id === "string") {
     await runSocialJob(params as unknown as Parameters<typeof runSocialJob>[0]);
+  } else if (body.task === "social_batch") {
+    await runSocialBatchJob();
   } else if (body.task === "preview" && typeof params.id === "string" && typeof params.query === "string") {
     await runPreviewJob(params as unknown as Parameters<typeof runPreviewJob>[0]);
   }

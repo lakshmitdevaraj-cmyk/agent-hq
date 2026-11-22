@@ -2407,7 +2407,7 @@ async function reviewSocialRecords(campaign_id: string, recs: SocialRecord[], ai
   }
 }
 
-export type SocialJobParams = { campaign_id: string; lead_ids?: string[]; channels?: string[]; regenerate?: boolean; resume?: boolean; type?: string; manual_start?: boolean };
+export type SocialJobParams = { until?: number; campaign_id: string; lead_ids?: string[]; channels?: string[]; regenerate?: boolean; resume?: boolean; type?: string; manual_start?: boolean };
 
 /** The social job: one message at a time with a pause (free Gemini tier), reviewed in groups of up to 5, pausing on Gemini's daily limit. */
 export async function runSocialJob(p: SocialJobParams): Promise<void> {
@@ -2444,7 +2444,7 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
     const { items } = await planSocial(campaign_id, p.lead_ids, p.channels, { regenerate: p.regenerate, type: p.type, manualStart: p.manual_start });
     const others = (await listJson<SocialRecord>(ss, `${campaign_id}/`)).flatMap((r) => r.parts.map((x) => x.text)).filter(Boolean);
     for (let i = 0; i < items.length && !stopped && !paused; i++) {
-      if (Date.now() - t0 > JOB_MAX_MS) { stopped = `Time limit reached after ${made} message${made === 1 ? "" : "s"}. Click Write social messages again to continue.`; break; }
+      if (Date.now() - t0 > JOB_MAX_MS || (p.until && Date.now() > p.until)) { stopped = `Time limit reached after ${made} message${made === 1 ? "" : "s"}. Click Write social messages again to continue.`; break; }
       if (i > 0) await sleep(4500);
       const item = items[i];
       for (let attempt = 1; ; attempt++) {
@@ -2476,6 +2476,78 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
     message: stopped ?? (failures.length ? `${failures.length} failed. Click Write social messages again to retry just those.` : undefined),
     failures: failures.length ? failures : undefined,
   });
+}
+
+
+const SOCIAL_BATCH_KEY = "social-batch"; // global job record in the state store: one cross-campaign social-writing run at a time
+
+/** A lead's full contact history (oldest first) and summary. */
+async function leadTouchState(campaign_id: string, lead_id: string): Promise<{ touches: Touch[]; summary: ReturnType<typeof summarizeTouches> }> {
+  const [emailsAll, socials, stored, replies] = await Promise.all([
+    listJson<{ id: string; lead_id: string; status?: string; sent_at?: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`),
+    listJson<SocialRecord>(store(OUTREACH_SOCIAL), `${campaign_id}/${lead_id}/`),
+    listJson<Touch>(store(OUTREACH_TOUCHES), `${lead_id}/`),
+    listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES), ""),
+  ]);
+  const emails = emailsAll.filter((e) => e.lead_id === lead_id);
+  const ownOnly = ownReplyEmailIds(replies.filter((r) => r.original_email_id));
+  const replied = emails.some((e) => e.status === "replied" && !ownOnly.has(e.id)) || replies.some((r) => r.lead_id === lead_id && !r.is_test);
+  const touches = deriveTouches({ lead_id, campaign_id, emails, socials, stored });
+  return { touches: touches.map(({ ...t }) => { delete (t as { snapshot?: unknown }).snapshot; return t; }), summary: summarizeTouches(touches, replied) };
+}
+
+function groupByCampaign(leads: Array<{ campaign_id?: string; lead_id?: string }> | undefined): Map<string, string[]> {
+  const m = new Map<string, string[]>();
+  for (const l of Array.isArray(leads) ? leads : []) { if (typeof l?.campaign_id === "string" && typeof l?.lead_id === "string") m.set(l.campaign_id, [...(m.get(l.campaign_id) ?? []), l.lead_id]); }
+  return m;
+}
+
+async function planSocialGroups(groups: Map<string, string[]>, channels: string[] | undefined, regenerate: boolean, type: string | undefined): Promise<{ items: SocialPlanItem[]; skipped: SocialSkip[] }> {
+  const items: SocialPlanItem[] = [];
+  const skipped: SocialSkip[] = [];
+  for (const [cid, ids] of groups) {
+    const p = await planSocial(cid, ids, channels, { regenerate, type });
+    items.push(...p.items);
+    skipped.push(...p.skipped);
+  }
+  return { items, skipped };
+}
+
+/** The cross-campaign run: leads grouped by campaign, each group run by the ordinary social job. Pauses on Gemini's daily limit. */
+export async function runSocialBatchJob(): Promise<void> {
+  const bs = store(OUTREACH_STATE);
+  const rec0 = await readJson<Record<string, unknown> & { groups?: Array<{ campaign_id: string; lead_ids: string[] }>; params?: { channels?: string[] | null; regenerate?: boolean; type?: string | null }; status?: string }>(bs, SOCIAL_BATCH_KEY);
+  if (!rec0 || rec0.status !== "running") return;
+  const until = Date.now() + JOB_MAX_MS;
+  let done = Number(rec0.done ?? 0);
+  let made = Number(rec0.made ?? 0);
+  const failures: Array<{ name: string; error: string }> = [];
+  let status = "done";
+  let message: string | undefined;
+  let resume_at: string | undefined;
+  const patch = async (extra: Record<string, unknown>) => { const cur = (await readJson<Record<string, unknown>>(bs, SOCIAL_BATCH_KEY)) ?? {}; await writeJson(bs, SOCIAL_BATCH_KEY, { ...cur, ...extra, progress_at: new Date().toISOString() }); };
+  try {
+    for (const g of rec0.groups ?? []) {
+      if (Date.now() > until) { status = "stopped"; message = `Time limit reached after ${made} message${made === 1 ? "" : "s"}. Select the leads and write again to continue.`; break; }
+      const now = new Date().toISOString();
+      const plan = await planSocial(g.campaign_id, g.lead_ids, rec0.params?.channels ?? undefined, { regenerate: rec0.params?.regenerate === true, type: rec0.params?.type ?? undefined });
+      if (plan.items.length === 0) continue;
+      jobMemo.delete(g.campaign_id);
+      await patchState(g.campaign_id, { job: { kind: "social", status: "running", total: plan.items.length, done: 0, made: 0, started_at: now, progress_at: now } });
+      await runSocialJob({ campaign_id: g.campaign_id, lead_ids: g.lead_ids, channels: rec0.params?.channels ?? undefined, regenerate: rec0.params?.regenerate === true, type: rec0.params?.type ?? undefined, until });
+      const job = ((await readState(g.campaign_id)).job ?? {}) as { status?: string; done?: number; made?: number; message?: string; failures?: Array<{ name: string; error: string }>; resume_at?: string };
+      done += Number(job.done ?? 0);
+      made += Number(job.made ?? 0);
+      failures.push(...(job.failures ?? []));
+      await patch({ done, made });
+      if (job.status === "paused") { status = "paused"; message = job.message; resume_at = job.resume_at; break; }
+      if (job.status === "stopped") { status = "stopped"; message = job.message; break; }
+    }
+  } catch (err) {
+    status = "stopped";
+    message = err instanceof Error ? err.message : "Writing social messages failed";
+  }
+  await patch({ status, done, made, finished_at: status === "done" ? new Date().toISOString() : undefined, message: message ?? (failures.length ? `${failures.length} failed. Select them and write again to retry.` : undefined), failures: failures.length ? failures : undefined, resume_at });
 }
 
 /** Which drafts a review run covers: the ticked ones, else every draft that is not already "ready". */
@@ -3196,17 +3268,138 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.mark_sent": {
-        // "I sent this by hand": records the channel and date. The app never sends or opens anything itself.
-        const { campaign_id, lead_id, channel, sent } = params as { campaign_id?: string; lead_id?: string; channel?: string; sent?: boolean };
+        // "I sent this by hand" (sent_on = the day it was sent, earlier days allowed) or Undo (sent:false). The message becomes a touch of its
+        // own and the draft slot is cleared, so the next message on that channel can be written as a follow-up. The app never sends anything.
+        const { campaign_id, lead_id, channel, sent, sent_on, touch_id } = params as { campaign_id?: string; lead_id?: string; channel?: string; sent?: boolean; sent_on?: string; touch_id?: string };
         if (!campaign_id || !lead_id || !channel) return fail(400, "campaign_id, lead_id and channel required");
+        if (!["facebook", "instagram", "linkedin"].includes(channel)) return fail(400, "unknown channel");
         const ss = store(OUTREACH_SOCIAL);
-        const rec = await readJson<SocialRecord>(ss, socialKey(campaign_id, lead_id, channel));
-        if (!rec) return fail(404, "message not found");
+        const key = socialKey(campaign_id, lead_id, channel);
+        const rec = await readJson<SocialRecord>(ss, key);
         const now = new Date().toISOString();
-        const saved: SocialRecord = sent === false ? { ...rec, status: "drafted", sent_at: null, updated_at: now } : { ...rec, status: "sent", sent_at: now, updated_at: now };
-        await writeJson(ss, socialKey(campaign_id, lead_id, channel), saved);
-        await logActivity({ category: "outreach", summary: `Marked ${channel} message ${sent === false ? "not sent" : "as sent"} for lead ${lead_id}` });
-        return ok(saved);
+        if (sent === false) {
+          const tb = touch_id ? (await listJson<Touch & { snapshot?: SocialRecord }>(store(OUTREACH_TOUCHES), `${lead_id}/`)).find((t) => t.id === touch_id) : null;
+          if (tb) {
+            await store(OUTREACH_TOUCHES).delete(`${lead_id}/${tb.sent_at}-${tb.id}`);
+            let restored = false;
+            if (!rec && tb.snapshot) { await writeJson(ss, key, { ...tb.snapshot, status: "drafted", sent_at: null, updated_at: now }); restored = true; }
+            await logActivity({ category: "outreach", summary: `Undid a ${channel} message marked as sent for lead ${lead_id}` });
+            return ok({ undone: true, restored, ...(await leadTouchState(campaign_id, lead_id)) });
+          }
+          if (!rec) return fail(404, "message not found");
+          await writeJson(ss, key, { ...rec, status: "drafted", sent_at: null, updated_at: now });
+          return ok({ undone: true, restored: true, ...(await leadTouchState(campaign_id, lead_id)) });
+        }
+        if (!rec) return fail(404, "message not found");
+        if (rec.status === "sent") return ok({ already: true, ...(await leadTouchState(campaign_id, lead_id)) });
+        const at = parseSentOn(sent_on);
+        if (!at) return fail(400, "That date is not valid or is in the future.");
+        const text = rec.parts.map((p) => p.text).filter(Boolean).join("\n\n");
+        const touch = { ...touchFromSent({ id: nanoid(10), lead_id, campaign_id, channel: channel as TouchChannel, kind: rec.type && rec.type !== "first" ? "follow_up" : "first", sent_at: at, text, source: "hq" }), snapshot: rec };
+        await writeTouch(touch);
+        await ss.delete(key);
+        await logActivity({ category: "outreach", summary: `Marked ${channel} message as sent (${at.slice(0, 10)}) for lead ${lead_id}` });
+        return ok({ touch_id: touch.id, ...(await leadTouchState(campaign_id, lead_id)) });
+      }
+
+      case "outreach.social.record_hand": {
+        // A message sent by hand that HQ never wrote (or an old one): recorded as a touch with its date and text.
+        const { campaign_id, lead_id, channel, text, sent_on, kind } = params as { campaign_id?: string; lead_id?: string; channel?: string; text?: string; sent_on?: string; kind?: string };
+        if (!campaign_id || !lead_id || !channel) return fail(400, "campaign_id, lead_id and channel required");
+        if (!["email", "facebook", "instagram", "linkedin"].includes(channel)) return fail(400, "unknown channel");
+        const body = String(text ?? "").trim();
+        if (!body) return fail(400, "Paste or type what you sent.");
+        if (body.length > 5000) return fail(400, "That message is too long (5000 characters at most).");
+        const at = parseSentOn(sent_on);
+        if (!at) return fail(400, "That date is not valid or is in the future.");
+        const before = await leadTouchState(campaign_id, lead_id);
+        const had = before.touches.some((t) => t.channel === channel);
+        const k = kind === "first" || kind === "follow_up" ? kind : had ? "follow_up" : "first";
+        const touch = touchFromSent({ id: nanoid(10), lead_id, campaign_id, channel: channel as TouchChannel, kind: k, sent_at: at, text: body, source: "manual" });
+        await writeTouch(touch);
+        await logActivity({ category: "outreach", summary: `Recorded a ${channel} message sent by hand (${at.slice(0, 10)}) for lead ${lead_id}` });
+        return ok({ touch_id: touch.id, ...(await leadTouchState(campaign_id, lead_id)) });
+      }
+
+      case "outreach.touch.delete": {
+        // Removes a touch that was recorded by hand (HQ's own emails and derived touches are history and stay).
+        const { lead_id, touch_id } = params as { lead_id?: string; touch_id?: string };
+        if (!lead_id || !touch_id) return fail(400, "lead_id and touch_id required");
+        const tb = (await listJson<Touch>(store(OUTREACH_TOUCHES), `${lead_id}/`)).find((t) => t.id === touch_id);
+        if (!tb) return fail(404, "touch not found");
+        await store(OUTREACH_TOUCHES).delete(`${lead_id}/${tb.sent_at}-${tb.id}`);
+        return ok({ deleted: true, ...(tb.campaign_id ? await leadTouchState(tb.campaign_id, lead_id) : {}) });
+      }
+
+      case "outreach.lead.touches": {
+        const { campaign_id, lead_id } = params as { campaign_id?: string; lead_id?: string };
+        if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
+        return ok(await leadTouchState(campaign_id, lead_id));
+      }
+
+      case "outreach.lead.fb_checked": {
+        // "I looked at this Facebook page": date, what I found and a note. Only this field changes. result null clears it.
+        const { campaign_id, lead_id, result, note } = params as { campaign_id?: string; lead_id?: string; result?: string | null; note?: string };
+        if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
+        if (!(await findLeadRow(campaign_id, lead_id))) return fail(404, "lead not found");
+        if (result === null || result === undefined || result === "") { await patchLeadFields(campaign_id, lead_id, { fb_checked: null }); return ok({ fb_checked: null }); }
+        if (!["real", "gone", "not_fit"].includes(result)) return fail(400, "result must be real, gone or not_fit");
+        const rec = { at: new Date().toISOString(), result: result as "real" | "gone" | "not_fit", note: String(note ?? "").trim().slice(0, 300) };
+        await patchLeadFields(campaign_id, lead_id, { fb_checked: rec });
+        return ok({ fb_checked: rec });
+      }
+
+      case "outreach.social.plan": {
+        // What a bulk "Write social messages" run would do, for the confirm box. Writes nothing and calls no AI.
+        const { leads, channels, regenerate, type } = params as { leads?: Array<{ campaign_id?: string; lead_id?: string }>; channels?: string[]; regenerate?: boolean; type?: string };
+        const groups = groupByCampaign(leads);
+        if (groups.size === 0) return fail(400, "Select at least one lead.");
+        const out = await planSocialGroups(groups, channels, regenerate === true, type);
+        const by: Record<string, number> = {};
+        for (const it of out.items) by[it.channel] = (by[it.channel] ?? 0) + 1;
+        const reasons: Record<string, number> = {};
+        for (const s of out.skipped) reasons[s.reason] = (reasons[s.reason] ?? 0) + 1;
+        const n = out.items.length;
+        return ok({ total: n, by_channel: by, leads: new Set(out.items.map((i) => i.lead.id)).size, skipped: out.skipped.length, skip_reasons: reasons, gemini_calls: { writing: n, reviewing: Math.ceil(n / REVIEW_BATCH), rough_total: n + Math.ceil(n / REVIEW_BATCH) }, rewrite_existing: regenerate === true });
+      }
+
+      case "outreach.social.batch.start": {
+        const { leads, channels, regenerate, type } = params as { leads?: Array<{ campaign_id?: string; lead_id?: string }>; channels?: string[]; regenerate?: boolean; type?: string };
+        if (!(await aiAvailable())) return fail(400, "No AI provider is set up. Add the Gemini key in Settings.");
+        const groups = groupByCampaign(leads);
+        if (groups.size === 0) return fail(400, "Select at least one lead.");
+        const cur = (await readJson<Record<string, unknown>>(store(OUTREACH_STATE), SOCIAL_BATCH_KEY)) ?? {};
+        const last = Date.parse(String(cur.progress_at ?? cur.started_at ?? ""));
+        if (cur.status === "running" && Number.isFinite(last) && Date.now() - last < JOB_STALE_MS) return failCode(409, "A social-message run is already going. Wait for it to finish.", "job_running");
+        for (const cid of groups.keys()) {
+          const c = await readCampaign<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(cid);
+          const l = Date.parse(c?.job?.progress_at ?? c?.job?.started_at ?? "");
+          if (c?.job?.status === "running" && Number.isFinite(l) && Date.now() - l < JOB_STALE_MS) return failCode(409, `A job is already running for the campaign "${c?.name ?? cid}". Wait for it to finish.`, "job_running");
+        }
+        const out = await planSocialGroups(groups, channels, regenerate === true, type);
+        if (out.items.length === 0) return fail(400, `No social messages to write.${out.skipped.length ? ` Skipped: ${out.skipped.slice(0, 3).map((x) => `${x.name} (${x.reason})`).join("; ")}.` : ""}`);
+        const now = new Date().toISOString();
+        const doing = new Map<string, string[]>();
+        for (const it of out.items) doing.set(String(it.lead.campaign_id), [...new Set([...(doing.get(String(it.lead.campaign_id)) ?? []), it.lead.id])]);
+        const rec = { kind: "social_batch", status: "running", total: out.items.length, done: 0, made: 0, started_at: now, progress_at: now, skipped: out.skipped.length, groups: [...doing].map(([campaign_id, lead_ids]) => ({ campaign_id, lead_ids })), params: { channels: channels ?? null, regenerate: regenerate === true, type: type ?? null } };
+        await writeJson(store(OUTREACH_STATE), SOCIAL_BATCH_KEY, rec);
+        return ok({ total: rec.total, skipped: out.skipped, started_at: now });
+      }
+
+      case "outreach.social.batch.status": {
+        const rec = await readJson<Record<string, unknown>>(store(OUTREACH_STATE), SOCIAL_BATCH_KEY);
+        if (!rec) return ok({ status: "none" });
+        const last = Date.parse(String(rec.progress_at ?? rec.started_at ?? ""));
+        const stale = rec.status === "running" && Number.isFinite(last) && Date.now() - last > JOB_STALE_MS;
+        return ok({ ...rec, groups: undefined, status: stale ? "stopped" : rec.status, message: stale ? "The run stopped without finishing. Select the leads and write again to continue; messages already made are kept." : rec.message });
+      }
+
+      case "outreach.social.batch.resume": {
+        const rec = await readJson<Record<string, unknown> & { groups?: Array<{ campaign_id: string; lead_ids: string[] }>; params?: Record<string, unknown> }>(store(OUTREACH_STATE), SOCIAL_BATCH_KEY);
+        if (!rec || !["paused", "stopped"].includes(String(rec.status))) return failCode(409, "There is no paused run to continue.", "not_paused");
+        const now = new Date().toISOString();
+        await writeJson(store(OUTREACH_STATE), SOCIAL_BATCH_KEY, { ...rec, status: "running", progress_at: now, message: undefined, resume_at: undefined, params: { ...(rec.params ?? {}), regenerate: false } });
+        return ok({ resumed: true });
       }
 
       case "outreach.social.delete": {
@@ -3744,13 +3937,21 @@ export const handler: Handler = async (event) => {
 
       case "outreach.prospects.list": {
         // Every lead across all campaigns in one slim list (no raw Apify blob), for the Prospects page.
-        const [leads, emails, campaigns, socials, replyRows] = await Promise.all([
+        const [leads, emails, campaigns, socials, replyRows, storedTouches] = await Promise.all([
           listJsonFast<Record<string, unknown>>(store(OUTREACH_LEADS)),
           listJsonFast<{ id?: string; lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
           listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
-          listJsonFast<{ lead_id?: string; channel?: string; status?: string; sent_at?: string | null }>(store(OUTREACH_SOCIAL)),
-          listJsonFast<{ original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES)),
+          listJsonFast<{ lead_id?: string; campaign_id?: string; channel?: string; status?: string; sent_at?: string | null; type?: string; review_status?: string | null; parts?: Array<{ text?: string }> }>(store(OUTREACH_SOCIAL)),
+          listJsonFast<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES)),
+          listJsonFast<Touch>(store(OUTREACH_TOUCHES)),
         ]);
+        const repliedByReply = new Set(replyRows.filter((r) => r.lead_id && !r.is_test).map((r) => String(r.lead_id)));
+        const emailsByLead = new Map<string, typeof emails>();
+        for (const e of emails) if (e.lead_id) (emailsByLead.get(e.lead_id) ?? emailsByLead.set(e.lead_id, []).get(e.lead_id)!).push(e);
+        const socialsByLead = new Map<string, typeof socials>();
+        for (const x of socials) if (x.lead_id) (socialsByLead.get(x.lead_id) ?? socialsByLead.set(x.lead_id, []).get(x.lead_id)!).push(x);
+        const touchesByLead = new Map<string, Touch[]>();
+        for (const t of storedTouches) (touchesByLead.get(t.lead_id) ?? touchesByLead.set(t.lead_id, []).get(t.lead_id)!).push(t);
         const ownOnlyReplies = ownReplyEmailIds(replyRows); // emails whose only reply is Lakshmi's own test
         const socialByLead = new Map<string, Array<{ channel: string; sent_at: string }>>();
         for (const x of socials) if (x.lead_id && x.channel && x.status === "sent" && x.sent_at) socialByLead.set(x.lead_id, [...(socialByLead.get(x.lead_id) ?? []), { channel: x.channel, sent_at: x.sent_at }]);
@@ -3779,6 +3980,10 @@ export const handler: Handler = async (event) => {
           const email_status = l.do_not_contact ? "do_not_contact" : em?.bounced ? "bounced" : em?.replied ? "replied" : em?.sent || contactedAt ? "emailed" : "not_emailed";
           const h = leadHours(l as Parameters<typeof leadHours>[0]);
           const social = (l.social as Record<string, string | null> | undefined) ?? {};
+          const lid = l.id as string;
+          const tl = deriveTouches({ lead_id: lid, campaign_id: (l.campaign_id as string | undefined) ?? null, emails: emailsByLead.get(lid) ?? [], socials: socialsByLead.get(lid) ?? [], stored: touchesByLead.get(lid) ?? [] });
+          const touches = summarizeTouches(tl, email_status === "replied" || repliedByReply.has(lid));
+          const social_drafts = (socialsByLead.get(lid) ?? []).filter((x) => x.status === "drafted").map((x) => ({ channel: x.channel, review_status: x.review_status ?? null, type: x.type ?? "first" }));
           const sc = (l.site_check as Record<string, unknown> | undefined) ?? {};
           return {
             id: l.id, campaign_id: l.campaign_id ?? null, campaign_name: campName.get(l.campaign_id as string) ?? null,
@@ -3793,6 +3998,7 @@ export const handler: Handler = async (event) => {
             review_status: em?.review ?? null,
             owner_evidence: l.owner_evidence ?? null,
             social_sent: socialByLead.get(l.id as string) ?? [],
+            touches, social_drafts, fb_checked: l.fb_checked ?? null,
             excluded: l.excluded === true, excluded_reason: (l.excluded_reason as string | undefined) ?? null, excluded_note: (l.excluded_note as string | undefined) ?? null,
             email_source: (l.email_source as string | undefined) ?? null, email_manual_at: (l.email_manual_at as string | undefined) ?? null,
             not_fit_kept: l.not_fit_kept === true,
