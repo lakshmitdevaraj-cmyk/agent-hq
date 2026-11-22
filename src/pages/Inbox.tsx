@@ -20,7 +20,33 @@ type Reply = {
   received_at: string;
   handled: boolean;
   opt_out?: boolean; // reply said no/stop/unsubscribe → lead marked do-not-contact
+  flag?: "unauthenticated" | "spam" | "blocked" | null; // how AgentMail filed it (usually still a real person)
+  is_test?: boolean; // sent from Lakshmi's own address
 };
+
+const FLAG_TEXT = { unauthenticated: "Unauthenticated", spam: "Spam", blocked: "Blocked" } as const;
+const FLAG_TIP = {
+  unauthenticated: "The sender's domain has no email authentication. Usually a real person; check before acting.",
+  spam: "AgentMail's filter marked this as spam. Often a real reply; check before acting.",
+  blocked: "AgentMail blocked this sender. Check before acting.",
+} as const;
+
+function ReplyBadges({ r }: { r: Reply }) {
+  return (
+    <>
+      {r.flag && (
+        <span title={FLAG_TIP[r.flag]} className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-200 shrink-0">
+          {FLAG_TEXT[r.flag]}
+        </span>
+      )}
+      {r.is_test && (
+        <span title="Sent from one of your own addresses. Not counted as a campaign reply." className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 border border-white/25 text-white/70 shrink-0">
+          Test
+        </span>
+      )}
+    </>
+  );
+}
 
 export default function Inbox() {
   const [replies, setReplies] = useState<Reply[]>([]);
@@ -28,8 +54,24 @@ export default function Inbox() {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   usePolling(refresh, 30000, []);
+
+  async function syncMissed() {
+    setBusy(true);
+    setErr(null);
+    setSyncMsg(null);
+    try {
+      const r = await call<{ added: number; flagged: number; scanned: number; more: number }>("outreach.replies.sync", { days: 14 });
+      setSyncMsg(`${r.added} new repl${r.added === 1 ? "y" : "ies"} added (${r.flagged} flagged). Checked ${r.scanned} messages from the last 14 days.${r.more ? ` ${r.more} more are waiting: press the button again.` : ""}`);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Check failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function refresh() {
     try {
@@ -81,7 +123,16 @@ export default function Inbox() {
         subtitle="Inbound replies to your outreach campaigns. AgentMail pushes them here in real time via webhook."
       />
 
-      <div className="flex justify-end -mt-2 mb-3">
+      <div className="flex justify-end items-center gap-2 flex-wrap -mt-2 mb-3">
+        {syncMsg && <span className="text-xs text-white/70 mr-1">{syncMsg}</span>}
+        <button
+          onClick={() => void syncMissed()}
+          disabled={busy}
+          title="Reads the last 14 days from AgentMail (read-only) and adds any reply HQ does not have yet"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-semibold transition disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={12} className="animate-spin" /> : <InboxIcon size={12} />} Check AgentMail for missed replies
+        </button>
         <button
           onClick={() => void refresh()}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-white/70 text-xs font-semibold transition"
@@ -132,6 +183,7 @@ export default function Inbox() {
                 >
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-semibold text-white truncate flex-1">{r.from ?? "Unknown"}</span>
+                    <ReplyBadges r={r} />
                     {r.opt_out && (
                       <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 shrink-0">
                         Do not contact
@@ -155,7 +207,11 @@ export default function Inbox() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-white truncate">{selected.from ?? "Unknown"}</div>
-                  <div className="text-xs text-white/50 font-mono">{new Date(selected.received_at).toLocaleString()}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-white/50 font-mono">{new Date(selected.received_at).toLocaleString()}</span>
+                    <ReplyBadges r={selected} />
+                  </div>
+                  {selected.flag && <div className="text-xs text-amber-200/90 mt-1">{FLAG_TIP[selected.flag]}</div>}
                   {selected.opt_out && (
                     <div className="text-xs text-red-300 mt-1">This reply asked us to stop — the lead is marked do-not-contact and won't be emailed again.</div>
                   )}

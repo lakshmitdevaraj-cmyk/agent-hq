@@ -31,6 +31,8 @@ import { nextPacificMidnight, resumeAtFor, fakeQuotaHit, istText, newStats, type
 import { evidenceFor, codeReview, unbackedFactClaims, factsForReviewer, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
 import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
+import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, type ListedMessage } from "./lib/replies";
+import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { channelsFor, socialSkipReason, precheckSocial, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart } from "./lib/social";
 
 function slugify(s: string): string {
@@ -1475,7 +1477,7 @@ function campaignSkipCtx(c: CampaignRecord | null | undefined): { location: stri
  * whichever handler wrote the campaign record last (send, webhooks, draft jobs), and those
  * writes overwrote each other (e.g. 7 sent emails still showing "ready" and 0 sent).
  */
-function deriveCampaign<T extends Record<string, unknown>>(c: T, emails: Array<{ status?: string; click_count?: number }>): T {
+function deriveCampaign<T extends Record<string, unknown>>(c: T, emails: Array<{ status?: string; click_count?: number; own_reply_only?: boolean }>): T {
   if (emails.length === 0) return c;
   const sent = emails.filter((e) => e.status && e.status !== "drafted").length;
   const queued = emails.length - sent;
@@ -1485,7 +1487,8 @@ function deriveCampaign<T extends Record<string, unknown>>(c: T, emails: Array<{
     emails_sent: sent,
     emails_delivered: emails.filter((e) => ["delivered", "clicked", "replied"].includes(e.status ?? "")).length,
     emails_clicked: emails.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
-    emails_replied: emails.filter((e) => e.status === "replied").length,
+    // A reply that only came from Lakshmi's own address (a test) does not count.
+    emails_replied: emails.filter((e) => e.status === "replied" && !e.own_reply_only).length,
     emails_bounced: emails.filter((e) => ["bounced", "complained", "failed"].includes(e.status ?? "")).length,
   };
   const st = c.status as string | undefined;
@@ -1505,8 +1508,13 @@ async function withLeadCount<T extends Record<string, unknown>>(c: T): Promise<T
   }
 }
 
-async function campaignEmails(id: string): Promise<Array<{ status?: string; click_count?: number }>> {
-  return listJsonFast<{ status?: string; click_count?: number }>(store(OUTREACH_EMAILS), `${id}/`);
+async function campaignEmails(id: string): Promise<Array<{ status?: string; click_count?: number; own_reply_only?: boolean }>> {
+  const [emails, replies] = await Promise.all([
+    listJsonFast<{ id?: string; status?: string; click_count?: number }>(store(OUTREACH_EMAILS), `${id}/`),
+    listJsonFast<{ original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES), `${id}/`),
+  ]);
+  const ownOnly = ownReplyEmailIds(replies);
+  return emails.map((e) => (e.id && ownOnly.has(e.id) ? { ...e, own_reply_only: true } : e));
 }
 
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
@@ -3660,12 +3668,14 @@ export const handler: Handler = async (event) => {
 
       case "outreach.prospects.list": {
         // Every lead across all campaigns in one slim list (no raw Apify blob), for the Prospects page.
-        const [leads, emails, campaigns, socials] = await Promise.all([
+        const [leads, emails, campaigns, socials, replyRows] = await Promise.all([
           listJsonFast<Record<string, unknown>>(store(OUTREACH_LEADS)),
-          listJsonFast<{ lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
+          listJsonFast<{ id?: string; lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
           listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
           listJsonFast<{ lead_id?: string; channel?: string; status?: string; sent_at?: string | null }>(store(OUTREACH_SOCIAL)),
+          listJsonFast<{ original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES)),
         ]);
+        const ownOnlyReplies = ownReplyEmailIds(replyRows); // emails whose only reply is Lakshmi's own test
         const socialByLead = new Map<string, Array<{ channel: string; sent_at: string }>>();
         for (const x of socials) if (x.lead_id && x.channel && x.status === "sent" && x.sent_at) socialByLead.set(x.lead_id, [...(socialByLead.get(x.lead_id) ?? []), { channel: x.channel, sent_at: x.sent_at }]);
         const campName = new Map(campaigns.map((c) => [c.id, c.name ?? c.query ?? c.id]));
@@ -3678,7 +3688,7 @@ export const handler: Handler = async (event) => {
           const st = e.status ?? "drafted";
           // The review status of the lead's newest unsent draft (older drafts without one count as "check").
           if (st === "drafted" && (e.created_at ?? "") >= cur.review_at) { cur.review = e.review_status === "ready" || e.review_status === "blocked" ? e.review_status : "check"; cur.review_at = e.created_at ?? ""; }
-          if (st === "replied") cur.replied = true;
+          if (st === "replied" && !(e.id && ownOnlyReplies.has(e.id))) cur.replied = true;
           if (["bounced", "complained", "failed"].includes(st)) cur.bounced = true;
           if (st !== "drafted") {
             cur.sent = true;
@@ -4621,14 +4631,11 @@ export const handler: Handler = async (event) => {
           emails_replied: number;
         }> = [];
         for (const c of campaigns) {
-          const emails = await listJson<{ status?: string; click_count?: number }>(
-            store(OUTREACH_EMAILS),
-            `${c.id}/`,
-          );
+          const emails = await campaignEmails(c.id);
           const sent = emails.filter((e) => e.status && e.status !== "drafted").length;
           const delivered = emails.filter((e) => ["delivered", "clicked", "replied"].includes(e.status ?? "")).length;
           const clicked = emails.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length;
-          const replied = emails.filter((e) => e.status === "replied").length;
+          const replied = emails.filter((e) => e.status === "replied" && !e.own_reply_only).length;
           const bounced = emails.filter((e) => ["bounced", "complained", "failed"].includes(e.status ?? "")).length;
           totals.leads += c.leads_imported ?? 0;
           totals.sent += sent;
@@ -4652,60 +4659,151 @@ export const handler: Handler = async (event) => {
         return ok({ totals, campaigns: perCampaign.slice(0, 50) });
       }
 
-      // ── WEBHOOK HEALTH TEST ───────────────────────────────────────
-      case "outreach.webhook.test": {
-        // The onboarding "Run test" button. Sends a closed-loop email
-        // (AgentMail inbox → same AgentMail inbox), then polls for
-        // inbound webhook events at the given webhook_id for ~15s. If
-        // any arrive, the pipe works.
-        const { webhook_id } = params as Record<string, string>;
-        if (!webhook_id) return fail(400, "webhook_id required");
+      // ── MISSED REPLIES (read-only toward AgentMail) ───────────────
+      case "outreach.replies.sync": {
+        // Reads the last N days of messages from every AgentMail inbox and stores the inbound ones HQ does not have yet
+        // (same record, flag and opt-out rules as the webhook). Never sends, deletes or changes anything in AgentMail.
+        const { days = 14, max_new = 40 } = params as { days?: number; max_new?: number };
         const agentmailKey = await readServiceKey("agentmail");
         if (!agentmailKey) return fail(400, "AgentMail key not configured");
-
-        const inbox = await getOrCreateCampaignInbox(agentmailKey, "ShiftForge HQ Health Check", (await readOutreachSettings()).sending_inbox_id || undefined);
-        const address = inbox.email ?? null;
-        if (!address) return fail(500, "AgentMail returned an inbox without an email field. Check your AgentMail account setup.");
-
-        // Snapshot existing event count so we can tell what's new.
-        const { blobs: before } = await store(WEBHOOK_EVENTS).list({ prefix: `${webhook_id}/` });
-        const beforeCount = before.length;
-
-        // Send a test email to ourselves. The webhook should fire.
-        const sendR = await agentmailFetch(agentmailKey, `/inboxes/${inbox.inbox_id}/messages/send`, {
-          method: "POST",
-          body: JSON.stringify({
-            to: [address],
-            subject: "ShiftForge HQ webhook health check",
-            text: "This is an automated test from your ShiftForge HQ dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
-            html: "<p>This is an automated test from your ShiftForge HQ dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
-          }),
-        });
-        if (!sendR.ok) {
-          const txt = await sendR.text();
-          return fail(500, `Test send failed (${sendR.status}): ${txt.slice(0, 200)}`);
+        const cutoff = Date.now() - Math.max(1, Math.min(60, Number(days) || 14)) * 86_400_000;
+        const inboxes: AgentMailInbox[] = [];
+        let tok: string | undefined;
+        for (let i = 0; i < 5; i++) {
+          const r = await agentmailFetch(agentmailKey, `/inboxes?limit=100${tok ? `&page_token=${encodeURIComponent(tok)}` : ""}`);
+          if (!r.ok) return fail(502, `AgentMail inbox list failed (${r.status})`);
+          const body = (await r.json()) as { inboxes?: AgentMailInbox[]; next_page_token?: string };
+          inboxes.push(...(body.inboxes ?? []));
+          tok = body.next_page_token;
+          if (!tok) break;
         }
-        const sendBody = (await sendR.json()) as { message_id?: string };
+        const own = await ownAddressList(inboxes.map((i) => i.email ?? i.inbox_id));
+        const have = new Set((await listJsonFast<{ agentmail_message_id?: string | null }>(store(OUTREACH_REPLIES))).map((r) => r.agentmail_message_id).filter((x): x is string => !!x));
+        const skipped = { already_have: 0, own_sent: 0, bounce_reports: 0, health_checks: 0, too_old: 0 };
+        const candidates: Array<{ inbox: AgentMailInbox; m: ListedMessage }> = [];
+        let scanned = 0;
+        for (const inbox of inboxes) {
+          let pt: string | undefined;
+          for (let page = 0; page < 10; page++) {
+            const r = await agentmailFetch(agentmailKey, `/inboxes/${encodeURIComponent(inbox.inbox_id)}/messages?limit=100${pt ? `&page_token=${encodeURIComponent(pt)}` : ""}`);
+            if (!r.ok) return fail(502, `AgentMail message list failed for ${inbox.inbox_id} (${r.status})`);
+            const body = (await r.json()) as { messages?: ListedMessage[]; next_page_token?: string };
+            for (const m of body.messages ?? []) {
+              scanned++;
+              if (!isListedInbound(m)) { skipped.own_sent++; continue; }
+              if (Date.parse(m.timestamp ?? "") < cutoff) { skipped.too_old++; continue; }
+              if (isHealthCheckMessage(m.subject)) { skipped.health_checks++; continue; }
+              if (isBounceReport(m.from, m.subject)) { skipped.bounce_reports++; continue; }
+              if (m.message_id && have.has(m.message_id)) { skipped.already_have++; continue; }
+              candidates.push({ inbox, m: { ...m, inbox_id: m.inbox_id ?? inbox.inbox_id } });
+            }
+            pt = body.next_page_token;
+            if (!pt) break;
+          }
+        }
+        candidates.sort((x, y) => (x.m.timestamp ?? "") < (y.m.timestamp ?? "") ? -1 : 1);
+        const added: Array<{ from: string | null; subject: string | null; flag: string | null; campaign_id: string | null; received_at: string; test: boolean }> = [];
+        let flagged = 0;
+        const limit = Math.max(1, Math.min(100, Number(max_new) || 40));
+        for (const { inbox, m } of candidates.slice(0, limit)) {
+          let full: ListedMessage = m;
+          try {
+            const r = await agentmailFetch(agentmailKey, `/inboxes/${encodeURIComponent(inbox.inbox_id)}/messages/${encodeURIComponent(m.message_id ?? "")}`);
+            if (r.ok) full = { ...m, ...((await r.json()) as ListedMessage), labels: m.labels };
+          } catch { /* the list item (with its preview) is enough */ }
+          const msg = listedToMessage(full);
+          const flag = flagFor("message.received", msg.labels);
+          const res = await ingestInboundReply({ eventType: flag ? `message.received.${flag}` : "message.received", message: msg, alert: false, source: "sync" });
+          if (res.stored && res.reply) {
+            if (res.reply.flag) flagged++;
+            added.push({ from: res.reply.from, subject: res.reply.subject, flag: res.reply.flag, campaign_id: res.reply.campaign_id, received_at: res.reply.received_at, test: res.reply.is_test });
+          }
+        }
+        // A reply the sync added also moves the email to replied, so the campaign counters stay right (own test replies excluded).
+        console.log(`[replies.sync] inboxes=${inboxes.length} scanned=${scanned} added=${added.length} flagged=${flagged}`);
+        return ok({ added: added.length, flagged, scanned, skipped, more: Math.max(0, candidates.length - limit), items: added, inboxes: inboxes.map((i) => i.email ?? i.inbox_id), own_checked: own.length });
+      }
 
-        // Poll for up to 15s for new events on this webhook.
-        const deadline = Date.now() + 15000;
+      // ── WEBHOOK SUBSCRIPTION (HQ cannot create the AgentMail webhook; it can list it and update its event list) ──
+      case "outreach.webhook.events": {
+        // Default is a dry run: GET only, shows the event list now and the one that WOULD be sent.
+        // apply:true sends it (refused on a local dev server unless ALLOW_WEBHOOK_PATCH=1: local testing is read-only).
+        const { apply = false, url_contains } = params as { apply?: boolean; url_contains?: string };
+        const agentmailKey = await readServiceKey("agentmail");
+        if (!agentmailKey) return fail(400, "AgentMail key not configured");
+        const w = await agentmailFetch(agentmailKey, "/webhooks");
+        if (!w.ok) return fail(502, `AgentMail webhook list failed (${w.status})`);
+        const wb = (await w.json()) as { webhooks?: Array<{ webhook_id?: string; id?: string; url?: string; enabled?: boolean; event_types?: string[] }> };
+        const hooks = (wb.webhooks ?? []).filter((h) => !url_contains || (h.url ?? "").includes(url_contains));
+        const out = [] as Array<ReturnType<typeof dryRunWebhookPatch> & { url: string; applied: boolean; message: string }>;
+        for (const h of hooks) {
+          const id = h.webhook_id ?? h.id ?? "";
+          const d = dryRunWebhookPatch({ webhook_id: id, event_types: h.event_types ?? [] });
+          let applied = false;
+          let message = d.needs_change ? `Missing: ${d.added.join(", ")}` : "Already subscribed to every event HQ handles.";
+          if (apply && d.needs_change && id) {
+            if (process.env.NETLIFY_DEV === "true" && process.env.ALLOW_WEBHOOK_PATCH !== "1") {
+              message = "Not sent: this is a local dev server (local testing never changes the real AgentMail webhook).";
+            } else {
+              let r = await agentmailFetch(agentmailKey, `/webhooks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ event_types: d.after }) });
+              if (!r.ok && (r.status === 400 || r.status === 422)) r = await agentmailFetch(agentmailKey, `/webhooks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ add_event_types: d.added }) });
+              applied = r.ok;
+              message = r.ok ? "Updated. Replies from domains without email authentication now reach HQ." : `AgentMail would not update it (${r.status}). Tick "${d.added.join(", ")}" in the AgentMail console, Webhooks.`;
+            }
+          }
+          out.push({ ...d, url: h.url ?? "", applied, message });
+        }
+        return ok({ dry_run: !apply, webhooks: out });
+      }
+
+      // ── WEBHOOK HEALTH TEST ───────────────────────────────────────
+      case "outreach.webhook.test": {
+        // The "Run test" button. First call sends a closed-loop email (AgentMail inbox -> same inbox) and watches the
+        // webhook's event log for ~8 s; the page repeats the call with check_only (no new email) until 45 s have passed.
+        // Events have been seen arriving about 20 s late, so one short wait is not enough.
+        const { webhook_id, check_only, before_count, wait_s } = params as { webhook_id?: string; check_only?: boolean; before_count?: number; wait_s?: number };
+        if (!webhook_id) return fail(400, "webhook_id required");
+        const waitMs = Math.max(2, Math.min(12, Number(wait_s) || 8)) * 1000;
+        let beforeCount = typeof before_count === "number" ? before_count : 0;
+        let testMessageId: string | null = null;
+        let address: string | null = null;
+        if (!check_only) {
+          const agentmailKey = await readServiceKey("agentmail");
+          if (!agentmailKey) return fail(400, "AgentMail key not configured");
+          const inbox = await getOrCreateCampaignInbox(agentmailKey, "ShiftForge HQ Health Check", (await readOutreachSettings()).sending_inbox_id || undefined);
+          address = inbox.email ?? null;
+          if (!address) return fail(500, "AgentMail returned an inbox without an email field. Check your AgentMail account setup.");
+          beforeCount = (await store(WEBHOOK_EVENTS).list({ prefix: `${webhook_id}/` })).blobs.length;
+          const sendR = await agentmailFetch(agentmailKey, `/inboxes/${inbox.inbox_id}/messages/send`, {
+            method: "POST",
+            body: JSON.stringify({
+              to: [address],
+              subject: "ShiftForge HQ webhook health check",
+              text: "This is an automated test from your ShiftForge HQ dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
+              html: "<p>This is an automated test from your ShiftForge HQ dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
+            }),
+          });
+          if (!sendR.ok) return fail(500, `Test send failed (${sendR.status}): ${(await sendR.text()).slice(0, 200)}`);
+          testMessageId = ((await sendR.json()) as { message_id?: string }).message_id ?? null;
+        }
+        const deadline = Date.now() + waitMs;
         let newEvents = 0;
         while (Date.now() < deadline) {
           await new Promise((r) => setTimeout(r, 1500));
-          const { blobs: after } = await store(WEBHOOK_EVENTS).list({ prefix: `${webhook_id}/` });
-          newEvents = Math.max(0, after.length - beforeCount);
+          newEvents = Math.max(0, (await store(WEBHOOK_EVENTS).list({ prefix: `${webhook_id}/` })).blobs.length - beforeCount);
           if (newEvents > 0) break;
         }
-
         return ok({
           ok: newEvents > 0,
-          test_message_id: sendBody.message_id ?? null,
+          waiting: newEvents === 0,
+          before_count: beforeCount,
+          test_message_id: testMessageId,
           test_address: address,
           new_events: newEvents,
           hint:
             newEvents > 0
-              ? `Received ${newEvents} webhook event(s) within 15s — your integration is live.`
-              : "No events in 15s. Double-check: (a) the webhook URL is pasted into AgentMail → Settings → Webhooks, (b) all event types are enabled, (c) your AgentMail key has webhook permissions.",
+              ? `Received ${newEvents} webhook event(s) — your integration is live.`
+              : "No events yet. Events can take up to a minute to arrive. If none come: (a) the webhook URL is pasted into AgentMail → Webhooks, (b) every event type is ticked (use Fix webhook events), (c) your AgentMail key has webhook permissions.",
         });
       }
 

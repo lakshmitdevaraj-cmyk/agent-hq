@@ -2,18 +2,14 @@ import type { Handler } from "@netlify/functions";
 import { connectLambda } from "@netlify/blobs";
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson } from "./lib/blobs";
-import { isOptOutReply, isAutoReply, newPartOfReply, extractEmailAddress, emailKey } from "./lib/outreach";
+import { isInboundEvent } from "./lib/replies";
+import { ingestInboundReply, findOutreachEmailByAgentMailIds } from "./lib/inbound";
 import { noteBounced } from "./lib/contacts";
 
 const WEBHOOKS = "agent-hq-webhooks";
 const WEBHOOK_EVENTS = "agent-hq-webhook-events";
 const ACTIVITY = "agent-hq-activity";
-const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 const OUTREACH_EMAILS = "agent-hq-outreach-emails";
-const OUTREACH_REPLIES = "agent-hq-outreach-replies";
-const OUTREACH_LEADS = "agent-hq-outreach-leads";
-const OUTREACH_SETTINGS = "agent-hq-outreach-settings";
-const SERVICE_CONFIG = "agent-hq-service-config";
 
 type WebhookRecord = {
   name: string;
@@ -90,108 +86,6 @@ function shouldAdvanceStatus(current: string | undefined, next: string): boolean
 }
 
 /**
- * Find the outreach email record that corresponds to an AgentMail message
- * or thread identifier. We match on agentmail_message_id first, then fall
- * back to agentmail_thread_id (for replies that come in on the same thread).
- */
-async function findOutreachEmailByAgentMailIds(
-  messageId: string | undefined,
-  threadId: string | undefined,
-): Promise<{ storeKey: string; record: Record<string, unknown> } | null> {
-  if (!messageId && !threadId) return null;
-  const es = store(OUTREACH_EMAILS);
-  const { blobs } = await es.list();
-  for (const b of blobs) {
-    const row = await readJson<Record<string, unknown>>(es, b.key);
-    if (!row) continue;
-    if (messageId && row.agentmail_message_id === messageId) return { storeKey: b.key, record: row };
-    if (threadId && row.agentmail_thread_id === threadId) return { storeKey: b.key, record: row };
-  }
-  return null;
-}
-
-function stripTags(html: string | null | undefined): string {
-  return (html ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<[^>]+>/g, " ");
-}
-
-/**
- * Flags every lead that matches the replier (by lead id, or by email address
- * as a fallback / across campaigns) as do_not_contact and deletes its queued
- * drafts so nothing more goes out. The flag is also what the import dedupe
- * and the send step check. Returns how many leads were flagged.
- */
-async function markDoNotContact(leadId: string | null, fromEmail: string | null, at: string, replyId: string): Promise<number> {
-  const leadsStore = store(OUTREACH_LEADS);
-  const emailsStore = store(OUTREACH_EMAILS);
-  const { blobs } = await leadsStore.list();
-  let flagged = 0;
-  for (const b of blobs) {
-    const lead = await readJson<Record<string, unknown>>(leadsStore, b.key);
-    if (!lead) continue;
-    const byId = !!leadId && lead.id === leadId;
-    const byEmail = !!fromEmail && emailKey(lead.email as string | null) === fromEmail;
-    if (!byId && !byEmail) continue;
-    await writeJson(leadsStore, b.key, {
-      ...lead,
-      do_not_contact: true,
-      status: "do_not_contact",
-      do_not_contact_at: at,
-      do_not_contact_reason: "opt-out reply",
-      do_not_contact_reply_id: replyId,
-      updated_at: new Date().toISOString(),
-    });
-    flagged++;
-    // Cancel anything still queued for this lead.
-    const cid = (lead.campaign_id as string | undefined) ?? b.key.split("/")[0];
-    const { blobs: eblobs } = await emailsStore.list({ prefix: `${cid}/` });
-    for (const eb of eblobs) {
-      const em = await readJson<{ lead_id?: string; status?: string }>(emailsStore, eb.key);
-      if (em && em.lead_id === lead.id && em.status === "drafted") await emailsStore.delete(eb.key);
-    }
-  }
-  return flagged;
-}
-
-
-/**
- * One short "new reply" note to the address saved in Settings (blank = off), sent from the
- * sending inbox. Never for opt-outs, auto-replies or the alert address itself, and never
- * to anyone else. Any failure is swallowed: an alert must not break reply handling.
- */
-async function sendReplyAlert(opts: {
-  message: NonNullable<AgentMailEvent["message"]>;
-  business: string;
-  campaignName: string;
-  baseUrl: string;
-  receivingInbox: string | undefined;
-}): Promise<void> {
-  try {
-    const settings = await readJson<{ reply_alert_email?: string; sending_inbox_id?: string }>(store(OUTREACH_SETTINGS), "settings");
-    const alertTo = (settings?.reply_alert_email ?? "").trim().toLowerCase();
-    if (!alertTo) return;
-    const m = opts.message;
-    const fromAddr = extractEmailAddress(m.from);
-    const inboxId = (settings?.sending_inbox_id || opts.receivingInbox || m.inbox_id || "").trim();
-    if (!inboxId) return;
-    // Loop guards: ignore mail from the alert address or from our own inbox.
-    if (fromAddr === alertTo || fromAddr === inboxId.toLowerCase() || alertTo === inboxId.toLowerCase()) return;
-    const key = (await readJson<{ key?: string }>(store(SERVICE_CONFIG), "agentmail"))?.key;
-    if (!key) return;
-    const body = newPartOfReply(m.text ?? stripTags(m.html)).replace(/\s+\n/g, "\n").trim();
-    const snippet = body.length > 300 ? `${body.slice(0, 300).trimEnd()}...` : body;
-    const text = [`${opts.business} replied.`, "", snippet || "(no text)", "", opts.baseUrl ? `Open your Inbox: ${opts.baseUrl}/inbox` : ""].join("\n").trim();
-    await fetch(`https://api.agentmail.to/v0/inboxes/${encodeURIComponent(inboxId)}/messages/send`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ to: [alertTo], subject: `New reply: ${opts.business} (${opts.campaignName})`.replace(/[\r\n]+/g, " ").slice(0, 200), text }),
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch (err) {
-    console.warn("[webhook-receive] reply alert failed:", err instanceof Error ? err.message : err);
-  }
-}
-
-/**
  * AgentMail event handler. Updates per-email status + per-campaign counters
  * and — for inbound replies — stores the full reply content so the /inbox
  * page can render it. Keep this resilient to unknown event_types: if we
@@ -219,8 +113,10 @@ async function processAgentMailEvent(event: AgentMailEvent, baseUrl = ""): Promi
     const currentStatus = match.record.status as string | undefined;
     if (!shouldAdvanceStatus(currentStatus, newStatus)) return; // ignore out-of-order events
 
+    // Re-read right before writing so only the status fields change (never write a stale record back).
+    const latestEmail = (await readJson<Record<string, unknown>>(store(OUTREACH_EMAILS), match.storeKey)) ?? match.record;
     const updatedEmail = {
-      ...match.record,
+      ...latestEmail,
       status: newStatus,
       [`${newStatus}_at`]: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -238,77 +134,12 @@ async function processAgentMailEvent(event: AgentMailEvent, baseUrl = ""): Promi
     return;
   }
 
-  // Inbound reply — store under OUTREACH_REPLIES and bump replied counter.
-  if (eventType === "message.received" && message) {
-    const match = await findOutreachEmailByAgentMailIds(undefined, message.thread_id);
-    const campaignId = (match?.record.campaign_id as string) ?? null;
-    const replyId = nanoid(12);
-    const receivedAt = message.timestamp ?? new Date().toISOString();
-    // Does the new part of this reply clearly say no / stop / unsubscribe?
-    const optOut = isOptOutReply(message.subject, message.text ?? stripTags(message.html));
-    const reply = {
-      id: replyId,
-      campaign_id: campaignId,
-      lead_id: match?.record.lead_id ?? null,
-      original_email_id: match?.record.id ?? null,
-      agentmail_message_id: message.message_id ?? null,
-      agentmail_thread_id: message.thread_id ?? null,
-      from: message.from ?? null,
-      to: message.to ?? null,
-      subject: message.subject ?? null,
-      text: message.text ?? null,
-      html: message.html ?? null,
-      received_at: receivedAt,
-      handled: false, // set true once user converts to task or dismisses
-      opt_out: optOut, // true → the lead was marked do_not_contact
-    };
-    // Keyed by (campaign | unassigned)/timestamp-id for cheap per-campaign listing.
-    const prefix = campaignId ?? "unassigned";
-    // AgentMail can deliver the same event twice: one reply, one record, one alert.
-    if (message.message_id && (await listJson<{ agentmail_message_id?: string | null }>(store(OUTREACH_REPLIES), `${prefix}/`)).some((r) => r.agentmail_message_id === message.message_id)) return;
-    await writeJson(store(OUTREACH_REPLIES), `${prefix}/${receivedAt}-${replyId}`, reply);
-
-    if (match) {
-      await writeJson(store(OUTREACH_EMAILS), match.storeKey, {
-        ...match.record,
-        status: "replied",
-        replied_at: receivedAt,
-        updated_at: new Date().toISOString(),
-      });
-    }
-
-    if (optOut) {
-      const n = await markDoNotContact(
-        (match?.record.lead_id as string | undefined) ?? null,
-        extractEmailAddress(message.from),
-        receivedAt,
-        replyId,
-      );
-      console.log(`[webhook-receive] opt-out reply ${replyId}: marked ${n} lead(s) do_not_contact`);
-    }
-
-    // Gmail alert: only for replies to one of our campaign emails, and not for opt-outs or auto-replies.
-    if (match && !optOut && !isAutoReply(message.subject, message.text ?? stripTags(message.html))) {
-      const camp = campaignId ? await readJson<{ name?: string }>(store(OUTREACH_CAMPAIGNS), campaignId) : null;
-      await sendReplyAlert({
-        message,
-        business: (match.record.to_name as string | undefined) || extractEmailAddress(message.from) || "A lead",
-        campaignName: camp?.name ?? "campaign",
-        baseUrl,
-        receivingInbox: (match.record.agentmail_inbox_id as string | undefined) ?? undefined,
-      });
-    }
-
-    // Surface in activity so the Office page ticker picks it up.
-    const activityId = nanoid(12);
-    await writeJson(store(ACTIVITY), `${receivedAt}-${activityId}`, {
-      id: activityId,
-      agent_id: null,
-      category: "email",
-      summary: `Reply from ${message.from ?? "unknown"}: ${(message.subject ?? "(no subject)").slice(0, 80)}`,
-      details: { reply_id: replyId, campaign_id: campaignId },
-      created_at: receivedAt,
-    });
+  // Inbound reply: message.received and every message.received.* variant (spam, blocked, unauthenticated, ...).
+  // AgentMail files mail from domains without DKIM/SPF/DMARC under .unauthenticated: those are usually real people.
+  if (isInboundEvent(eventType) && message) {
+    const res = await ingestInboundReply({ eventType, message, baseUrl, alert: true, source: "webhook" });
+    if (res.duplicate) console.log(`[webhook-receive] duplicate ${eventType} ignored`);
+    else if (res.reply) console.log(`[webhook-receive] stored ${eventType} reply ${res.reply.id} flag=${res.reply.flag ?? "none"} test=${res.reply.is_test}`);
   }
 }
 

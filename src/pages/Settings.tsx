@@ -162,6 +162,14 @@ function SendingSettings() {
     }
   }
 
+  // Replies from domains without DKIM/SPF/DMARC arrive as message.received.unauthenticated: the webhook must be subscribed to it.
+  if (info && coverage?.ok) {
+    const live = info.webhooks?.filter((h) => h.enabled && h.events.includes("message.received")) ?? [];
+    if (live.length > 0 && live.every((h) => !h.events.includes("message.received.unauthenticated"))) {
+      coverage = { ok: false, text: "The AgentMail webhook is not subscribed to \"message.received.unauthenticated\", so replies from small business domains without email authentication will not reach the Inbox. Go to Webhooks and press Fix webhook events." };
+    }
+  }
+
   const dirty = inbox !== saved.inbox || alertTo.trim().toLowerCase() !== saved.alertTo;
   return (
     <GlassCard className="mt-6">

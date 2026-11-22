@@ -12,8 +12,12 @@ type WebhookRecord = {
   created_at: string;
 };
 
+type WebhookFix = { webhook_id: string; url: string; before: string[]; after: string[]; added: string[]; needs_change: boolean; applied: boolean; message: string };
+
 type TestResult = {
   ok: boolean;
+  waiting?: boolean;
+  before_count?: number;
   test_message_id: string | null;
   test_address: string;
   new_events: number;
@@ -32,7 +36,7 @@ type TestResult = {
 export default function WebhookSetupCard() {
   const [webhooks, setWebhooks] = useState<WebhookRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<"create" | "test" | null>(null);
+  const [busy, setBusy] = useState<"create" | "test" | "events" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [copied, setCopied] = useState(false);
@@ -80,11 +84,32 @@ export default function WebhookSetupCard() {
     setErr(null);
     setTestResult(null);
     try {
-      const result = await call<TestResult>("outreach.webhook.test", { webhook_id: agentmailWebhook.id });
+      // Events can arrive about 20 s late: send once, then keep checking (no new email) for up to 45 s.
+      const started = Date.now();
+      let result = await call<TestResult>("outreach.webhook.test", { webhook_id: agentmailWebhook.id });
       setTestResult(result);
+      while (!result.ok && Date.now() - started < 45_000) {
+        result = await call<TestResult>("outreach.webhook.test", { webhook_id: agentmailWebhook.id, check_only: true, before_count: result.before_count ?? 0 });
+        result = { ...result, test_address: result.test_address ?? testResult?.test_address ?? "" };
+        setTestResult(result);
+      }
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Test failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const [fix, setFix] = useState<WebhookFix[] | null>(null);
+  async function checkEvents(apply: boolean) {
+    setBusy("events");
+    setErr(null);
+    try {
+      const r = await call<{ dry_run: boolean; webhooks: WebhookFix[] }>("outreach.webhook.events", { apply, url_contains: window.location.host });
+      setFix(r.webhooks);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not read the AgentMail webhook");
     } finally {
       setBusy(null);
     }
@@ -96,6 +121,34 @@ export default function WebhookSetupCard() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  const fixBlock = (
+    <div className="mt-3 pt-3 border-t border-white/[0.06] text-xs text-white/70 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <button onClick={() => void checkEvents(false)} disabled={busy === "events"} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs font-semibold disabled:opacity-50">
+          {busy === "events" ? "Reading…" : "Check webhook events"}
+        </button>
+        {fix?.some((w) => w.needs_change) && (
+          <button onClick={() => void checkEvents(true)} disabled={busy === "events"} className="px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold disabled:opacity-50">
+            Fix webhook events
+          </button>
+        )}
+        <span className="text-white/45">Replies from domains without email authentication need the "message.received.unauthenticated" event.</span>
+      </div>
+      {fix && fix.length === 0 && <p className="text-amber-200/90">No AgentMail webhook points at this site yet. Paste the URL above into the AgentMail console first.</p>}
+      {fix?.map((w) => (
+        <div key={w.webhook_id} className="rounded-md bg-black/25 border border-white/10 p-2 space-y-1 break-words">
+          <div className="font-mono text-[11px] text-white/60 break-all">{w.url}</div>
+          <div>{w.message}</div>
+          {w.needs_change && (
+            <div className="font-mono text-[11px] text-white/55 break-all">
+              Now: {w.before.join(", ") || "(none)"}<br />Would send: {w.after.join(", ")}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -131,6 +184,7 @@ export default function WebhookSetupCard() {
             Re-test
           </button>
         </div>
+        {fixBlock}
       </GlassCard>
     );
   }
@@ -237,7 +291,7 @@ export default function WebhookSetupCard() {
               >
                 {busy === "test" ? (
                   <>
-                    <Loader2 size={12} className="animate-spin" /> Sending test + polling for 15s…
+                    <Loader2 size={12} className="animate-spin" /> Sending test + waiting up to 45s…
                   </>
                 ) : (
                   <>
@@ -260,6 +314,7 @@ export default function WebhookSetupCard() {
             </div>
             {testResult && <p className="text-[11px] text-white/55 ml-7 mt-2">{testResult.hint}</p>}
             {err && <p className="text-[11px] text-red-300 ml-7 mt-2">{err}</p>}
+            <div className="ml-7">{fixBlock}</div>
           </div>
         </div>
       </div>
