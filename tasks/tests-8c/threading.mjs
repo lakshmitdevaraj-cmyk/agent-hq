@@ -1,5 +1,5 @@
 // Threading test against mock-agentmail ONLY (the dev server must run with AGENTMAIL_TEST_BASE_URL=http://localhost:8898).
-// Seeds a test lead with three "three-step" drafts, sends step 1, then 2 and 3, and checks the mock log:
+// Seeds a test lead with three "four-step" drafts, sends step 1, then 2 and 3, and checks the mock log:
 // step 1 -> POST .../messages/send, steps 2 and 3 -> POST .../messages/{email 1 message_id}/reply with {text, html} only (no subject, no to).
 // Also: a lead that replied is never sent step 2 even when ticked. Usage: node tasks/tests-8c/threading.mjs
 import fs from "node:fs";
@@ -15,7 +15,7 @@ const stamp = Date.now().toString(36), t0 = "2026-11-10T10:00:00.000Z";
 const camp = `thr-${stamp}`;
 await imp("agent-hq-outreach-campaigns", [[camp, { id: camp, name: `Threading test ${stamp}`, status: "ready", created_at: t0, query: "plumbing", location: "Katy, TX", any_trade: true, default_sender_name: "Lakshmi Devaraj" }]]);
 const mkLead = (id) => ({ id, campaign_id: camp, name: id, email: `shiftforge.ai+${id}@gmail.com`, is_test: true, created_at: t0, category: "Plumber", address: "1 Main St, Katy, TX 77494", reviews_count: 50, rating: 4.7 });
-const row = (lead, pos, n) => ({ id: `e-${lead}-${pos}`, campaign_id: camp, lead_id: lead, to_email: `shiftforge.ai+${lead}@gmail.com`, subject: "plumbing calls", body_text: `Hi there,\n\nStep ${pos} text.`, status: "drafted", framework: "three-step", sequence_position: pos, sequence_total: 3, review_status: "ready", created_at: `2026-11-10T10:00:0${n}.000Z`, updated_at: t0 });
+const row = (lead, pos, n) => ({ id: `e-${lead}-${pos}`, campaign_id: camp, lead_id: lead, to_email: `shiftforge.ai+${lead}@gmail.com`, subject: "plumbing calls", body_text: `Hi there,\n\nStep ${pos} text.`, status: "drafted", framework: "four-step", sequence_position: pos, sequence_total: 4, review_status: "ready", created_at: `2026-11-10T10:00:0${n}.000Z`, updated_at: t0 });
 const A = `a${stamp}`, B = `b${stamp}`;
 await imp("agent-hq-outreach-leads", [[`${camp}/${t0}-a`, mkLead(A)], [`${camp}/${t0}-b`, mkLead(B)]]);
 await imp("agent-hq-outreach-emails", [A, B].flatMap((l, i) => [1, 2, 3].map((p) => [`${camp}/${row(l, p, p).created_at}-e-${l}-${p}`, row(l, p, p)])));

@@ -3,10 +3,12 @@ import { nextFollowUp, countDue, bucketOf, addDays, gapsOrDefault, type FollowIn
 let n = 0, failed = 0;
 const t = (name: string, fn: () => void) => { try { fn(); n++; console.log("ok  " + name); } catch (e) { failed++; console.log("FAIL " + name + " -> " + String((e as Error).message).split("\n")[0].slice(0, 220)); } };
 const base = { lead_id: "l1", campaign_id: "c1", name: "Acme", gaps: [3, 8, 15], today: "2026-11-20" };
-const em = (s1: string | null, s2: string | null = null, s3: string | null = null): FollowInput["steps"] => [
-  { key: "1", label: "Email 1", text: "a", sent_at: s1, id: "e1", status: "ready" }, { key: "2", label: "Email 2", text: "b", sent_at: s2, id: "e2", status: "ready" }, { key: "3", label: "Email 3", text: "c", sent_at: s3, id: "e3", status: "check" },
+const em = (s1: string | null, s2: string | null = null, s3: string | null = null, s4: string | null = null): FollowInput["steps"] => [
+  { key: "1", label: "Email 1", text: "a", sent_at: s1, id: "e1", status: "ready" }, { key: "2", label: "Email 2", text: "b", sent_at: s2, id: "e2", status: "ready" }, { key: "3", label: "Email 3", text: "c", sent_at: s3, id: "e3", status: "check" }, { key: "4", label: "Email 4", text: "d", sent_at: s4, id: "e4", status: "ready" },
 ];
-t("dates: 3 days after email 1 is email 2's due date; 8 days is email 3's", () => {
+t("dates: day 3 is email 2, day 8 is email 3, day 15 is email 4 (all counted from email 1)", () => {
+  const r4 = nextFollowUp({ ...base, channel: "email", steps: em("2026-11-05T10:00:00Z", "2026-11-08T10:00:00Z", "2026-11-13T10:00:00Z") })!;
+  assert.equal(r4.step_key, "4"); assert.equal(r4.due_date, "2026-11-20");
   assert.equal(nextFollowUp({ ...base, channel: "email", steps: em("2026-11-17T10:00:00Z") })!.due_date, "2026-11-20");
   assert.equal(nextFollowUp({ ...base, channel: "email", steps: em("2026-11-12T10:00:00Z", "2026-11-15T10:00:00Z") })!.due_date, "2026-11-20");
 });
@@ -17,7 +19,7 @@ t("buckets: overdue, today, this week, later", () => {
 t("days late is counted from the due date", () => { assert.equal(nextFollowUp({ ...base, channel: "email", steps: em("2026-11-12T10:00:00Z") })!.days_late, 5); });
 t("nothing is due when email 1 is not sent, or when every step is sent", () => {
   assert.equal(nextFollowUp({ ...base, channel: "email", steps: em(null) }), null);
-  assert.equal(nextFollowUp({ ...base, channel: "email", steps: em("2026-11-01T00:00:00Z", "2026-11-04T00:00:00Z", "2026-11-09T00:00:00Z") }), null);
+  assert.equal(nextFollowUp({ ...base, channel: "email", steps: em("2026-11-01T00:00:00Z", "2026-11-04T00:00:00Z", "2026-11-09T00:00:00Z", "2026-11-16T00:00:00Z") }), null);
 });
 t("a skipped step is passed over and the next one is due on its own gap", () => {
   const r = nextFollowUp({ ...base, channel: "email", steps: em("2026-11-12T10:00:00Z"), state: { lead_id: "l1", channel: "email", steps: { "2": { skipped: true } } } })!;
@@ -53,9 +55,11 @@ t("LinkedIn: accepted means the first message is due the next day; withdrawn mea
   assert.equal(r.step_key, "dm"); assert.equal(r.due_date, "2026-11-20"); assert.equal(r.bucket, "today");
   assert.equal(nextFollowUp({ ...base, channel: "linkedin", steps: li("2026-10-01T00:00:00Z", null), state: { lead_id: "l1", channel: "linkedin", withdrawn_at: "2026-11-01T00:00:00Z" } }), null);
 });
-t("LinkedIn: after the first message the follow-up counts from it", () => {
-  const r = nextFollowUp({ ...base, channel: "linkedin", steps: li("2026-11-10T00:00:00Z", "2026-11-17T00:00:00Z"), state: { lead_id: "l1", channel: "linkedin", accepted_at: "2026-11-16T00:00:00Z" } })!;
+t("LinkedIn: follow-up is the connection note + 8 days, the last message the note + 15 days", () => {
+  const r = nextFollowUp({ ...base, channel: "linkedin", steps: li("2026-11-12T00:00:00Z", "2026-11-17T00:00:00Z"), state: { lead_id: "l1", channel: "linkedin", accepted_at: "2026-11-16T00:00:00Z" } })!;
   assert.equal(r.step_key, "follow_up"); assert.equal(r.due_date, "2026-11-20");
+  const r2 = nextFollowUp({ ...base, channel: "linkedin", steps: li("2026-11-05T00:00:00Z", "2026-11-08T00:00:00Z", "2026-11-13T00:00:00Z"), state: { lead_id: "l1", channel: "linkedin", accepted_at: "2026-11-07T00:00:00Z" } })!;
+  assert.equal(r2.step_key, "last"); assert.equal(r2.due_date, "2026-11-20");
 });
 t("counts: due today and overdue only, split by email and social", () => {
   const a = nextFollowUp({ ...base, channel: "email", steps: em("2026-11-12T10:00:00Z") })!;

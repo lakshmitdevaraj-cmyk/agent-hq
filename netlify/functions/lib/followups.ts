@@ -21,7 +21,7 @@ export type FollowInput = {
   /** In order: the first message, then each follow-up. For LinkedIn the connection note comes first, then the first message. */
   steps: FollowStepIn[];
   state?: FollowState | null;
-  /** Days after the FIRST message for follow-up 1, follow-up 2, ... (Settings, default 3, 8, 15). */
+  /** Days after the FIRST message for follow-up 1, 2, 3 (Settings, default 3, 8, 15). LinkedIn counts from the connection note and uses the 2nd and 3rd number. */
   gaps: number[];
   stopped?: StoppedReason | null;
   /** Today as YYYY-MM-DD in the user's own time zone. */
@@ -92,9 +92,15 @@ export function nextFollowUp(i: FollowInput): FollowRow | null {
     anchor = dayOf(i.state!.accepted_at!);
     offset = 1;
   } else {
-    anchor = dayOf(first.sent_at!);
-    const nth = nextIdx - firstIdx; // 1 = the first follow-up
-    offset = i.gaps[Math.max(0, nth - 1)] ?? i.gaps[i.gaps.length - 1] ?? 3;
+    if (linkedin && note?.sent_at) {
+      // LinkedIn counts from the connection note (day 0): the first message follows acceptance, the follow-up uses the second gap and the last message the third.
+      anchor = dayOf(note.sent_at);
+      offset = i.gaps[Math.max(0, nextIdx - 1)] ?? i.gaps[i.gaps.length - 1] ?? 8;
+    } else {
+      anchor = dayOf(first.sent_at!);
+      const nth = nextIdx - firstIdx; // 1 = the first follow-up
+      offset = i.gaps[Math.max(0, nth - 1)] ?? i.gaps[i.gaps.length - 1] ?? 3;
+    }
   }
   const due = moved && /^\d{4}-\d{2}-\d{2}$/.test(moved) ? moved : addDays(anchor, offset);
   const prev = [...steps.slice(0, nextIdx)].reverse().find((x) => x.sent_at);

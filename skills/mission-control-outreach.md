@@ -218,15 +218,15 @@ for dramatically higher reply rates:
 
 | `framework` | Step 1 | Step 2 | Step 3 |
 |---|---|---|---|
-| `three-step` (default, shown as "Alcance 3-step") | Something true about them, then a yes/no offer of a free recording | A new angle and a second free thing | The last email: who else is the right person |
+| `four-step` (default, shown as "Alcance 4-step") | Something true about them, then a yes/no offer of a free recording | A new angle and a second free thing | The last email: who else is the right person |
 | `one-off` | Single email. No follow-ups. | — | — |
 | `pas` | Name the pain (no pitch) | Agitate the cost | Propose solution + CTA |
 | `aida` | Attention hook | Build interest / proof | Desire + low-friction CTA |
 | `sdr` | Direct 2-line pitch | Value-add (free resource) | Breakup email ("last time") |
 
-`three-step` is written differently: ONE call per lead writes all three emails together
+`four-step` is written differently: ONE call per lead writes all four emails together
 (`outreach.draft.start` then the background `draft` task); each email gets its own review
-status (ready / check / blocked) from the free code checks and the AI reviewer. Emails 2 and 3
+status (ready / check / blocked) from the free code checks and the AI reviewer. Emails 2 to 4
 go out as a real reply in email 1's thread (never a made-up "Re:" subject), and only after
 the earlier one was sent; a lead that replied never gets a later step. The free assets, proof
 line, booking link, time zone and follow-up gaps come from Settings: if an asset is empty the

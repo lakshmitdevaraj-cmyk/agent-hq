@@ -47,9 +47,13 @@ t("email 2 must be shorter than email 1 and carry the second asset; email 3 the 
   const e2 = "I wrote about missed calls last week. Another way to hear it: want me to send a number you can ring to try the assistant yourself?";
   assert.equal(statusOf(checkStep("email2", e2, { freeAsset: "a number", earlierChars: [E1.length] })).status, "ready");
   assert.equal(statusOf(checkStep("email2", E1, { freeAsset: "a number", earlierChars: [E1.length] })).status, "check");
-  const e3 = "Is there someone else who looks after the phones? Fine to say no.";
-  assert.equal(statusOf(checkStep("email3", e3, { earlierChars: [E1.length, e2.length] })).status, "ready");
-  assert.equal(statusOf(checkStep("email3", "Fine to say no.", { earlierChars: [E1.length, e2.length] })).status, "check");
+  const e3 = "I built an assistant on my own website that answers owners' questions about missed calls. Want me to send a recording of it?";
+  const P = "I built the assistant on my own home-services website that answers owners' questions about missed calls and books a discussion call";
+  assert.equal(statusOf(checkStep("email3", e3, { freeAsset: "a recording", proofLine: P, earlierChars: [E1.length, e2.length] })).status, "ready");
+  assert.equal(statusOf(checkStep("email3", "Fine to say no.", { freeAsset: "a recording", proofLine: P, earlierChars: [E1.length, e2.length] })).status, "check");
+  const e4 = "This is my last email. Who is the right person for new customer calls? A no is fine.";
+  assert.equal(statusOf(checkStep("email4", e4, { earlierChars: [E1.length, e2.length, e3.length] })).status, "ready");
+  assert.notEqual(statusOf(checkStep("email4", "Is there someone else who looks after the phones? Fine to say no.", { earlierChars: [E1.length, e2.length, e3.length] })).status, "ready");
 });
 t("the demo and statistic figures are blocked unless Settings names a source", () => {
   for (const x of ["Apex Cooling saw +38% more bookings.", "About 27% of calls go unanswered.", "That is $81.9K a year."]) {
@@ -95,9 +99,10 @@ t("subject repair: lowercase, first two words, no Re:/question mark", () => {
   assert.equal(tidySubject("Re: Missed calls?"), "missed calls");
   assert.deepEqual(checkSubject(tidySubject("Katy Plumbing Calls")), []);
 });
-t("asks to send a free thing in several natural wordings; talking about their website is a soft Check", () => {
-  for (const x of ["Would you like a 2-minute recording of it?", "Want me to send a number?", "Happy to send a sample.", "Should I send the recording?"]) assert.equal(statusOf(checkStep("email1", "You have 4.8 stars from 210 reviews. I help plumbers keep calls. " + x, { freeAsset: "a" })).reasons.join().includes("yes/no offer"), false, x);
-  assert.ok(checkStep("email2", "Your contact form is slow. Want me to send a number?", { freeAsset: "a" }).some((h) => h.id === "mentions-site" && h.level === "soft"));
+t("asks to send a free thing in several natural wordings; criticising their contact form is blocked, a plain mention is fine", () => {
+  for (const x of ["Would you like a 2-minute recording of it?", "Want me to send a number?", "Happy to send a sample.", "Should I send the recording?", "Would you still be interested in a 2-minute recording of it?"]) assert.equal(statusOf(checkStep("email1", "You have 4.8 stars from 210 reviews. I help plumbers keep calls. " + x, { freeAsset: "a" })).reasons.join().includes("yes/no offer"), false, x);
+  assert.ok(checkStep("email2", "Your contact form is slow. Want me to send a number?", { freeAsset: "a" }).some((h) => h.id === "site-criticism" && h.level === "hard"));
+  assert.ok(!checkStep("email2", "Your site has a contact form. Want me to send a number?", { freeAsset: "a" }).some((h) => h.id === "site-criticism"));
 });
 
 t("praise of the rating is flattery", () => { for (const x of ["a great 4.8 rating", "which is great to see", "a solid rating", "an impressive record"]) has(x, "flattery"); not("has a 4.8 rating from 210 reviews", "flattery"); });

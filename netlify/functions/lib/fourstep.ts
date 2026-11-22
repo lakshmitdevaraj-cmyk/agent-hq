@@ -1,11 +1,13 @@
 /**
- * The "Alcance 3-step" email framework (batch 8c): defaults, prompts and pure helpers. No I/O.
+ * The "Alcance 4-step" email framework (batch 8c): defaults, prompts and pure helpers. No I/O.
  *
- * One model call per lead writes all three emails at once. Sending stays manual, one step at a time.
- *   email 1: a true observation about them, what I do for their kind of business, one honest supporting fact,
- *            and a yes/no offer to send something free
- *   email 2: a clause pointing back at email 1, the same offer from a new angle, a DIFFERENT free thing
- *   email 3: the shortest; who else is the right person, and permission to say no
+ * One model call per lead writes all four emails at once. Sending stays manual, one step at a time; emails 2 to 4 go as replies under email 1.
+ *   email 1 (day 0):  a true observation about them, what I do for their kind of business, one honest supporting fact,
+ *                     and a yes/no offer to send something free
+ *   email 2 (day 3):  a clause pointing back at email 1, a new angle, a DIFFERENT free thing as a yes/no offer
+ *   email 3 (day 8):  short proof (the Settings proof line, close to its own words) and a yes/no offer
+ *   email 4 (day 15): the last email: who is the right person, says it is the last, a no is fine
+ * Each email is shorter than the one before. The days come from Settings.
  */
 import { checkStep, checkSubject, statusOf, mentionsRating, tidySubject, type Hit, type StepStatus } from "./messagerules";
 
@@ -39,35 +41,41 @@ export function parseGaps(v: unknown): number[] {
 
 // ── Prompts (our own wording) ─────────────────────────────────────────
 
-export const SEQUENCE_SYSTEM_PROMPT = `You write a three-email cold sequence from Lakshmi Devaraj (ShiftForge AI) to the owner or office of a local home-service business in the US. Each email is plain text, one person writing to one other person, in plain English a teenager could follow. "I" is Lakshmi.
+export const SEQUENCE_SYSTEM_PROMPT = `You write a four-email cold sequence from Lakshmi Devaraj (ShiftForge AI) to the owner or office of a local home-service business in the US. Each email is plain text, one person writing to one other person, in plain English a teenager could follow. "I" is Lakshmi.
 
 You are given: BUSINESS, GREETING, CITY, TRADE, TRUE DETAILS ABOUT THEM (numbered, saved from their own site or Google), FACTS YOU MAY USE (numbered; nothing else may be claimed about them), HOW THE ASSISTANT WORKS (background), FREE THING 1, FREE THING 2 and PROOF LINE.
 
-Write all three at once and answer with JSON only:
-{"subject": "...", "email_1": "...", "email_2": "...", "email_3": "...", "fact_used": <number of the fact used, or null>}
+Write all four at once and answer with JSON only:
+{"subject": "...", "email_1": "...", "email_2": "...", "email_3": "...", "email_4": "...", "fact_used": <number of the fact used, or null>}
 
-EMAIL 1 (about 400 characters at most)
+EMAIL 1 (sent on day 0; about 400 characters at most)
 - Start with the GREETING you are given and a comma, then a new line.
 - First sentence: one specific true thing about THEM that the reader could check in a minute. Take it from TRUE DETAILS or FACTS only. State a rating plainly if you use one, with no praise.
 - Then say what you do, in first person, in the shape "I help <their kind of business> <one concrete outcome>". The outcome is about calls they would otherwise lose.
-- Then ONE supporting line. If PROOF LINE is given, use it in your own words (no web address). If it is empty, skip this line. Never invent a client, a result or a number.
+- Then ONE supporting line. If PROOF LINE is given, say it in words very close to the PROOF LINE itself: it says what was built and where (the sender's own website). Never say "my business", "my company" or "my home-services business": the sender does not run one. If it is empty, skip this line. Never invent a client, a result or a number.
 - Close with one yes/no question offering to send FREE THING 1. Never ask for a call, a meeting, a demo or any time.
 - Use "you" more than "I". No links, no email addresses, no phone numbers.
 
-EMAIL 2 (shorter than email 1)
+EMAIL 2 (sent on day 3; shorter than email 1, aim for about 280 characters and never above 340)
 - Greeting, then open with one short clause that points back at email 1 (for example "I wrote to you earlier about missed calls."), without repeating what it said.
-- The same help seen from a different angle (a different moment in their day when a call is lost; do not repeat a fact from email 1, and do not state their rating again).
+- The same help seen from a new angle (a different moment in their day when a call is lost; do not repeat a fact from email 1, and do not state their rating again).
 - Close with one yes/no question offering FREE THING 2, which is different from FREE THING 1.
 
-EMAIL 3 (the shortest of the three)
-- Greeting, then ask who else is the right person for this, and say plainly that a no is fine.
-- No new argument, no proof and no offer.
+EMAIL 3 (sent on day 8; shorter than email 2, aim for about 220 characters and never above 290)
+- Greeting, then ONE short proof sentence taken from the PROOF LINE in words very close to it (never "my business"; if the PROOF LINE is empty, skip the proof and say one plain true thing about calls instead).
+- Close with one yes/no question offering FREE THING 1 (or FREE THING 2 if that reads better).
+- No new argument.
 
-SUBJECT: one or two lowercase words, plain, never a question, never starting with "re" or "fwd". It is used for email 1 only.
+EMAIL 4 (sent on day 15; the shortest, aim for about 160 characters and never above 230)
+- Greeting, then say plainly that this is your last email.
+- Ask who else is the right person for new customer calls, and say that a no is fine.
+- No offer, no proof and no new argument.
 
-WRITING RULES FOR ALL THREE
+SUBJECT: one or two lowercase words, plain, never a question, never starting with "re" or "fwd". It is used for email 1 only; emails 2 to 4 go as replies in the same thread.
+
+WRITING RULES FOR ALL FOUR
 - No dashes as punctuation (use commas, full stops or colons), no exclamation marks, no emoji, no brackets, no placeholders.
-- No flattery and no compliments on their logo, branding or website. Do not talk about their website at all (its forms, chat or booking): describe the problem only as calls or customers lost.
+- No flattery and no compliments on their logo, branding or website. You may state a plain fact about their contact form, chat or booking only if it is in TRUE DETAILS, and never judge or criticise it; prefer describing the problem as calls or customers lost.
 - Never say "following up", "checking in", "circling back", "touching base", "quick question", "quick chat", "hope you are well", "caught my eye", "came across", "let's connect" or "discovery call".
 - Never mention that you are not selling or not pitching. Never apologise for writing.
 - Never quote any figure that is not in TRUE DETAILS or FACTS. Do not mention demo businesses or industry statistics.
@@ -75,20 +83,22 @@ WRITING RULES FOR ALL THREE
 - No signature, no company line, no website, no opt-out line: those are added when the email is sent.
 - Separate short paragraphs with a blank line.`;
 
-export const THREE_STEP_REVIEW_PROMPT = `You check three cold emails written for ShiftForge AI (sender: Lakshmi Devaraj) before a person sends them. You get one LEAD with SAVED_EVIDENCE (the only things we know about the business), the three emails, and CODE_FINDINGS (problems a program already found).
+export const FOUR_STEP_REVIEW_PROMPT = `You check four cold emails written for ShiftForge AI (sender: Lakshmi Devaraj) before a person sends them. You get one LEAD with SAVED_EVIDENCE (the only things we know about the business), the four emails, and CODE_FINDINGS (problems a program already found).
 
 For each email answer with a verdict:
 - "ready": nothing to fix.
-- "check": a person should look (thin evidence, awkward wording, the structure rule below is bent).
-- "blocked": a claim about the business that SAVED_EVIDENCE does not support, a result or client that is invented, or a wrong owner name in the greeting.
+- "check": a person should look (thin evidence, awkward wording).
+- "blocked": a claim about the business that SAVED_EVIDENCE does not support, a result or client that is invented, a claim that the sender runs a business of their own (the assistant was built on the sender's own website), or a wrong owner name in the greeting.
 
-STRUCTURE RULES
-Email 1: first sentence is a specific true observation about this business that SAVED_EVIDENCE supports; then what Lakshmi does in first person; at most one supporting line that is true; it ends with one yes/no offer to send something free. No call, meeting or demo ask. No link.
-Email 2: points back at email 1 in one clause, shows the same help from a new angle, offers a different free thing, and is shorter than email 1.
-Email 3: the shortest; asks who else is the right person; says a no is fine; no new offer or argument.
-All: one ask per email; no flattery; nothing negative about their website (the problem is lost calls); no invented facts, numbers, clients or results; the rating or review count appears at most once across the three.
+SENDER_SETTINGS holds the sender's own proof line and two free things. The proof line is TRUE and allowed to be quoted or closely paraphrased, even though it says the assistant was built on the sender's own website (that is not a claim that the sender runs a business) and even if it mentions a call. A free thing that is a recording or a number to ring to hear the assistant is the free offer itself, not a request for a call or meeting with the sender.
 
-Answer with a JSON array, one object per email: [{"step": 1, "verdict": "ready" | "check" | "blocked", "reasons": ["short plain sentence", ...]}, ...]. At most 4 reasons per email, each under 20 words. Do not comment on length or on style words: the program checks those.`;
+Email 4 is meant to ask who the right person is for new customer calls; that is not a request for a call or meeting and is no reason for "check".
+
+Do NOT judge these: the program checks them. Whether an email ends with a yes/no offer, its length, the balance of I and you, its style words, whether it says it is the last email, and whether the proof matches the Settings proof line. Never mention them in a reason. A plain factual mention of their contact form, chat or booking that SAVED_EVIDENCE supports is allowed and is no reason for "check"; only criticism of it is.
+
+Look only for: unsupported claims about the business, invented facts, numbers, clients or results, a wrong greeting, a claim that someone said something they did not, pushy or odd wording, a call, meeting or demo ask, and the rating or review count repeated across emails.
+
+Answer with a JSON array, one object per email: [{"step": 1, "verdict": "ready" | "check" | "blocked", "reasons": ["short plain sentence", ...]}, ...]. At most 4 reasons per email, each under 20 words.`;
 
 export type SequenceLead = {
   name?: string; greeting: string; city: string; trade: string;
@@ -105,14 +115,14 @@ export function sequenceUserPrompt(l: SequenceLead, inp: StepInputs, offerBackgr
     l.details.length ? `TRUE DETAILS ABOUT THEM:\n${l.details.map((d, i) => `${i + 1}. ${d}`).join("\n")}` : "TRUE DETAILS ABOUT THEM:\n(none saved)",
     l.facts.length ? `FACTS YOU MAY USE:\n${l.facts.map((f) => `${f.n}. ${f.text}`).join("\n")}` : "FACTS YOU MAY USE:\n(none: open with a true detail, or the town and trade, and claim nothing else about them)",
     `HOW THE ASSISTANT WORKS (background, rewrite in your own words): ${offerBackground}`,
-    `FREE THING 1 (offer it in email 1): ${inp.freeAsset1 || "(empty)"}`,
+    `FREE THING 1 (offer it in email 1; email 3 may offer it again): ${inp.freeAsset1 || "(empty)"}`,
     `FREE THING 2 (offer it in email 2): ${inp.freeAsset2 || "(empty)"}`,
     `PROOF LINE: ${inp.proofLine || "(empty)"}`,
-    hint ? `\nYOUR LAST ANSWER FAILED THESE CHECKS: ${hint}\nWrite all three again and fix them. JSON only.` : "",
+    hint ? `\nYOUR LAST ANSWER FAILED THESE CHECKS: ${hint}\nWrite all four again and fix them. JSON only.` : "",
   ].filter(Boolean).join("\n");
 }
 
-export type SeqStep = { step: 1 | 2 | 3; subject: string; body: string };
+export type SeqStep = { step: 1 | 2 | 3 | 4; subject: string; body: string };
 
 /** Reads the writer's JSON. Email 2 and 3 carry email 1's subject: they go out as real replies, so no new subject (and never a fake "Re:") is written. */
 export function parseSequence(json: unknown): { steps: SeqStep[]; fact_used: number | null } | null {
@@ -120,21 +130,21 @@ export function parseSequence(json: unknown): { steps: SeqStep[]; fact_used: num
   const o = json as Record<string, unknown>;
   const s = (k: string) => String(o[k] ?? "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
   const subject = tidySubject(s("subject"));
-  const e1 = s("email_1") || s("email1"), e2 = s("email_2") || s("email2"), e3 = s("email_3") || s("email3");
-  if (!e1 || !e2 || !e3) return null;
+  const e1 = s("email_1") || s("email1"), e2 = s("email_2") || s("email2"), e3 = s("email_3") || s("email3"), e4 = s("email_4") || s("email4");
+  if (!e1 || !e2 || !e3 || !e4) return null;
   const fu = typeof o.fact_used === "number" && Number.isInteger(o.fact_used) ? o.fact_used : null;
-  return { steps: [{ step: 1, subject, body: e1 }, { step: 2, subject, body: e2 }, { step: 3, subject, body: e3 }], fact_used: fu };
+  return { steps: [{ step: 1, subject, body: e1 }, { step: 2, subject, body: e2 }, { step: 3, subject, body: e3 }, { step: 4, subject, body: e4 }], fact_used: fu };
 }
 
-export type StepCheck = { step: 1 | 2 | 3; status: StepStatus; reasons: string[]; hits: Hit[] };
+export type StepCheck = { step: 1 | 2 | 3 | 4; status: StepStatus; reasons: string[]; hits: Hit[] };
 
-/** The free code checks for all three emails together (length order, one rating, subject, Settings inputs). */
+/** The free code checks for all four emails together (length order, one rating, subject, Settings inputs). */
 export function checkSequence(steps: SeqStep[], inp: StepInputs): StepCheck[] {
-  const kinds = ["email1", "email2", "email3"] as const;
+  const kinds = ["email1", "email2", "email3", "email4"] as const;
   const lens: number[] = [];
   let ratingSeen = false;
   return steps.map((s, i) => {
-    const hits = checkStep(kinds[i], s.body, { channel: "email", earlierChars: lens.slice(), ratingAlready: ratingSeen, freeAsset: i === 0 ? inp.freeAsset1 : inp.freeAsset2, namedSources: inp.namedSources });
+    const hits = checkStep(kinds[i], s.body, { channel: "email", earlierChars: lens.slice(), ratingAlready: ratingSeen, freeAsset: i === 1 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, namedSources: inp.namedSources });
     if (i === 0) hits.push(...checkSubject(s.subject));
     lens.push(s.body.length);
     if (mentionsRating(s.body)) ratingSeen = true;
@@ -144,7 +154,7 @@ export function checkSequence(steps: SeqStep[], inp: StepInputs): StepCheck[] {
 
 /** Failure lines for the one rewrite request: every HARD hit plus the soft ones that name a length or structure problem. */
 export function failureLines(checks: StepCheck[]): string[] {
-  return checks.flatMap((c) => c.hits.filter((h) => h.level === "hard" || /too-long|not-shorter|no-redirect|no-asset/.test(h.id)).map((h) => `email ${c.step}: ${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}`));
+  return checks.flatMap((c) => c.hits.filter((h) => h.level === "hard" || /too-long|not-shorter|no-redirect|not-last|no-asset|proof-drift/.test(h.id)).map((h) => `email ${c.step}: ${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}`));
 }
 
 export type AiStepVerdict = { step: number; verdict: StepStatus; reasons: string[] };
@@ -156,14 +166,19 @@ export function parseReview(json: unknown): AiStepVerdict[] {
     const o = (x ?? {}) as Record<string, unknown>;
     const v = o.verdict === "ready" || o.verdict === "blocked" ? o.verdict : "check";
     return { step: Number(o.step), verdict: v as StepStatus, reasons: Array.isArray(o.reasons) ? o.reasons.map((r) => String(r).slice(0, 200)).slice(0, 4) : [] };
-  }).filter((v) => v.step >= 1 && v.step <= 3);
+  }).filter((v) => v.step >= 1 && v.step <= 4);
 }
 
 const RANK: Record<StepStatus, number> = { ready: 0, check: 1, blocked: 2 };
 
 /** The final status of one step: the worse of the code checks and the AI reviewer (a missing AI verdict counts as "check"). */
 export function mergeStatus(code: StepCheck, ai: AiStepVerdict | undefined): { status: StepStatus; reasons: string[] } {
-  const a = ai ?? { step: code.step, verdict: "check" as StepStatus, reasons: ["The AI reviewer did not answer for this email"] };
+  const a0 = ai ?? { step: code.step, verdict: "check" as StepStatus, reasons: ["The AI reviewer did not answer for this email"] };
+  // Whether an email ends with a yes/no offer is a CODE check. If the code found the offer, an AI remark about it is dropped; an AI "check" that rested only on such remarks becomes "ready".
+  const offerOk = !code.hits.some((h) => h.id === "no-asset" || h.id === "no-asset-ask");
+  const OFFER_TALK = /yes\/no|offer|free (?:asset|thing)|recording|ask(?:s|ing)? (?:for )?(?:a )?(?:yes|no)|closing question|does not end/i;
+  const kept = offerOk ? a0.reasons.filter((r) => !OFFER_TALK.test(r)) : a0.reasons;
+  const a = a0.verdict === "check" && offerOk && a0.reasons.length > 0 && kept.length === 0 ? { ...a0, verdict: "ready" as StepStatus, reasons: [] } : { ...a0, reasons: kept };
   const status = RANK[a.verdict] > RANK[code.status] ? a.verdict : code.status;
   const reasons = [...code.reasons, ...(a.verdict === "ready" ? [] : a.reasons)].slice(0, 5);
   return { status, reasons };

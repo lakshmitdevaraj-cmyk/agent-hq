@@ -122,7 +122,7 @@ type Lead = {
   created_at: string;
 } & LeadInfo;
 
-type Framework = "one-off" | "pas" | "aida" | "sdr" | "three-step";
+type Framework = "one-off" | "pas" | "aida" | "sdr" | "four-step";
 
 type EmailRow = {
   id: string;
@@ -1640,15 +1640,15 @@ function AddTestLeadModal({ open, onClose, campaignId, onAdded }: { open: boolea
   );
 }
 
-/** Name shown for a sequence: "Alcance 3-step", or PAS / AIDA / SDR for older ones. */
-const fwLabel = (f: string | null | undefined): string => (f === "three-step" ? "Alcance 3-step" : (f ?? "").toUpperCase());
+/** Name shown for a sequence: "Alcance 4-step", or PAS / AIDA / SDR for older ones. */
+const fwLabel = (f: string | null | undefined): string => (f === "four-step" ? "Alcance 4-step" : (f ?? "").toUpperCase());
 
-const FRAMEWORK_OPTIONS: Array<{ value: Framework; label: string; desc: string; stepLabels?: [string, string, string]; hidden?: boolean }> = [
+const FRAMEWORK_OPTIONS: Array<{ value: Framework; label: string; desc: string; stepLabels?: string[]; hidden?: boolean }> = [
   {
-    value: "three-step",
-    label: "Alcance 3-step · 3 emails",
-    desc: "Email 1: something true about them and an offer to send something free. Email 2: a new angle and a different free thing. Email 3: who else is the right person. All three are written together; you send each step by hand.",
-    stepLabels: ["Observation + free offer", "New angle + another free thing", "Who else is the right person"],
+    value: "four-step",
+    label: "Alcance 4-step · 4 emails",
+    desc: "Email 1 (day 0): something true about them and an offer to send something free. Email 2 (day 3): a new angle and a different free thing. Email 3 (day 8): short proof and a yes/no offer. Email 4 (day 15): the last email, who is the right person. All four are written together; you send each step by hand.",
+    stepLabels: ["Observation + free offer", "New angle + another free thing", "Proof + yes/no offer", "Last email: right person"],
   },
   {
     value: "one-off",
@@ -1710,7 +1710,7 @@ function GenerateEmailsModal({
   const [senderName, setSenderName] = useState("");
   const [senderCompany, setSenderCompany] = useState("");
   const [senderOffer, setSenderOffer] = useState("");
-  const [framework, setFramework] = useState<Framework>("three-step");
+  const [framework, setFramework] = useState<Framework>("four-step");
   const [busy, setBusy] = useState(false);
   const [localErr, setLocalErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -1833,12 +1833,13 @@ function GenerateEmailsModal({
                   </div>
                   <p className={`text-label ${active ? "text-fg2" : "text-muted"}`}>{opt.desc}</p>
                   {opt.stepLabels && (
-                    <div className="flex items-center gap-1 mt-2 text-label font-mono text-muted">
-                      <span className="px-1.5 py-0.5 rounded bg-inset">1· {opt.stepLabels[0]}</span>
-                      <span>→</span>
-                      <span className="px-1.5 py-0.5 rounded bg-inset">2· {opt.stepLabels[1]}</span>
-                      <span>→</span>
-                      <span className="px-1.5 py-0.5 rounded bg-inset">3· {opt.stepLabels[2]}</span>
+                    <div className="flex flex-wrap items-center gap-1 mt-2 text-label font-mono text-muted">
+                      {opt.stepLabels.map((l, i) => (
+                        <span key={i} className="flex items-center gap-1">
+                          {i > 0 && <span>→</span>}
+                          <span className="px-1.5 py-0.5 rounded bg-inset">{i + 1}· {l}</span>
+                        </span>
+                      ))}
                     </div>
                   )}
                 </button>

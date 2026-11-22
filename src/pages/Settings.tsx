@@ -164,8 +164,8 @@ function MessageInputs() {
           <div><label htmlFor="booking" className={lab}>Booking link (reply helper)</label><input id="booking" value={v.booking_link} onChange={(e) => set("booking_link", e.target.value)} placeholder="https://" className={box} /></div>
           <div><label htmlFor="tz" className={lab}>Your time zone (reply helper), e.g. America/Chicago</label><input id="tz" value={v.time_zone} onChange={(e) => set("time_zone", e.target.value)} className={box} /></div>
           <div><label htmlFor="dlimit" className={lab}>Daily send limit (a warning in the send box, never a block)</label><input id="dlimit" type="number" min={1} value={v.daily_send_limit} onChange={(e) => set("daily_send_limit", Number(e.target.value) as never)} className={box} /></div>
-          <div><label htmlFor="gapE" className={lab}>Email follow-up days after the first email</label><input id="gapE" value={gE} onChange={(e) => setGE(e.target.value)} className={box} /></div>
-          <div><label htmlFor="gapS" className={lab}>Social follow-up days after the first message</label><input id="gapS" value={gS} onChange={(e) => setGS(e.target.value)} className={box} /></div>
+          <div><label htmlFor="gapE" className={lab}>Email follow-up days after the first email (3 follow-ups: 3, 8, 15)</label><input id="gapE" value={gE} onChange={(e) => setGE(e.target.value)} className={box} /></div>
+          <div><label htmlFor="gapS" className={lab}>Social follow-up days after the first message (Facebook and Instagram use the first two; LinkedIn counts from the connection note and uses the last two)</label><input id="gapS" value={gS} onChange={(e) => setGS(e.target.value)} className={box} /></div>
         </div>
       </div>
       <div className="flex items-center gap-3 mt-3">
