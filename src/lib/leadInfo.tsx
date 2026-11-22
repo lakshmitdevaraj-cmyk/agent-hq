@@ -42,6 +42,7 @@ export type LeadInfo = {
     lead_gen_listing?: string | null;
     facts?: Array<{ key: string; value: boolean | "unknown"; evidence: { url: string; text: string } }>;
     screenshot?: { saved_at: string; bytes: number } | null;
+    screenshot_error?: string | null;
     error?: string;
   } | null;
 };

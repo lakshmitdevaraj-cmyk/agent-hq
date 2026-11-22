@@ -29,7 +29,7 @@ import { pickAngle, pickOpeningStyle, leadDetails, detailPhrase, cityOf, checkMo
 import { DRAFT_SYSTEM_PROMPT, OPENING_STYLE_HELP, REVIEW_SYSTEM_PROMPT, EXAMPLE_BODIES, SOCIAL_SYSTEM_PROMPT, SOCIAL_REVIEW_SYSTEM_PROMPT } from "./lib/prompts";
 import { nextPacificMidnight, resumeAtFor, fakeQuotaHit, istText, newStats, type CallStats } from "./lib/gemini-pause";
 import { evidenceFor, codeReview, unbackedFactClaims, factsForReviewer, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
-import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, logTail } from "./lib/browsercheck";
+import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, screenshotErrorsByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
@@ -2101,6 +2101,7 @@ export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[]
     const items = await getApifyDatasetItems(apify, datasetId, 600);
     const byLead = pagesByLead(items);
     const shots = screenshotsByLead(items);
+    const shotErrors = screenshotErrorsByLead(items);
     const checkedIds = new Set(((await readState(campaign_id)).browser_checked_ids as string[] | undefined) ?? (await readCampaign<{ browser_checked_ids?: string[] }>(campaign_id))?.browser_checked_ids ?? []);
     for (const lead of leads) {
       const pages = byLead.get(lead.id);
@@ -2108,6 +2109,8 @@ export async function runBrowserJob(p: { campaign_id: string; lead_ids: string[]
       if (pages && pages.length > 0) {
         const res = await analyzeSite(lead, pages, "browser");
         const shot = shots.get(lead.id);
+        // No picture: say why (a failed screenshot, or the homepage did not load in the browser), so it is never a silent gap.
+        if (!shot) (res.fields.site_check as Record<string, unknown>).screenshot_error = shotErrors.get(lead.id) ?? "The browser did not load the homepage, so there is no picture.";
         if (shot) {
           try {
             const bytes = Math.floor((shot.length * 3) / 4);

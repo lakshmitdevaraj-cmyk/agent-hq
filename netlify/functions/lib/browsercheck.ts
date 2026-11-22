@@ -24,6 +24,7 @@ export const BROWSER_PAGE_FUNCTION = `async function pageFunction(context) {
   const { page, request } = context;
   const ud = request.userData || {};
   let shot = null;
+  let shotError = null;
   if (ud.home) { try { await page.setViewportSize({ width: 1280, height: 800 }); } catch (e) {} }
   await page.waitForTimeout(6000);
   const html = await page.content();
@@ -35,9 +36,9 @@ export const BROWSER_PAGE_FUNCTION = `async function pageFunction(context) {
         shot = buf.toString("base64");
         if (buf.length <= 150000) break;
       }
-    } catch (e) { shot = null; }
+    } catch (e) { shot = null; shotError = String((e && e.message) || e).slice(0, 160); }
   }
-  return { lead_id: ud.lead_id, url: page.url(), html: html.slice(0, 600000), screenshot: shot };
+  return { lead_id: ud.lead_id, url: page.url(), html: html.slice(0, 600000), screenshot: shot, screenshot_error: shotError, home: !!ud.home };
 }`;
 
 export function browserInput(sites: Array<{ lead_id: string; base: string }>): Record<string, unknown> {
@@ -92,6 +93,22 @@ export function pagesByLead(items: Array<Record<string, unknown>>): Map<string, 
     out.set(id, list);
   }
   for (const list of out.values()) list.sort((a, b) => a.url.length - b.url.length);
+  return out;
+}
+
+/**
+ * Why a lead's homepage got no picture, per lead (only leads whose homepage was opened and gave none).
+ * "taking the picture failed: <browser message>" when the page function caught an error, else "the browser returned no picture".
+ */
+export function screenshotErrorsByLead(items: Array<Record<string, unknown>>): Map<string, string> {
+  const have = new Set<string>();
+  for (const it of items) if (typeof it.lead_id === "string" && typeof it.screenshot === "string" && it.screenshot.length > 500) have.add(it.lead_id);
+  const out = new Map<string, string>();
+  for (const it of items) {
+    const id = typeof it.lead_id === "string" ? it.lead_id : null;
+    if (!id || have.has(id) || it.home !== true || out.has(id)) continue;
+    out.set(id, typeof it.screenshot_error === "string" && it.screenshot_error ? `Taking the picture failed: ${it.screenshot_error}` : "The browser opened the homepage but returned no picture.");
+  }
   return out;
 }
 

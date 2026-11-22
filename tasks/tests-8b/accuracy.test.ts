@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { websiteFacts } from "../../netlify/functions/lib/sitecheck";
 import { pickAngle, checkModelDraft, copiedFrom } from "../../netlify/functions/lib/angle";
 import { precheckSocial } from "../../netlify/functions/lib/social";
+import { screenshotErrorsByLead, BROWSER_PAGE_FUNCTION } from "../../netlify/functions/lib/browsercheck";
 import { SOCIAL_SYSTEM_PROMPT, SOCIAL_REVIEW_SYSTEM_PROMPT, EXAMPLE_BODIES } from "../../netlify/functions/lib/prompts";
 
 let n = 0;
@@ -84,6 +85,21 @@ t('a LinkedIn connection note never says "Thanks for accepting"', () => {
   assert.ok(fails("Glad we're connected, Mike.").length > 0);
   assert.equal(fails("Hi Mike, I work with home-service owners in Webster and would like to connect.").length, 0);
   assert.match(SOCIAL_SYSTEM_PROMPT, /never write "thanks for accepting"/i);
+});
+
+t("a homepage with no picture records why (never a silent gap)", () => {
+  const big = "x".repeat(600);
+  const items = [
+    { lead_id: "a", home: true, screenshot: big },
+    { lead_id: "b", home: true, screenshot: null, screenshot_error: "Timeout 30000ms exceeded" },
+    { lead_id: "c", home: true, screenshot: null },
+    { lead_id: "c", home: false, screenshot: null },
+  ];
+  const m = screenshotErrorsByLead(items);
+  assert.equal(m.has("a"), false);
+  assert.match(m.get("b") ?? "", /Timeout 30000ms/);
+  assert.match(m.get("c") ?? "", /no picture/);
+  assert.match(BROWSER_PAGE_FUNCTION, /screenshot_error/);
 });
 
 console.log(`\n${n} passed, ${failed} failed`);

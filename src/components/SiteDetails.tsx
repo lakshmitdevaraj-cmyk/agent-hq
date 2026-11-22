@@ -83,7 +83,15 @@ function Screenshot({ lead }: { lead: LeadRef }) {
       .catch(() => live && setErr(true));
     return () => { live = false; };
   }, [lead.id, lead.campaign_id, has, lead.site_check?.screenshot?.saved_at]);
-  if (!has || err) return <p className="text-[11px] text-white/40">No screenshot yet. A browser check takes one of the homepage.</p>;
+  if (!has || err) {
+    const sc = lead.site_check;
+    const why = sc?.screenshot_error
+      ? `No screenshot: ${sc.screenshot_error}`
+      : sc && sc.via !== "browser"
+        ? "No screenshot: the picture comes from the browser check, and this site was read with a plain download (only sites built with JavaScript get a browser check)."
+        : "No screenshot yet. A browser check takes one of the homepage.";
+    return <p className="text-[11px] text-white/40">{why}</p>;
+  }
   if (!url) return <p className="text-[11px] text-white/40">Loading screenshot…</p>;
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" title="Open full size">
