@@ -34,7 +34,8 @@ export const BANNED: Rule[] = [
   R("negated-pitch", "hard", "Saying what you are not doing", "\"Not selling\" makes the reader think of selling. Say what you are doing.", /\b(?:not (?:here )?(?:to )?(?:pitch|pitching|sell|selling|trying to sell)|no (?:sales )?pitch|this isn(?:'|’)?t a (?:sales )?pitch)\b/i),
   R("hedge", "hard", "Hedging", "Write flat and sure.", /\b(?:hope this isn(?:'|’)?t weird|worth (?:a |30 )?(?:seconds?|minute)|if you have a (?:sec|second|minute|moment))\b/i),
   R("false-business-claim", "hard", "Claims a business the sender does not run", "The sender built the assistant on their own website. Never write \"my business\", \"my company\" or \"my home-services business\".", /\b(?:my|our) (?:own )?(?:home[- ]?services? |plumbing |hvac |roofing |electrical |service )?(?:business|company)\b|\bI (?:own|run|operate) (?:a |an )?(?:home[- ]?services?|plumbing|hvac|roofing|electrical)\b/i),
-  R("false-familiarity", "hard", "Claims a past talk that never happened", "Nothing was discussed yet: this is a first contact. Never write \"we discussed\", \"our chat\" or \"our conversation\".", /\b(?:we|i)(?:'ve| have)? (?:discussed|talked|spoke|chatted)\b|\bour (?:earlier |previous |last |recent )?(?:chat|conversation|talk|call|discussion|meeting)\b|\bas (?:we|i) (?:discussed|talked|spoke|mentioned)\b|\b(?:calls?|things?|topics?) (?:we|that we) (?:discussed|talked about|covered)\b|\bwhen (?:we|i) (?:spoke|talked|chatted)\b|\bgood (?:chatting|talking|speaking) (?:with|to) you\b/i),
+  R("false-familiarity", "hard", "Claims a past talk that never happened", "Nothing was discussed yet: this is a first contact. Never write \"we discussed\", \"our chat\", \"our conversation\", \"great talking with you\" or \"as promised\".", /\b(?:we|i)(?:'ve| have)? (?:discussed|talked|spoke|chatted)\b|\bour (?:earlier |previous |last |recent )?(?:chat|conversation|talk|call|discussion|meeting)\b|\bas (?:we|i) (?:discussed|talked|spoke|mentioned)\b|\b(?:calls?|things?|topics?) (?:we|that we) (?:discussed|talked about|covered)\b|\bwhen (?:we|i) (?:spoke|talked|chatted)\b|\bgood (?:chatting|talking|speaking) (?:with|to) you\b|\b(?:great|nice|good|lovely) (?:to )?(?:talk(?:ing)?|speak(?:ing)?|chat(?:ting)?)\b|\bas promised\b|\bfollowing up on (?:our|the|my) (?:call|chat|conversation|talk)\b/i),
+  R("website-messages", "hard", "Claim about website messages, chat or forms", "The assistant answers phone calls only. Say nothing about website messages, chat or forms.", /\b(?:website|web|online) (?:messages?|chats?|enquir(?:y|ies)|inquir(?:y|ies))\b|\bwebsite and (?:phone )?calls\b|\bcalls and (?:website |web |online )?(?:messages|chats|texts)\b/i),
   R("same-assistant", "hard", "\"The same assistant\" claim", "Say what the proof line says: an assistant was built for the agency's website. Never \"the same assistant\" as theirs.", /\bsame (?:ai |virtual )?(?:assistant|receptionist|system|tool)\b/i),
   R("ai-filler", "soft", "Template filler", "Filler that signals a template.", /\b(?:in today(?:'|’)?s (?:fast[- ]paced|digital)|delve into|leverage synerg\w+|it(?:'|’)?s worth noting)\b/i),
   R("emoji", "hard", "Emoji", "Wrong register for a first message and a spam signal.", /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u),
@@ -231,6 +232,9 @@ export function checkSubject(subject: string): Hit[] {
 export type StepStatus = "ready" | "check" | "blocked";
 
 /** Hard hits block the draft; soft hits make it "check". */
+/** Bump this whenever a check rule changes: unsent drafts last checked under an older version are re-checked once (and saved). */
+export const RULES_VERSION = 4;
+
 export function statusOf(hits: Hit[]): { status: StepStatus; reasons: string[] } {
   // Every reason is kept (the screens show them all), but the same rule is never listed twice and a reason never repeats itself.
   const seen = new Set<string>();

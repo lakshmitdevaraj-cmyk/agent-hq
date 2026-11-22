@@ -127,6 +127,8 @@ t("reasons: every one is listed once and none contradicts its label", () => {
   assert.ok(r.some((x) => /Not shorter than/.test(x)));
   assert.ok(!r.some((x) => /Not shorter than/.test(x) && /is shorter than/.test(x)), r.join(" | "));
 });
+t("more false familiarity phrases are BLOCKED", () => { for (const x of ["Great talking with you.", "Nice talking earlier.", "Good to talk yesterday.", "As promised, here it is.", "Following up on our call."]) has(x, "false-familiarity"); });
+t("claims about website messages, chat or forms are BLOCKED; phone calls are fine", () => { for (const x of ["It answers calls and website messages.", "It handles website chat.", "answers phone calls and web messages"]) has(x, "website-messages"); not("It answers phone calls and takes the details.", "website-messages"); });
 
 console.log(`\n${n} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

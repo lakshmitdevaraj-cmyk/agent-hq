@@ -141,6 +141,11 @@ export function SocialMessages({ lead, emailedOn, busy, jobSeq, onWrite, onChang
   }
 
   async function copy(r: SocialRow, p: Part) {
+    // The free checks run again right before copying: a message that now fails is shown as Blocked instead of being copied.
+    try {
+      const v = await call<{ blocked: boolean; reasons: string[] }>("outreach.social.verify", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: p.key });
+      if (v.blocked) { setErr(`Not copied: ${p.label} is Blocked by the free checks (${v.reasons.join(" | ")}). Edit it first.`); await refreshAfter(); return; }
+    } catch { /* if the check cannot run, copying is still allowed; Mark as sent is checked on the server */ }
     try { await navigator.clipboard.writeText(p.text); setCopied(`${r.channel}-${p.key}`); setTimeout(() => setCopied(null), 1500); } catch { setErr("Could not copy. Select the text and copy it by hand."); }
   }
   async function markSent(r: SocialRow, part?: string) {

@@ -105,7 +105,13 @@ export default function FollowUps() {
     setBusy(label); setErr(null); setMsg(null);
     try { await fn(); await load(); } catch (e) { setErr(e instanceof Error ? e.message : "That did not work"); } finally { setBusy(null); }
   }
-  const copy = (r: FollowRow) => { try { void navigator.clipboard.writeText(r.text); setMsg(`Copied the ${r.step_label.toLowerCase()} for ${r.name}.`); } catch { setErr("Could not copy. Select the text and copy it by hand."); } };
+  const copy = async (r: FollowRow) => {
+    try {
+      const v = await call<{ blocked: boolean; reasons: string[] }>("outreach.social.verify", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key });
+      if (v.blocked) { setErr(`Not copied: ${r.step_label} for ${r.name} is Blocked by the free checks (${v.reasons.join(" | ")}). Open the campaign to edit it.`); await load(); return; }
+    } catch { /* the server also checks Mark as sent */ }
+    try { void navigator.clipboard.writeText(r.text); setMsg(`Copied the ${r.step_label.toLowerCase()} for ${r.name}.`); } catch { setErr("Could not copy. Select the text and copy it by hand."); }
+  };
 
   async function sendEmails() {
     const sendable = pickedRows.filter((r) => r.channel === "email" && r.email_id && r.review_status === "ready");
@@ -119,12 +125,14 @@ export default function FollowUps() {
       const byCampaign = new Map<string, string[]>();
       for (const r of sendable) byCampaign.set(r.campaign_id, [...(byCampaign.get(r.campaign_id) ?? []), r.email_id!]);
       let sent = 0, problems = 0;
+      const notSentWhy: string[] = [];
       for (const [cid, ids] of byCampaign) {
-        const res = await call<{ sent: number; errors: unknown[] }>("outreach.emails.send", { campaign_id: cid, email_ids: ids, limit: ids.length });
+        const res = await call<{ sent: number; errors: unknown[]; not_sent?: Array<{ email_id: string; to_email?: string; step?: number; reason: string }> }>("outreach.emails.send", { campaign_id: cid, email_ids: ids, limit: ids.length });
         sent += res.sent; problems += res.errors?.length ?? 0;
+        for (const x of res.not_sent ?? []) notSentWhy.push(`${x.to_email ?? x.email_id}${x.step ? ` (email ${x.step})` : ""}: ${x.reason}`);
       }
       setTick(new Set([...ticked].filter((k) => !sendable.some((r) => rowKey(r) === k))));
-      setMsg(`Sent ${sent} email${sent === 1 ? "" : "s"}${problems ? `; ${problems} could not be sent (open the campaign to see why)` : ""}.`);
+      setMsg(`Sent ${sent} email${sent === 1 ? "" : "s"}${problems ? `; ${problems} could not be sent (open the campaign to see why)` : ""}.${notSentWhy.length ? ` Not sent: ${notSentWhy.join("; ")}.` : sent === 0 ? " Nothing went out; open the campaign to see why." : ""}`);
     });
   }
   const markSent = (r: FollowRow) => act(`sent-${rowKey(r)}`, async () => {

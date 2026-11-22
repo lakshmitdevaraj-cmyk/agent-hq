@@ -205,7 +205,7 @@ export default function CampaignDetail() {
   }, [leadMenu]);
   // Batch sending: how many queued drafts to send per click (oldest first).
   const [sendCount, setSendCount] = useState("5");
-  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number; skipped: number; notReady: number; blocked: number; excluded: number } | null>(null);
+  const [lastSend, setLastSend] = useState<{ sent: number; queued: number; errors: number; skipped: number; notReady: number; blocked: number; excluded: number; why: string[] } | null>(null);
   const [editDraft, setEditDraft] = useState<EmailRow | null>(null);
   // Drafts ticked for "Send selected" (overrides the batch size).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -383,8 +383,8 @@ export default function CampaignDetail() {
     setBusyAction("send");
     setErr(null);
     try {
-      const res = await call<{ sent: number; queued: number; errors: unknown[]; skipped_contacted?: unknown[]; skipped_not_ready?: number; skipped_blocked?: number; skipped_excluded?: number }>("outreach.emails.send", { campaign_id: id, limit, ...params });
-      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0, skipped: res.skipped_contacted?.length ?? 0, notReady: res.skipped_not_ready ?? 0, blocked: res.skipped_blocked ?? 0, excluded: res.skipped_excluded ?? 0 });
+      const res = await call<{ sent: number; queued: number; errors: unknown[]; skipped_contacted?: unknown[]; skipped_not_ready?: number; skipped_blocked?: number; skipped_excluded?: number; reason?: string; not_sent?: Array<{ email_id: string; to_email?: string; step?: number; reason: string }> }>("outreach.emails.send", { campaign_id: id, limit, ...params });
+      setLastSend({ sent: res.sent, queued: res.queued, errors: res.errors?.length ?? 0, skipped: res.skipped_contacted?.length ?? 0, notReady: res.skipped_not_ready ?? 0, blocked: res.skipped_blocked ?? 0, excluded: res.skipped_excluded ?? 0, why: (res.not_sent ?? []).map((x) => `${x.to_email ?? x.email_id}${x.step ? ` (email ${x.step})` : ""}: ${x.reason}`) });
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Send failed");
@@ -966,6 +966,7 @@ export default function CampaignDetail() {
           {lastSend && (
             <span className="text-xs text-muted font-mono">
               last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}{lastSend.skipped > 0 ? `, ${lastSend.skipped} skipped (already contacted or bounced)` : ""}{lastSend.notReady > 0 ? `, ${lastSend.notReady} not sent (not checked yet)` : ""}{lastSend.blocked > 0 ? `, ${lastSend.blocked} blocked` : ""}{lastSend.excluded > 0 ? `, ${lastSend.excluded} for skipped leads` : ""}
+              {lastSend.why.length > 0 && <span className="block text-amber-300 whitespace-normal">Not sent: {lastSend.why.slice(0, 5).join("; ")}{lastSend.why.length > 5 ? `; and ${lastSend.why.length - 5} more` : ""}</span>}
             </span>
           )}
           <button

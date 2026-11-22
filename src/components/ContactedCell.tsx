@@ -16,6 +16,8 @@ const CHIPS = [
 export default function ContactedCell({ r }: { r: Prospect }) {
   const t = r.touches;
   const ready = (r.social_drafts ?? []).length;
+  const CHAN: Record<string, string> = { facebook: "Facebook", instagram: "Instagram", linkedin: "LinkedIn" };
+  const readyText = [...new Set((r.social_drafts ?? []).map((d) => CHAN[d.channel] ?? d.channel))].join(", ");
   const detail = contactedDetail(r);
   const emailSent = Math.max(t?.counts.email ?? 0, r.email_status === "emailed" || r.email_status === "replied" ? 1 : 0);
   const replied = !!t?.replied || r.email_status === "replied";
@@ -23,7 +25,7 @@ export default function ContactedCell({ r }: { r: Prospect }) {
   const dnc = r.email_status === "do_not_contact";
   const any = (t?.total ?? 0) > 0 || emailSent > 0 || replied || bounced || dnc;
   if (!any) {
-    return <div className="w-[300px] text-fg2" title={detail}>Not contacted{ready > 0 && <span className="tag tag-info ml-2" title="A social message is ready to send">{ready} ready</span>}</div>;
+    return <div className="w-[300px] text-fg2" title={detail}>Not contacted{ready > 0 && <span className="text-label text-fg2"> · {readyText} message{ready === 1 ? "" : "s"} ready</span>}</div>;
   }
   const counts = { email: emailSent, facebook: t?.counts.facebook ?? 0, instagram: t?.counts.instagram ?? 0, linkedin: t?.counts.linkedin ?? 0 };
   const last = t?.last_at ?? r.emailed_at ?? null;
@@ -41,7 +43,7 @@ export default function ContactedCell({ r }: { r: Prospect }) {
       </div>
       <div className="mt-1 flex items-center gap-2 whitespace-nowrap overflow-hidden text-label text-fg2">
         {last ? <span>Last sent: {dayMonth(last)}</span> : <span>Not contacted by HQ</span>}
-        {ready > 0 && <span className="tag tag-info" title="A social message is ready to send">{ready} ready</span>}
+        {ready > 0 && <span className="tag tag-info" title="A social message is ready to send">{readyText} ready</span>}
       </div>
     </div>
   );

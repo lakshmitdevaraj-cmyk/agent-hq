@@ -81,7 +81,7 @@ WRITING RULES FOR ALL FOUR
 - Never say "following up", "checking in", "circling back", "touching base", "quick question", "quick chat", "hope you are well", "caught my eye", "came across", "let's connect" or "discovery call".
 - Never mention that you are not selling or not pitching. Never apologise for writing.
 - Never quote any figure that is not in TRUE DETAILS or FACTS. Do not mention demo businesses or industry statistics.
-- Say nothing about the assistant that HOW THE ASSISTANT WORKS does not say. It answers calls and website messages, takes the details and passes them on. It does not text, dispatch, quote or take payments.
+- Say nothing about the assistant that HOW THE ASSISTANT WORKS does not say. It answers phone calls, takes the details and passes them on. Never say it handles website messages, chat, forms or texts, and never say anything about their website. It does not text, dispatch, quote or take payments.
 - No signature, no company line, no website, no opt-out line: those are added when the email is sent.
 - Separate short paragraphs with a blank line.`;
 

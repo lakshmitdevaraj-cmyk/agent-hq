@@ -264,7 +264,7 @@ export function checkModelDraft(d: ModelDraft, factCount: number, opts: DraftChe
   if (!opts.phoneOnlyOk && PHONE_ONLY_CLAIM.test(d.body)) fails.push('it says the site only has a phone number or no form, which is not confirmed for this business: do not claim that');
   const qq = QUICK_Q.exec(d.body);
   if (qq && qq[2] !== "?") fails.push('"Quick question:" must be followed by a real question that ends with a question mark');
-  for (const [rx, what] of UNOFFERED) if (rx.test(d.body)) fails.push(`it mentions ${what}, which is not part of the offer: only say that the assistant answers calls and website messages, takes the details and sends them to the owner`);
+  for (const [rx, what] of UNOFFERED) if (rx.test(d.body)) fails.push(`it mentions ${what}, which is not part of the offer: only say that the assistant answers phone calls, takes the details and sends them to the owner`);
   // Any saved fact the opening actually uses counts (emergency service, hours or weekend closure, 24/7, services, rating, years, family-owned, owner, area).
   const openDetails = opts.details;
   if (openDetails?.length && !detailHit(openingParagraph(d.body), openDetails) && !HOURS_OPENING.test(openingParagraph(d.body))) fails.push(`the opening does not use one true detail about the business (${(openDetails ?? []).slice(0, 4).map((x) => `"${x.text}"`).join(", ")}): open with one of them`);
