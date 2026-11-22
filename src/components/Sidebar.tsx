@@ -14,9 +14,11 @@ import {
   BarChart3,
   FormInput,
   Contact,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ThemeSwitch from "./ThemeSwitch";
+import { useFollowCount } from "@/lib/useFollowCount";
 
 const NAV = [
   { to: "/", label: "Office", icon: Building2, end: true },
@@ -26,6 +28,7 @@ const NAV = [
   { to: "/voice", label: "Voice", icon: Mic },
   { to: "/outreach", label: "Outreach", icon: Send },
   { to: "/prospects", label: "Prospects", icon: Contact },
+  { to: "/followups", label: "Follow-ups", icon: CalendarClock },
   { to: "/inbox", label: "Inbox", icon: InboxIcon },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/forms", label: "Forms", icon: FormInput },
@@ -36,6 +39,7 @@ const NAV = [
 ];
 
 export default function Sidebar() {
+  const due = useFollowCount();
   return (
     <aside className="w-[280px] shrink-0 border-r border-line px-5 py-8 flex flex-col gap-10">
       <Logo />
@@ -48,7 +52,7 @@ export default function Sidebar() {
             className={({ isActive }) => cn("nav-pill", isActive && "active")}
           >
             <Icon size={18} strokeWidth={2} />
-            <span>{label}</span>
+            <span>{label}{to === "/followups" && due ? ` (${due.total})` : ""}</span>
           </NavLink>
         ))}
       </nav>

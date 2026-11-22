@@ -131,6 +131,10 @@ export default function Prospects() {
   const [olderDays, setOlderDays] = useState("");
   const [emailedNoSocial, setEmailedNoSocial] = useState(false);
   const [leadGenF, setLeadGenF] = useState(false);
+  // Leads with a follow-up due today or overdue (from the Follow-ups page's own read; the list never writes anything).
+  const [dueIds, setDueIds] = useState<Set<string>>(new Set());
+  const [dueF, setDueF] = useState(false);
+  useEffect(() => { call<{ rows: Array<{ lead_id: string; bucket: string }> }>("followups.list").then((d) => setDueIds(new Set(d.rows.filter((x) => x.bucket === "overdue" || x.bucket === "today").map((x) => x.lead_id)))).catch(() => undefined); }, []);
   const [batch, setBatch] = useState<BatchStatus | null>(null);
   const [planFor, setPlanFor] = useState<{ plan: SocialPlan | null; rewrite: boolean; err: string | null; starting: boolean } | null>(null);
   const poll = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,6 +166,7 @@ export default function Prospects() {
       if (highGap && !((r.gap_score ?? -1) >= HIGH_GAP)) return false;
       if (noReply && r.email_status !== "emailed") return false;
       if (leadGenF && !isLeadGenFlagged(r)) return false;
+      if (dueF && !dueIds.has(r.id)) return false;
       if (readyCh && !(r.social_drafts ?? []).some((d) => d.channel === readyCh)) return false;
       if (notOn && (r.touches?.counts[notOn as "email"] ?? 0) > 0) return false;
       if (emailedNoSocial && !((r.touches?.counts.email ?? 0) > 0 && !r.touches?.replied && (r.touches?.counts.facebook ?? 0) + (r.touches?.counts.instagram ?? 0) + (r.touches?.counts.linkedin ?? 0) === 0)) return false;
@@ -180,7 +185,7 @@ export default function Prospects() {
       if (y === null) return -1;
       return asc ? x - y : y - x;
     });
-  }, [base, hasAny, reviewF, reachOnly, highGap, noReply, campaign, niche, area, asc, showNotFit, readyCh, notOn, emailedNoSocial, olderDays, fbF, leadGenF]);
+  }, [base, hasAny, reviewF, reachOnly, highGap, noReply, campaign, niche, area, asc, showNotFit, readyCh, notOn, emailedNoSocial, olderDays, fbF, leadGenF, dueF, dueIds]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const patchRow = (id: string, patch: Record<string, unknown>) => setRows((prev) => prev.map((r) => (r.id === id ? ({ ...r, ...patch } as Prospect) : r)));
@@ -288,6 +293,7 @@ export default function Prospects() {
           <button className={chip(highGap)} onClick={() => setHighGap(!highGap)}>High gap ({HIGH_GAP}+)</button>
           <button className={chip(noReply)} onClick={() => setNoReply(!noReply)}>Emailed, no reply</button>
           <button className={chip(emailedNoSocial)} onClick={() => setEmailedNoSocial(!emailedNoSocial)} title="Emailed, no reply, and no Facebook, Instagram or LinkedIn message yet">Emailed, no reply, no social</button>
+          <button className={chip(dueF)} onClick={() => setDueF(!dueF)} title="Leads with a follow-up due today or overdue">Due today ({base.filter((r) => dueIds.has(r.id)).length})</button>
           <button className={chip(leadGenF)} onClick={() => setLeadGenF(!leadGenF)} title="Leads with a lead-gen sign that stay visible because they have 10+ reviews or were already contacted">Possible lead-gen (check) ({base.filter(isLeadGenFlagged).length})</button>
           <select className={selectCls} value={readyCh} onChange={(e) => setReadyCh(e.target.value)} aria-label="Has a message ready to send">
             <option value="">Message ready to send: any</option>
@@ -389,7 +395,7 @@ export default function Prospects() {
                   <tr key={r.id} onClick={() => setSelectedId(r.id)} className={`border-b border-line hover:bg-fg/[0.05] cursor-pointer ${selectedId === r.id ? "bg-primary/[0.07]" : ""}`}>
                     <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="accent-primary" aria-label={`Select ${r.name}`} checked={picked.has(r.id)} onChange={() => togglePick(r.id)} /></td>
                     <td className="py-2 pr-3 text-fg font-medium max-w-[220px] truncate">
-                      {r.name}{r.is_test && <span className="ml-1.5 text-label text-accent">TEST</span>}
+                      {r.name}{r.is_test && <span className="ml-1.5 text-label text-accent">TEST</span>}{dueIds.has(r.id) && <span className="ml-1.5 tag tag-flag" title="A follow-up is due today or overdue">Due today</span>}
                       {fitLabels(r).map((t) => <span key={t} title={t} className="ml-1.5 text-label px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-300">{t.includes("lead-gen") ? "Check: lead-gen?" : "Check: not home service?"}</span>)}
                       {!r.email && reachAnotherWay(r).length > 0 && <span className="ml-1.5 text-label px-1 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary">Reach another way</span>}
                     </td>

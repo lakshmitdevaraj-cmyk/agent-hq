@@ -8,6 +8,9 @@ import PageHeader from "@/components/PageHeader";
 import { call } from "@/lib/api";
 import { timeAgo, hasRegisteredRealAgent } from "@/lib/utils";
 import type { Agent, Activity, Task } from "@/lib/types";
+import { Link } from "react-router-dom";
+import { CalendarClock } from "lucide-react";
+import { useFollowCount } from "@/lib/useFollowCount";
 
 // ── Demo seed so empty deploy looks alive ────────────────────────────
 const SEED_AGENTS: Agent[] = [
@@ -36,6 +39,7 @@ const POSITIONS = [
 ];
 
 export default function Office() {
+  const followDue = useFollowCount();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -89,6 +93,18 @@ export default function Office() {
           <MetricCard key={s.label} {...s} />
         ))}
       </div>
+
+      {followDue && followDue.total > 0 && (
+        <Link to="/followups" className="block mb-6" data-testid="followups-card">
+          <GlassCard className="!p-4 flex items-center gap-3 hover:border-primary/50 transition">
+            <CalendarClock size={20} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="font-semibold text-fg">{followDue.total} follow-up{followDue.total === 1 ? "" : "s"} due today</div>
+              <div className="text-xs text-fg2">{followDue.email} email, {followDue.social} social. Open Follow-ups to send or mark them.</div>
+            </div>
+          </GlassCard>
+        </Link>
+      )}
 
       {/* Scene */}
       <GlassCard className="relative p-0 overflow-hidden h-[520px]">

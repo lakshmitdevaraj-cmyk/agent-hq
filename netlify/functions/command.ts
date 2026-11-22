@@ -5233,7 +5233,8 @@ export const handler: Handler = async (event) => {
         const live = rows.filter((r) => r.bucket !== "stopped");
         live.sort((a, b) => (a.bucket === "waiting" ? 1 : 0) - (b.bucket === "waiting" ? 1 : 0) || String(a.due_date ?? "9999").localeCompare(String(b.due_date ?? "9999")));
         const campNames = new Map((await listJson<{ id: string; name?: string }>(store(OUTREACH_CAMPAIGNS))).map((c) => [c.id, c.name ?? c.id]));
-        const out = [...live, ...rows.filter((r) => r.bucket === "stopped")].map((r) => ({ ...r, campaign_name: campNames.get(r.campaign_id) ?? r.campaign_id, page_url: extra.get(`${r.lead_id}/${r.channel}`)?.url ?? null }));
+        const handIds = new Set(states.filter((x) => x.channel === "all" && x.replied_by_hand).map((x) => x.lead_id));
+        const out = [...live, ...rows.filter((r) => r.bucket === "stopped")].map((r) => ({ ...r, by_hand: handIds.has(r.lead_id), campaign_name: campNames.get(r.campaign_id) ?? r.campaign_id, page_url: extra.get(`${r.lead_id}/${r.channel}`)?.url ?? null }));
         return ok({ today, rows: out, counts: countDue(rows), postal_address_set: !!(await readOutreachSettings()).postal_address?.trim(), ms: Date.now() - t0 });
       }
 
