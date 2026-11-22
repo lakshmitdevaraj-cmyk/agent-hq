@@ -6,6 +6,12 @@ import fs from "node:fs";
 const quotaFile = (process.env.TMPDIR || "/tmp") + "/mock-gemini-quota";
 const port = Number(process.argv[2] || 8899);
 let calls = 0;
+const variants = [
+  "I help local trade businesses stay on top of the phone. When your crew is out on a job, an assistant can pick up calls, take the customer's details and pass them straight to you, so nothing slips away.",
+  "Most owners I talk to in your line of work lose their best evenings returning missed messages. A simple assistant can take the call, note what the customer needs and send it to your phone before the caller moves on.",
+  "Running a crew means the phone rings at the worst possible moments. An assistant that answers for you, writes down the address and the problem, and texts you the summary keeps good jobs from going to the next company on the list.",
+  "Busy weeks are good news until the voicemail fills up. Picture every caller getting a friendly answer, a few questions about the job and a promise that you will call back, while you stay under the sink.",
+];
 const msg = (greeting, type, ch) => {
   const call = "Would you be open to a 30-minute free call this week to see whether it fits how you work?";
   if (type === "follow_up_email") return `${greeting}, I sent a short email to your office earlier this week and wanted to say hello here as well. I set up a simple assistant for local trade businesses that picks up calls and website messages while your crew is on a job, takes the details and passes them straight to you. ${call}`;
@@ -26,6 +32,11 @@ http.createServer((req, res) => {
       if (/"DRAFTS"/.test(user)) {
         const d = JSON.parse(user).DRAFTS ?? [];
         text = JSON.stringify({ results: d.map((x) => ({ id: x.ID, verdict: "ready", problem: "none", reasons: [], rewrite: null })) });
+      } else if (/^OPENING STYLE:/m.test(user)) {
+        const biz = /^BUSINESS: (.+)$/m.exec(user)?.[1] ?? "the business";
+        const g = /^GREETING: (.+)$/m.exec(user)?.[1] ?? "Hi there";
+        const w = biz.split(/\s+/).slice(0, 2).join(" ");
+        text = JSON.stringify({ subject: `Calls at ${w}`, body: `${g},\n\n${variants[[...biz].reduce((a, c) => a + c.charCodeAt(0) * 7, 0) % variants.length]} Would you be open to a 30-minute free call this week to see whether it fits how you work?`, fact_used: null });
       } else if (/^CHANNEL:/m.test(user)) {
         const ch = /^CHANNEL: (\w+)/m.exec(user)?.[1] ?? "facebook";
         const g = /^GREETING: (.+)$/m.exec(user)?.[1] ?? "Hi there";

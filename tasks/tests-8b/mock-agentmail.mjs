@@ -25,6 +25,12 @@ http.createServer((req, res) => {
     if (m[2]) { const one = list.find((x) => x.message_id === decodeURIComponent(m[2])); return one ? res.end(JSON.stringify({ ...one, text: one.preview, authentication_results: one.labels.includes("unauthenticated") ? { dkim: "none", dmarc: "none", spf: "none" } : null })) : ((res.statusCode = 404), res.end("{}")); }
     return res.end(JSON.stringify({ messages: list }));
   }
+  if (req.method === "POST" && /\/messages\/send$/.test(u.pathname)) {
+    let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { fs.appendFileSync(log, `BODY ${b}\n`); res.end(JSON.stringify({ message_id: `mock-out-${Date.now()}`, thread_id: `mock-thread-${Date.now()}` })); });
+    return;
+  }
+  if (req.method === "POST" && u.pathname === "/inboxes") { res.end(JSON.stringify({ inbox_id: "lakshmi@team.shiftforge.ai", email: "lakshmi@team.shiftforge.ai" })); return; }
+  if (req.method === "GET" && /^\/inboxes\/[^/]+$/.test(u.pathname)) { const id = decodeURIComponent(u.pathname.split("/")[2]); res.end(JSON.stringify({ inbox_id: id, email: id })); return; }
   if (req.method === "GET" && u.pathname === "/webhooks") return res.end(JSON.stringify({ webhooks: [{ webhook_id: "wh_mock_1", url: "https://shiftforge-hq.netlify.app/api/webhook/xyz", enabled: true, event_types: ["message.received", "message.sent", "message.delivered", "message.bounced", "message.complained", "message.rejected", "domain.verified"] }] }));
   res.statusCode = 404; res.end("{}");
 }).listen(port, () => console.log(`mock agentmail on ${port}`));
