@@ -80,7 +80,7 @@ const MOVABLE_STORES = [
   "agent-hq-outreach-replies", "agent-hq-outreach-clicks", "agent-hq-outreach-settings",
   "agent-hq-webhooks", "agent-hq-agents", "agent-hq-tasks", "agent-hq-forms", "agent-hq-submissions",
   "agent-hq-pages", "agent-hq-voice-config", "agent-hq-voice-sessions", "agent-hq-voice-invitations",
-  "agent-hq-activity",
+  "agent-hq-activity", "agent-hq-outreach-social", "agent-hq-outreach-touches",
 ];
 const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 const LEAD_SCREENSHOTS = "agent-hq-lead-screenshots"; // key: `<campaign_id>/<lead_id>` -> { jpeg_base64, saved_at, bytes } (never inside the lead record)
