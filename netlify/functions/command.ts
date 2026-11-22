@@ -4134,7 +4134,7 @@ export const handler: Handler = async (event) => {
       case "outreach.leads.list": {
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
-        const rows = await listJson<{ created_at?: string; name?: string; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; is_test?: boolean; raw?: unknown }>(
+        const rows = await listJsonFast<{ created_at?: string; name?: string; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; is_test?: boolean; raw?: unknown }>(
           store(OUTREACH_LEADS),
           `${campaign_id}/`,
         );
@@ -4684,14 +4684,19 @@ export const handler: Handler = async (event) => {
       case "outreach.emails.list": {
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string") return fail(400, "campaign_id required");
-        const rows = await listJson<{ created_at?: string; status?: string; lead_id?: string; to_email?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
+        // Speed (8c): the drafts and the leads store are read in parallel, many blobs at a time, and the campaign's leads come out of the one
+        // all-leads read instead of a second, serial read of the same blobs.
+        const [rows, allLeads] = await Promise.all([
+          listJsonFast<{ created_at?: string; status?: string; lead_id?: string; to_email?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`),
+          listJsonFast<{ id: string; campaign_id?: string; email?: string | null; do_not_contact?: boolean; excluded?: boolean; is_test?: boolean }>(store(OUTREACH_LEADS)),
+        ]);
         rows.sort((a, b) => ((a.created_at ?? "") < (b.created_at ?? "") ? 1 : -1));
         // Flag drafts that will never be sent because the recipient said no
         // (any lead, in any campaign, with that email or lead id is do-not-contact).
-        const dncLeads = (await listJson<{ id: string; email?: string | null; do_not_contact?: boolean }>(store(OUTREACH_LEADS))).filter((l) => l.do_not_contact);
+        const dncLeads = allLeads.filter((l) => l.do_not_contact);
         const dncIds = new Set(dncLeads.map((l) => l.id));
         const dncMail = new Set(dncLeads.map((l) => emailKey(l.email)).filter((e): e is string => !!e));
-        const campLeads = await listJson<{ id: string; excluded?: boolean; is_test?: boolean }>(store(OUTREACH_LEADS), `${campaign_id}/`);
+        const campLeads = allLeads.filter((l) => l.campaign_id === campaign_id);
         const skippedLeadIds = new Set(campLeads.filter((l) => l.excluded).map((l) => l.id));
         const testLeadIds = new Set(campLeads.filter((l) => l.is_test).map((l) => l.id));
         const contactsIdx = await loadContacts();
