@@ -4709,7 +4709,7 @@ export const handler: Handler = async (event) => {
           const rv = r0 as { review_status?: string; review_reasons?: string[] };
           const r1 = r0.status === "drafted" && !rv.review_status ? { ...r0, review_status: "check", review_reasons: ["Not reviewed yet"] } : r0;
           // A listed reason always means check: "ready" with reasons (old rows) is shown as check.
-          const r = r1.status === "drafted" && (r1 as { review_status?: string }).review_status === "ready" && (rv.review_reasons ?? []).length > 0 && (r1 as { reviewed_by?: string | null }).reviewed_by !== "you" ? { ...r1, review_status: "check" } : r1;
+          const r = (r1 as { review_status?: string }).review_status === "ready" && (rv.review_reasons ?? []).length > 0 && (r1 as { reviewed_by?: string | null }).reviewed_by !== "you" ? { ...r1, review_status: "check" } : r1;
           if (r.status !== "drafted") return r;
           if (r.lead_id && skippedLeadIds.has(r.lead_id)) return { ...r, blocked_lead_skipped: true };
           if ((r.lead_id && dncIds.has(r.lead_id)) || dncMail.has(emailKey(r.to_email) ?? "")) return { ...r, blocked_do_not_contact: true };
