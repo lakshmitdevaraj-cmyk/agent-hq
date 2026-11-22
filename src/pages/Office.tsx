@@ -84,7 +84,7 @@ export default function Office() {
         subtitle="Your AI employees, live on duty. This is your control room."
       />
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 min-[1300px]:grid-cols-4 gap-4 mb-8">
         {stats.map((s) => (
           <MetricCard key={s.label} {...s} />
         ))}
@@ -96,10 +96,10 @@ export default function Office() {
         {displayAgents.slice(0, POSITIONS.length).map((a, i) => (
           <AgentSprite key={a.id} agent={a} x={POSITIONS[i].x} y={POSITIONS[i].y} delay={i * 0.15} />
         ))}
-        <div className="absolute top-4 left-4 glass px-3 py-1.5 font-mono text-xs text-fg font-bold tracking-wider">
+        <div className="absolute top-4 left-4 glass px-3 py-1.5 z-10 font-mono text-xs text-fg font-bold tracking-wider">
           <span className="pulse-dot dot-green inline-block mr-2 align-middle" /> LIVE
         </div>
-        <div className="absolute top-4 right-4 glass px-3 py-1.5 font-mono text-xs text-fg font-semibold">
+        <div className="absolute top-14 min-[700px]:top-4 right-4 glass px-3 py-1.5 font-mono text-xs text-fg font-semibold">
           {displayAgents.length} agents · {displayActivity.length} events
         </div>
       </GlassCard>

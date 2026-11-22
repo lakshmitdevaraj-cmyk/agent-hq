@@ -106,8 +106,8 @@ export default function Webhooks() {
             const url = `${baseUrl}/api/webhook/${w.id}`;
             return (
               <GlassCard key={w.id} hover>
-                <div className="flex items-center gap-6">
-                  <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <div className="flex-1 min-w-[220px]">
                     <div className="font-display text-lg tracking-wide text-fg font-bold">{w.name}</div>
                     <p className="text-sm text-fg2 mt-1 font-medium">{w.description}</p>
                     <div className="mt-3 flex items-center gap-2 font-mono text-xs text-fg bg-inset border border-line rounded-lg px-3 py-2 max-w-xl">
@@ -122,8 +122,8 @@ export default function Webhooks() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="stat-num text-4xl">{w.event_count}</div>
-                    <div className="text-label text-fg2 font-medium">events</div>
+                    <div className="stat-num !text-[28px]">{w.event_count}</div>
+                    <div className="text-label text-fg2 font-medium max-w-[170px] mt-2">events received (sent, delivered, bounced, replies)</div>
                   </div>
                 </div>
               </GlassCard>

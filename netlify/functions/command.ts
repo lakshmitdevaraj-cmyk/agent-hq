@@ -35,7 +35,7 @@ import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport,
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
-import { channelsFor, socialSkipReason, socialTypeFor, precheckSocial, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart, type SocialType } from "./lib/social";
+import { channelsFor, socialSkipReason, socialTypeFor, precheckSocial, socialContextLines, type EarlierMessage, type EarlierEmail, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart, type SocialType } from "./lib/social";
 import { deriveTouches, summarizeTouches, touchFromSent, parseSentOn, filterMatches, legacySocialRef, type Touch, type TouchChannel } from "./lib/touches";
 
 function slugify(s: string): string {
@@ -2185,7 +2185,7 @@ async function archiveLegacySent(campaign_id: string, lead_id: string, channel: 
 }
 const partsMap = (parts: SocialPart[]): Record<string, string> => Object.fromEntries(parts.map((p) => [p.key, p.text]));
 
-type SocialPlanItem = { lead: Record<string, unknown> & { id: string }; channel: SocialChannel; url: string; type: SocialType; sentOnChannel: boolean; emailDate?: string | null; earlier?: string | null };
+type SocialPlanItem = { lead: Record<string, unknown> & { id: string }; channel: SocialChannel; url: string; type: SocialType; sentOnChannel: boolean; emailDate?: string | null; earlier?: string | null; earlierList?: EarlierMessage[]; emailList?: EarlierEmail[] };
 type SocialSkip = { lead_id: string; name: string; reason: string; channel?: string };
 
 const OUTREACH_TOUCHES = "agent-hq-outreach-touches"; // contact history entries: key `<lead_id>/<sent_at>-<id>` (batch 8b)
@@ -2245,7 +2245,9 @@ async function planSocial(campaign_id: string, leadIds?: string[], channels?: st
       if (type === "follow_up_email" && !hasEmailSent) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "No email has been sent to this lead yet" }); continue; }
       const lastEmail = [...touches].reverse().find((t) => t.channel === "email");
       const lastOnChannel = [...touches].reverse().find((t) => t.channel === c.channel);
-      items.push({ lead, channel: c.channel, url: c.url, type, sentOnChannel, emailDate: lastEmail?.sent_at ?? null, earlier: lastOnChannel?.text ? lastOnChannel.text.slice(0, 600) : null });
+      const earlierList = touches.filter((t) => t.channel === c.channel && t.text).map((t) => ({ at: t.sent_at, text: t.text }));
+      const emailList = touches.filter((t) => t.channel === "email").map((t) => ({ at: t.sent_at, subject: t.subject ?? null }));
+      items.push({ lead, channel: c.channel, url: c.url, type, sentOnChannel, emailDate: lastEmail?.sent_at ?? null, earlier: lastOnChannel?.text ? lastOnChannel.text.slice(0, 600) : null, earlierList, emailList });
     }
   }
   return { items, skipped };
@@ -2264,8 +2266,8 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
   const user = [
     `CHANNEL: ${item.channel}`,
     `MESSAGE_TYPE: ${item.type}`,
-    ...(item.type === "follow_up_email" && item.emailDate ? [`EMAIL SENT ON: ${item.emailDate.slice(0, 10)} (mention it naturally; never write \"following up\")`] : []),
-    ...(item.type === "follow_up_channel" && item.earlier ? [`EARLIER MESSAGE ON THIS CHANNEL (do not repeat it):\n${item.earlier}`] : []),
+    ...(item.type === "follow_up_email" && item.emailDate && !(item.emailList ?? []).length ? [`EMAIL SENT ON: ${item.emailDate.slice(0, 10)} (mention it naturally; never write \"following up\")`] : []),
+    ...socialContextLines(item.type, item.earlierList ?? (item.earlier ? [{ at: "", text: item.earlier }] : []), item.emailList ?? []),
     `LIMITS: ${limitsText(item.channel, item.type)}`,
     `BUSINESS: ${lead.name ?? "the business"}`,
     `GREETING: ${greeting}`,
@@ -2494,13 +2496,14 @@ async function leadTouchState(campaign_id: string, lead_id: string): Promise<{ t
     listJson<{ id: string; lead_id: string; status?: string; sent_at?: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`),
     listJson<SocialRecord>(store(OUTREACH_SOCIAL), `${campaign_id}/${lead_id}/`),
     listJson<Touch>(store(OUTREACH_TOUCHES), `${lead_id}/`),
-    listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES), ""),
+    listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; received_at?: string }>(store(OUTREACH_REPLIES), ""),
   ]);
   const emails = emailsAll.filter((e) => e.lead_id === lead_id);
   const ownOnly = ownReplyEmailIds(replies.filter((r) => r.original_email_id));
   const replied = emails.some((e) => e.status === "replied" && !ownOnly.has(e.id)) || replies.some((r) => r.lead_id === lead_id && !r.is_test);
   const touches = deriveTouches({ lead_id, campaign_id, emails, socials, stored });
-  return { touches: touches.map(({ ...t }) => { delete (t as { snapshot?: unknown }).snapshot; return t; }), summary: summarizeTouches(touches, replied) };
+  const lastReply = replies.filter((r) => r.lead_id === lead_id && !r.is_test && r.received_at).map((r) => r.received_at as string).sort().pop() ?? null;
+  return { touches: touches.map(({ ...t }) => { delete (t as { snapshot?: unknown }).snapshot; return t; }), summary: summarizeTouches(touches, replied, { at: lastReply, via: "email" }) };
 }
 
 function groupByCampaign(leads: Array<{ campaign_id?: string; lead_id?: string }> | undefined): Map<string, string[]> {
@@ -3949,10 +3952,12 @@ export const handler: Handler = async (event) => {
           listJsonFast<{ id?: string; lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
           listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
           listJsonFast<{ lead_id?: string; campaign_id?: string; channel?: string; status?: string; sent_at?: string | null; type?: string; review_status?: string | null; parts?: Array<{ text?: string }> }>(store(OUTREACH_SOCIAL)),
-          listJsonFast<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES)),
+          listJsonFast<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; received_at?: string }>(store(OUTREACH_REPLIES)),
           listJsonFast<Touch>(store(OUTREACH_TOUCHES)),
         ]);
         const repliedByReply = new Set(replyRows.filter((r) => r.lead_id && !r.is_test).map((r) => String(r.lead_id)));
+        const repliedAtByLead = new Map<string, string>(); // latest reply per lead (replies arrive by email)
+        for (const r of replyRows) if (r.lead_id && !r.is_test && r.received_at && r.received_at > (repliedAtByLead.get(String(r.lead_id)) ?? "")) repliedAtByLead.set(String(r.lead_id), r.received_at);
         const emailsByLead = new Map<string, typeof emails>();
         for (const e of emails) if (e.lead_id) (emailsByLead.get(e.lead_id) ?? emailsByLead.set(e.lead_id, []).get(e.lead_id)!).push(e);
         const socialsByLead = new Map<string, typeof socials>();
@@ -3989,7 +3994,7 @@ export const handler: Handler = async (event) => {
           const social = (l.social as Record<string, string | null> | undefined) ?? {};
           const lid = l.id as string;
           const tl = deriveTouches({ lead_id: lid, campaign_id: (l.campaign_id as string | undefined) ?? null, emails: emailsByLead.get(lid) ?? [], socials: socialsByLead.get(lid) ?? [], stored: touchesByLead.get(lid) ?? [] });
-          const touches = summarizeTouches(tl, email_status === "replied" || repliedByReply.has(lid));
+          const touches = summarizeTouches(tl, email_status === "replied" || repliedByReply.has(lid), { at: repliedAtByLead.get(lid) ?? null, via: "email" });
           const social_drafts = (socialsByLead.get(lid) ?? []).filter((x) => x.status === "drafted").map((x) => ({ channel: x.channel, review_status: x.review_status ?? null, type: x.type ?? "first" }));
           const sc = (l.site_check as Record<string, unknown> | undefined) ?? {};
           return {

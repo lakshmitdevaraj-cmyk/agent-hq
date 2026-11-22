@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
+import ThemeSwitch from "./ThemeSwitch";
 import { call, clearApiKey, setApiKey, SIGNIN_EVENT } from "@/lib/api";
 
 /**
@@ -39,7 +40,7 @@ export default function SignInGate() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-bg/90 backdrop-blur-sm px-4">
       <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-line bg-card p-6">
         <div className="flex items-center gap-3 mb-2">
           <KeyRound size={20} className="text-primary" />
@@ -64,6 +65,10 @@ export default function SignInGate() {
         >
           {busy && <Loader2 size={14} className="animate-spin" />} Sign in
         </button>
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-label text-fg2">Theme</span>
+          <ThemeSwitch />
+        </div>
       </form>
     </div>
   );

@@ -3,6 +3,7 @@ import { Check, Loader2, RefreshCw, Trash2, Key, Sparkles, AlertCircle, External
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import OnboardingWizard from "@/components/OnboardingWizard";
+import ThemeSwitch from "@/components/ThemeSwitch";
 import { call } from "@/lib/api";
 
 type ServiceKey = "gemini" | "apify" | "agentmail";
@@ -598,6 +599,16 @@ export default function Settings() {
           </button>
         }
       />
+
+      <GlassCard className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="font-display text-lg text-fg font-bold">Theme</div>
+            <p className="text-label text-fg2 font-medium">Auto follows your Mac's light or dark setting.</p>
+          </div>
+          <ThemeSwitch />
+        </div>
+      </GlassCard>
 
       {err && (
         <GlassCard className="mb-5 border-red-500/40 bg-red-500/10">

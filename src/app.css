@@ -34,7 +34,7 @@
   --tint: 0.10;            /* strength of tinted badge backgrounds */
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: 15 17 23;      /* #0F1117 */
     --card: 22 25 34;      /* #161922 */
@@ -56,6 +56,28 @@
     --flag: 194 181 247;   /* #C2B5F7 */
     --tint: 0.13;
   }
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+  --page: 15 17 23;      /* #0F1117 */
+  --card: 22 25 34;      /* #161922 */
+  --inset: 11 13 18;
+  --line: 38 42 53;      /* #262A35 */
+  --fg: 236 237 241;     /* #ECEDF1 */
+  --fg2: 163 168 182;    /* #A3A8B6 */
+  --muted: 138 144 160;  /* #8A90A0 */
+  --primary: 157 184 245; /* #9DB8F5 */
+  --on-solid: 15 17 23;  /* #0F1117 */
+  --primary-ink: 157 184 245;
+  --ok-ink: 143 216 174;
+  --warn-ink: 242 195 139;
+  --bad-ink: 241 154 154;
+  --flag-ink: 194 181 247;
+  --ok: 143 216 174;     /* #8FD8AE */
+  --warn: 242 195 139;   /* #F2C38B */
+  --bad: 241 154 154;    /* #F19A9A */
+  --flag: 194 181 247;   /* #C2B5F7 */
+  --tint: 0.13;
 }
 
 :where(*, *::before, *::after) {
@@ -104,11 +126,12 @@ pre {
 .app-bg { position: fixed; inset: 0; z-index: -2; background: rgb(var(--page)); }
 .grid-bg { display: none; }
 
-/* ── Glass card (now a plain card) */ ─────────────────────────────── */
+/* ── Glass card (now a plain card) ── */
 .glass {
   background: rgb(var(--card));
   border: 1px solid rgb(var(--line));
   border-radius: 16px;
+  min-width: 0;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
@@ -123,10 +146,12 @@ pre {
 .stat-num {
   font-family: "Orbitron", sans-serif;
   font-weight: 700;
-  font-size: 64px;
+  font-size: 38px;
   line-height: 1;
   color: rgb(var(--fg));
+  white-space: nowrap;
 }
+@media (min-width: 1300px) { .stat-num { font-size: 48px; } }
 
 /* ── Page header ─────────────────────────────── */
 .page-title {
@@ -248,16 +273,29 @@ pre {
 .tag-info { border-color: transparent; background: rgb(var(--primary)); color: rgb(var(--on-solid)); }
 .tag-neutral { border-color: transparent; background: rgb(var(--fg2)); color: rgb(var(--page)); }
 @media (prefers-color-scheme: dark) {
-  .tag-ok { border-color: transparent; background: rgb(var(--ok) / var(--tint)); color: rgb(var(--ok)); }
-  .tag-warn { border-color: transparent; background: rgb(var(--warn) / var(--tint)); color: rgb(var(--warn)); }
-  .tag-bad { border-color: transparent; background: rgb(var(--bad) / var(--tint)); color: rgb(var(--bad)); }
-  .tag-flag { border-color: transparent; background: rgb(var(--flag) / var(--tint)); color: rgb(var(--flag)); }
-  .tag-info { border-color: transparent; background: rgb(var(--primary) / var(--tint)); color: rgb(var(--primary)); }
-  .tag-neutral { border-color: transparent; background: rgb(var(--fg) / 0.1); color: rgb(var(--fg2)); }
+:root:not([data-theme="light"]) .tag-ok { border-color: transparent; background: rgb(var(--ok) / var(--tint)); color: rgb(var(--ok)); }
+:root:not([data-theme="light"]) .tag-warn { border-color: transparent; background: rgb(var(--warn) / var(--tint)); color: rgb(var(--warn)); }
+:root:not([data-theme="light"]) .tag-bad { border-color: transparent; background: rgb(var(--bad) / var(--tint)); color: rgb(var(--bad)); }
+:root:not([data-theme="light"]) .tag-flag { border-color: transparent; background: rgb(var(--flag) / var(--tint)); color: rgb(var(--flag)); }
+:root:not([data-theme="light"]) .tag-info { border-color: transparent; background: rgb(var(--primary) / var(--tint)); color: rgb(var(--primary)); }
+:root:not([data-theme="light"]) .tag-neutral { border-color: transparent; background: rgb(var(--fg) / 0.1); color: rgb(var(--fg2)); }
 }
+:root[data-theme="dark"] .tag-ok { border-color: transparent; background: rgb(var(--ok) / var(--tint)); color: rgb(var(--ok)); }
+:root[data-theme="dark"] .tag-warn { border-color: transparent; background: rgb(var(--warn) / var(--tint)); color: rgb(var(--warn)); }
+:root[data-theme="dark"] .tag-bad { border-color: transparent; background: rgb(var(--bad) / var(--tint)); color: rgb(var(--bad)); }
+:root[data-theme="dark"] .tag-flag { border-color: transparent; background: rgb(var(--flag) / var(--tint)); color: rgb(var(--flag)); }
+:root[data-theme="dark"] .tag-info { border-color: transparent; background: rgb(var(--primary) / var(--tint)); color: rgb(var(--primary)); }
+:root[data-theme="dark"] .tag-neutral { border-color: transparent; background: rgb(var(--fg) / 0.1); color: rgb(var(--fg2)); }
 
 /* A one-column grid may shrink below its content (otherwise long text pushes the page sideways). */
 @layer base { .grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Placeholder text uses the muted token (the browser default is too faint). */
 input::placeholder, textarea::placeholder, ::placeholder { color: rgb(var(--muted)); opacity: 1; }
+
+/* Screen-reader-only text is absolutely positioned: inside a sideways-scrolling box it must be positioned against that box,
+   otherwise it sticks out of the box and makes the whole page scroll sideways. */
+.overflow-x-auto, .overflow-auto, .overflow-y-auto { position: relative; }
+
+/* Long code words (action names, parameter lists, URLs) wrap instead of pushing the page sideways. */
+:not(pre) > code { overflow-wrap: anywhere; }

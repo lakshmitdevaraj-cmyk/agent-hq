@@ -38,7 +38,7 @@ export type Prospect = LeadInfo & {
   fb_checked?: { at: string; result: "real" | "gone" | "not_fit"; note: string } | null;
 };
 
-export type TouchSummary = { counts: Record<"email" | "facebook" | "instagram" | "linkedin", number>; last_at: string | null; replied: boolean; total: number };
+export type TouchSummary = { counts: Record<"email" | "facebook" | "instagram" | "linkedin", number>; last_at: string | null; replied: boolean; replied_at?: string | null; replied_via?: string | null; total: number };
 export type Touch = { id: string; lead_id: string; campaign_id: string | null; channel: "email" | "facebook" | "instagram" | "linkedin"; kind: "first" | "follow_up"; sent_at: string; text: string; subject?: string | null; source: "hq" | "manual"; derived?: boolean };
 
 export const FB_RESULT_LABEL: Record<string, string> = { real: "Real page", gone: "Page gone", not_fit: "Not a fit" };
@@ -80,7 +80,7 @@ export function contactedList(r: Prospect): Array<{ channel: string; at: string 
   for (const x of r.social_sent ?? []) out.push({ channel: label[x.channel] ?? x.channel, at: x.sent_at });
   return out.sort((a, b) => a.at.localeCompare(b.at));
 }
-const dayMonth = (iso: string): string => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
+export const dayMonth = (iso: string): string => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
 /** "Email 21 Nov · Facebook 22 Nov" (empty when nothing was sent). */
 export const contactedText = (r: Prospect): string => contactedList(r).map((c) => `${c.channel} ${dayMonth(c.at)}`).join(" · ");
 
@@ -143,10 +143,10 @@ const csvCell = (v: unknown): string => {
   return `"${s.replace(/"/g, '""')}"`;
 };
 
-const touchCsv = (r: Prospect): Array<number | string> => { const t = r.touches; return t ? [t.counts.email, t.counts.facebook, t.counts.instagram, t.counts.linkedin, t.last_at ? t.last_at.slice(0, 10) : "", t.replied ? "Yes" : ""] : [0, 0, 0, 0, "", ""]; };
+const touchCsv = (r: Prospect): Array<number | string> => { const t = r.touches; return t ? [t.counts.email, t.counts.facebook, t.counts.instagram, t.counts.linkedin, t.last_at ? t.last_at.slice(0, 10) : "", t.replied ? "Yes" : "", t.replied_at ? t.replied_at.slice(0, 10) : ""] : [0, 0, 0, 0, "", "", ""]; };
 
 export function prospectsToCsv(rows: Prospect[]): string {
-  const head = ["Business", "Owner", "Owner confidence", "Campaign", "Niche", "Area", "Address", "Email", "Phone", "Gap score", "Gap reasons", "Email status", "Draft review", "Warnings", "Not a fit", "Not a fit reason", "Not a fit note", "Contacted", "Emails sent", "Facebook sent", "Instagram sent", "LinkedIn sent", "Last touch", "Replied", "Facebook checked", "Emailed on", "Social messages sent", "Website", "Mobile friendly", "Tap-to-call link", "Secure (https)", "Copyright year", "LinkedIn company", "LinkedIn person", "Facebook", "Instagram", "WhatsApp", "Contact form", "Yelp", "Nextdoor", "Google reviews", "Google Maps"];
+  const head = ["Business", "Owner", "Owner confidence", "Campaign", "Niche", "Area", "Address", "Email", "Phone", "Gap score", "Gap reasons", "Email status", "Draft review", "Warnings", "Not a fit", "Not a fit reason", "Not a fit note", "Contacted", "Emails sent", "Facebook sent", "Instagram sent", "LinkedIn sent", "Last touch", "Replied", "Replied on", "Facebook checked", "Emailed on", "Social messages sent", "Website", "Mobile friendly", "Tap-to-call link", "Secure (https)", "Copyright year", "LinkedIn company", "LinkedIn person", "Facebook", "Instagram", "WhatsApp", "Contact form", "Yelp", "Nextdoor", "Google reviews", "Google Maps"];
   const lines = [head.map(csvCell).join(",")];
   for (const r of rows) {
     const so = r.social ?? {};
@@ -173,4 +173,17 @@ export function downloadCsv(name: string, csv: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const CHANNEL_NAME = { email: "Email", facebook: "Facebook", instagram: "Instagram", linkedin: "LinkedIn" } as const;
+/** Full detail for the hover tooltip and screen readers: "Email 2, Facebook 2, Instagram 1. Last sent 22 Nov. Replied 21 Nov by email." */
+export function contactedDetail(r: Prospect): string {
+  const t = r.touches;
+  if (!t || t.total === 0) return t?.replied ? `Not contacted by HQ. Replied${t.replied_at ? ` ${dayMonth(t.replied_at)}` : ""}.` : "Not contacted.";
+  const parts = (Object.keys(CHANNEL_NAME) as Array<keyof typeof CHANNEL_NAME>).filter((k) => t.counts[k] > 0).map((k) => `${CHANNEL_NAME[k]} ${t.counts[k]}`);
+  let out = `${parts.join(", ")}.`;
+  if (t.last_at) out += ` Last sent ${dayMonth(t.last_at)}.`;
+  if (t.replied) out += ` Replied${t.replied_at ? ` ${dayMonth(t.replied_at)}` : ""}${t.replied_via ? ` by ${t.replied_via}` : ""}.`;
+  if (r.fb_checked) out += ` Facebook checked ${r.fb_checked.at.slice(0, 10)} (${FB_RESULT_LABEL[r.fb_checked.result].toLowerCase()}).`;
+  return out;
 }

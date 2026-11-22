@@ -29,6 +29,7 @@ http.createServer((req, res) => {
       const j = JSON.parse(body);
       const user = j.contents?.[0]?.parts?.[0]?.text ?? "";
       const sys = j.systemInstruction?.parts?.[0]?.text ?? "";
+      if (/^CHANNEL:/m.test(user) && !/"DRAFTS"/.test(user)) fs.appendFileSync((process.env.TMPDIR || "/tmp") + "/mock-gemini-social-prompts.log", "=== SOCIAL WRITER PROMPT ===\n" + user + "\n\n");
       if (/"DRAFTS"/.test(user)) {
         const d = JSON.parse(user).DRAFTS ?? [];
         text = JSON.stringify({ results: d.map((x) => ({ id: x.ID, verdict: "ready", problem: "none", reasons: [], rewrite: null })) });

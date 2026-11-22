@@ -164,7 +164,7 @@ export default function Inbox() {
       )}
 
       {replies.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-[380px_1fr] gap-4">
+        <div className="grid grid-cols-1 min-[1100px]:grid-cols-[380px_minmax(0,1fr)] gap-4">
           {/* Thread list */}
           <GlassCard className="!p-0 overflow-hidden">
             <div className="px-4 py-3 border-b border-line flex items-center gap-2">
@@ -201,7 +201,7 @@ export default function Inbox() {
           {/* Selected thread */}
           {selected ? (
             <GlassCard>
-              <div className="flex items-start gap-3 mb-4">
+              <div className="flex flex-wrap items-start gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center shrink-0">
                   <MessageSquare size={16} className="text-green-300" />
                 </div>

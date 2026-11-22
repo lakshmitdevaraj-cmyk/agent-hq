@@ -121,12 +121,12 @@ export const EXAMPLE_BODIES: string[] = [...DRAFT_EXAMPLES.matchAll(/"body": "(.
 
 export const SOCIAL_SYSTEM_PROMPT = `You write a short first direct message from Lakshmi Devaraj (ShiftForge AI) to the owner of a local home-service business, to be sent by hand on one social channel (CHANNEL). ShiftForge AI sets up an assistant that answers a business's phone calls and website messages, takes the details and sends them to the owner. "I" is Lakshmi. "we" or "ShiftForge AI" is the company.
 
-You are given: CHANNEL, TYPE, LIMITS, BUSINESS, GREETING, CITY, TRADE, TRUE DETAILS ABOUT THEM (numbered), FACTS YOU MAY USE (numbered, nothing else may be claimed about them), ANGLE and OFFER (background only), and for a follow-up the EARLIER MESSAGE or EMAIL DATE.
+You are given: CHANNEL, TYPE, LIMITS, BUSINESS, GREETING, CITY, TRADE, TRUE DETAILS ABOUT THEM (numbered), FACTS YOU MAY USE (numbered, nothing else may be claimed about them), ANGLE and OFFER (background only), and for a follow-up the EARLIER MESSAGES SENT ON THIS CHANNEL (date and text) and, for follow_up_email, the EMAILS ALREADY SENT TO THIS LEAD (date and subject).
 
 TYPE decides what you write:
 - first: a standalone first message on this channel. It must NOT mention any email: the owner may never have seen one.
-- follow_up_email: Lakshmi emailed them (EMAIL DATE). Refer to that email naturally in one short clause (for example "I sent a short email to your office last week"), then say hello here and ask about the 30-minute free call. Never say "following up", "checking in", "circling back" or "touching base".
-- follow_up_channel: a second message on this same channel (EARLIER MESSAGE is what was sent). Say something NEW (a different problem or detail); do not repeat the earlier message and do not nudge ("following up", "checking in", "bumping this"). LinkedIn: only the "dm" text, no connection note.
+- follow_up_email: Lakshmi emailed them (see EMAILS ALREADY SENT: subject and date). Refer to that email naturally in one short clause (for example "I sent a short email to your office last week"), then say hello here and ask about the 30-minute free call. Never say "following up", "checking in", "circling back" or "touching base".
+- follow_up_channel: a second message on this same channel (EARLIER MESSAGES SENT ON THIS CHANNEL are what was already sent). Say something NEW (a different problem or detail); do not repeat the earlier message and do not nudge ("following up", "checking in", "bumping this"). LinkedIn: only the "dm" text, no connection note.
 
 RULES:
 - Write like one person to another in a chat, warmer and shorter than an email. Start with the GREETING you are given and a comma.

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { socialSkipReason, socialTypeFor, partsFor, precheckSocial, limitsText } from "../../netlify/functions/lib/social";
+import { socialSkipReason, socialTypeFor, partsFor, precheckSocial, limitsText, socialContextLines } from "../../netlify/functions/lib/social";
 import { SOCIAL_SYSTEM_PROMPT, SOCIAL_REVIEW_SYSTEM_PROMPT } from "../../netlify/functions/lib/prompts";
 
 let n = 0;
@@ -73,6 +73,38 @@ t("writer and reviewer prompts explain the three message types", () => {
   assert.match(SOCIAL_SYSTEM_PROMPT, /TYPE/);
   assert.match(SOCIAL_SYSTEM_PROMPT, /follow_up_email/);
   assert.match(SOCIAL_REVIEW_SYSTEM_PROMPT, /MESSAGE_TYPE/);
+});
+
+t("follow-up writer input: earlier messages on the channel (text and date) and, for the email follow-up, the subject and date of emails sent", () => {
+  const earlier = [{ at: "2026-11-08T12:00:00Z", text: "Hi Mike, I set up phone assistants for HVAC crews around Webster." }, { at: "2026-11-22T09:00:00Z", text: "Hi Mike, second FB note about missed calls." }];
+  const emails = [{ at: "2026-11-18T10:00:00Z", subject: "Calls while your crew is out" }];
+  const fb = socialContextLines("follow_up_channel", earlier, emails).join("\n");
+  assert.match(fb, /Hi Mike, I set up phone assistants for HVAC crews/, "earlier text is in the prompt");
+  assert.match(fb, /\[2026-11-08\]/);
+  assert.match(fb, /second FB note/);
+  assert.doesNotMatch(fb, /Calls while your crew is out/, "a plain channel follow-up does not get the email");
+  const em = socialContextLines("follow_up_email", earlier, emails).join("\n");
+  assert.match(em, /subject: Calls while your crew is out/);
+  assert.match(em, /\[2026-11-18\]/);
+  assert.match(em, /Hi Mike, I set up phone assistants/, "email follow-up also sees what was already sent on the channel");
+  assert.match(em, /never write "following up"/i);
+  // A first message gets neither: it must stand alone and never mention an email.
+  assert.deepEqual(socialContextLines("first", earlier, emails), []);
+});
+
+t("a lead who replied on any channel is skipped, a Facebook follow-up after a sent first message is not", () => {
+  const lead = { ...base, email: null } as never;
+  
+  assert.equal(socialSkipReason(lead, ctx, { replied: true }), "Already replied");
+  assert.equal(socialSkipReason(lead, ctx, { replied: false }), null);
+  assert.equal(socialTypeFor("follow_up_email", true), "follow_up_email");
+  assert.equal(socialTypeFor(undefined, true), "follow_up_channel", "a second message on a channel is a follow-up");
+});
+
+t("the writer prompt forbids \"following up\" and names the new context blocks", () => {
+  assert.match(SOCIAL_SYSTEM_PROMPT, /Never say "following up"/);
+  assert.match(SOCIAL_SYSTEM_PROMPT, /EARLIER MESSAGES SENT ON THIS CHANNEL/);
+  assert.match(SOCIAL_SYSTEM_PROMPT, /EMAILS ALREADY SENT/);
 });
 
 console.log(`\n${n} passed, ${failed} failed`);

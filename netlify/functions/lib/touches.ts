@@ -39,12 +39,14 @@ export function touchFromSent(t: { id: string; lead_id: string; campaign_id: str
 /** Every touch on one lead, oldest first. */
 export function deriveTouches(i: { lead_id: string; campaign_id: string | null; emails: EmailLike[]; socials: SocialLike[]; stored: Touch[] }): Touch[] {
   const out: Touch[] = [];
+  const kindStored = new Set<string>();
   for (const e of i.emails) {
     if (e.lead_id !== i.lead_id) continue;
     const st = e.status ?? "drafted";
     if (st === "drafted" || st === "failed") continue;
     const at = e.sent_at ?? e.created_at;
     if (!at) continue;
+    if ((e.sequence_position ?? 1) > 1) kindStored.add(`email-${e.id ?? at}`);
     out.push({ id: `email-${e.id ?? at}`, lead_id: i.lead_id, campaign_id: i.campaign_id, channel: "email", kind: (e.sequence_position ?? 1) > 1 ? "follow_up" : "first", sent_at: at, text: e.body_text ?? "", subject: e.subject ?? null, source: "hq", derived: true });
   }
   const replaced = new Set(i.stored.map((s) => s.ref).filter((x): x is string => !!x));
@@ -52,22 +54,32 @@ export function deriveTouches(i: { lead_id: string; campaign_id: string | null; 
     if (s.lead_id !== i.lead_id || s.status !== "sent" || !s.sent_at || !s.channel) continue;
     const ref = legacySocialRef(s.campaign_id ?? "", i.lead_id, s.channel);
     if (replaced.has(ref)) continue;
+    if (s.type && s.type !== "first") kindStored.add(ref);
     out.push({ id: ref, lead_id: i.lead_id, campaign_id: s.campaign_id ?? i.campaign_id, channel: s.channel as TouchChannel, kind: s.type && s.type !== "first" ? "follow_up" : "first", sent_at: s.sent_at, text: joinParts(s.parts), source: "hq", ref, derived: true });
   }
   for (const t of i.stored) if (t.lead_id === i.lead_id) out.push(t);
-  return out.sort((a, b) => a.sent_at.localeCompare(b.sent_at) || a.id.localeCompare(b.id));
+  out.sort((a, b) => a.sent_at.localeCompare(b.sent_at) || a.id.localeCompare(b.id));
+  // A derived touch with no stored kind gets it from date order on its channel: the earliest is the first message, later ones are follow-ups.
+  // Kinds that were stored (an email's sequence step, a follow-up social message, the kind picked for a hand-recorded entry) are kept.
+  const seen: Partial<Record<TouchChannel, number>> = {};
+  for (const t of out) {
+    if (t.derived && !kindStored.has(t.id)) t.kind = (seen[t.channel] ?? 0) > 0 ? "follow_up" : "first";
+    seen[t.channel] = (seen[t.channel] ?? 0) + 1;
+  }
+  return out;
 }
 
-export type TouchSummary = { counts: Record<TouchChannel, number>; last_at: string | null; replied: boolean; total: number };
+/** last_at = the most recent message SENT on any channel. replied_at / replied_via = the latest reply from the lead (own test replies excluded). */
+export type TouchSummary = { counts: Record<TouchChannel, number>; last_at: string | null; replied: boolean; replied_at: string | null; replied_via: string | null; total: number };
 
-export function summarizeTouches(touches: Touch[], replied: boolean): TouchSummary {
+export function summarizeTouches(touches: Touch[], replied: boolean, reply?: { at?: string | null; via?: string | null }): TouchSummary {
   const counts = { email: 0, facebook: 0, instagram: 0, linkedin: 0 } as Record<TouchChannel, number>;
   let last: string | null = null;
   for (const t of touches) {
     counts[t.channel]++;
     if (!last || t.sent_at > last) last = t.sent_at;
   }
-  return { counts, last_at: last, replied, total: touches.length };
+  return { counts, last_at: last, replied, replied_at: replied ? reply?.at ?? null : null, replied_via: replied ? reply?.via ?? (reply?.at ? "email" : null) : null, total: touches.length };
 }
 
 /** A sent date from the date picker (YYYY-MM-DD): today keeps the real time, an earlier day is noon UTC, a future or invalid date is refused (null). */

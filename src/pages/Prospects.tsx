@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import { OwnerField, SiteDetails } from "@/components/SiteDetails";
 import Drawer from "@/components/Drawer";
+import ContactedCell from "@/components/ContactedCell";
 import Modal from "@/components/Modal";
 import { SocialMessages } from "@/components/SocialMessages";
 import { call, callBackground } from "@/lib/api";
@@ -399,12 +400,7 @@ export default function Prospects() {
                     <td className="py-2 pr-3">
                       <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${STATUS_TONE[r.email_status]}`}>{STATUS_LABEL[r.email_status]}</span>
                     </td>
-                    <td className="py-2 pr-3 text-fg2 whitespace-nowrap">
-                      {touchesText(r) ? touchesText(r) : <span className="text-muted">-</span>}
-                      {r.touches?.replied && <span className="ml-1.5 text-label px-1 py-0.5 rounded bg-green-500/15 border border-green-500/40 text-green-300">Replied</span>}
-                      {(r.social_drafts ?? []).length > 0 && <span title="A social message is ready to send" className="ml-1.5 text-label px-1 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary">{r.social_drafts!.length} ready</span>}
-                      {r.fb_checked && <span title={`Facebook ${FB_RESULT_LABEL[r.fb_checked.result].toLowerCase()} on ${r.fb_checked.at.slice(0, 10)}${r.fb_checked.note ? `: ${r.fb_checked.note}` : ""}`} className="ml-1.5 text-label px-1 py-0.5 rounded bg-fg/5 border border-line text-muted">FB checked</span>}
-                    </td>
+                    <td className="py-2 pr-3"><ContactedCell r={r} /></td>
                     <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" className="accent-primary" aria-label={`Not a fit: ${r.name}`} checked={isNotFit(r)} disabled={!r.campaign_id} onChange={(e) => void setNotFit(r, e.target.checked)} />
                     </td>

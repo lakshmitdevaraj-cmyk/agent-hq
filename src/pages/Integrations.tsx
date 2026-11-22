@@ -876,7 +876,7 @@ export default function Integrations() {
                   <code className="font-mono text-sm text-accent font-bold min-w-[200px] max-w-full break-all">
                     {a.action}
                   </code>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-[220px] break-words">
                     <div className="text-sm text-fg font-medium">{a.desc}</div>
                     {a.params && (
                       <code className="font-mono text-xs text-fg2 block mt-1.5 font-semibold">
@@ -979,7 +979,7 @@ function CredentialCard({
         {label}
       </div>
       <div className="flex items-center gap-2 font-mono text-sm bg-inset border border-line rounded-lg px-3 py-2.5">
-        <span className="flex-1 truncate text-primary font-bold">{value}</span>
+        <span className="flex-1 min-w-0 truncate text-primary font-bold">{value}</span>
         {onToggleShow && (
           <button onClick={onToggleShow} className="text-fg2 hover:text-fg shrink-0" title={show ? "Hide" : "Show"}>
             {show ? <EyeOff size={15} /> : <Eye size={15} />}

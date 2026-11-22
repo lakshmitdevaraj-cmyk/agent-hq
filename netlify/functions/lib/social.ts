@@ -135,3 +135,23 @@ export function partsFromAnswer(channel: SocialChannel, o: Record<string, unknow
 }
 
 export const partsToList = (channel: SocialChannel, parts: Record<string, string>, type: SocialType = "first"): SocialPart[] => partsFor(channel, type).map((s) => ({ key: s.key, label: s.label, text: parts[s.key] ?? "" }));
+
+export type EarlierMessage = { at: string; text: string };
+export type EarlierEmail = { at: string; subject: string | null };
+
+/**
+ * What the follow-up writer is told about earlier contact (batch 8b):
+ * - every earlier message sent on THIS channel, with its date and text (oldest first), so it does not repeat them;
+ * - for "Follow-up (mention my email)" only: the subject and date of every email sent to the lead, so it can refer to the email naturally.
+ * A first message gets neither (it must stand alone and never mention an email). Dates are YYYY-MM-DD.
+ */
+export function socialContextLines(type: SocialType, earlier: EarlierMessage[], emails: EarlierEmail[]): string[] {
+  const out: string[] = [];
+  if (type !== "first" && earlier.length > 0) {
+    out.push(`EARLIER MESSAGES SENT ON THIS CHANNEL (oldest first). Do not repeat them: say something new and refer back to them naturally. Never write "following up":\n${earlier.slice(-4).map((m, i) => `${i + 1}. [${m.at.slice(0, 10)}] ${m.text.slice(0, 600)}`).join("\n")}`);
+  }
+  if (type === "follow_up_email" && emails.length > 0) {
+    out.push(`EMAILS ALREADY SENT TO THIS LEAD (subject and date). Mention the email naturally, once; never write "following up":\n${emails.slice(-3).map((e, i) => `${i + 1}. [${e.at.slice(0, 10)}] subject: ${e.subject ?? "(no subject)"}`).join("\n")}`);
+  }
+  return out;
+}

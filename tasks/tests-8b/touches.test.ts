@@ -80,5 +80,30 @@ t("CSV columns: touches per channel and the last-touch date", () => {
   assert.deepEqual(cols, [2, 1, 0, 0, "2026-11-22"]);
 });
 
+t("kind from date order: a legacy 22 Nov Facebook touch is a follow-up when an 8 Nov Facebook touch exists; hand-picked kinds are kept", () => {
+  const stored = [{ id: "m1", lead_id: "L1", campaign_id: "C1", channel: "facebook", kind: "first", sent_at: "2026-11-08T12:00:00Z", text: "old", source: "manual" }] as never;
+  const ts = deriveTouches({ lead_id: "L1", campaign_id: "C1", emails: [], socials: [legacySocial], stored });
+  const fb = ts.filter((x) => x.channel === "facebook");
+  assert.deepEqual(fb.map((x) => x.sent_at.slice(0, 10)), ["2026-11-08", "2026-11-22"]);
+  assert.deepEqual(fb.map((x) => x.kind), ["first", "follow_up"], "22 Nov derived touch must be a follow-up");
+  // Alone, the legacy touch is still the first message.
+  assert.equal(deriveTouches({ lead_id: "L1", campaign_id: "C1", emails: [], socials: [legacySocial], stored: [] })[0].kind, "first");
+  // A hand-recorded entry keeps the kind the user picked, even when an earlier touch exists.
+  const picked = [{ id: "m1", lead_id: "L1", campaign_id: "C1", channel: "instagram", kind: "first", sent_at: "2026-11-08T12:00:00Z", text: "a", source: "manual" }, { id: "m2", lead_id: "L1", campaign_id: "C1", channel: "instagram", kind: "first", sent_at: "2026-11-20T12:00:00Z", text: "b", source: "manual" }] as never;
+  assert.deepEqual(deriveTouches({ lead_id: "L1", campaign_id: "C1", emails: [], socials: [], stored: picked }).map((x) => x.kind), ["first", "first"]);
+  // Different channels do not affect each other.
+  const mixed = deriveTouches({ lead_id: "L1", campaign_id: "C1", emails: [], socials: [legacySocial], stored: [{ id: "i1", lead_id: "L1", campaign_id: "C1", channel: "instagram", kind: "first", sent_at: "2026-11-08T12:00:00Z", text: "i", source: "manual" }] as never });
+  assert.equal(mixed.find((x) => x.channel === "facebook")!.kind, "first");
+});
+
+t("summary carries the latest reply date and the last message sent on any channel", () => {
+  const ts = deriveTouches({ lead_id: "L1", campaign_id: "C1", emails, socials: [legacySocial], stored: [] });
+  const s = summarizeTouches(ts, true, { at: "2026-11-21T09:00:00Z", via: "email" });
+  assert.equal(s.last_at, "2026-11-22T08:00:00Z");
+  assert.equal(s.replied_at, "2026-11-21T09:00:00Z");
+  assert.equal(s.replied_via, "email");
+  assert.equal(summarizeTouches(ts, false, { at: "2026-11-21T09:00:00Z" }).replied_at, null);
+});
+
 console.log(`\n${n} passed, ${failed} failed`);
 if (failed) process.exit(1);

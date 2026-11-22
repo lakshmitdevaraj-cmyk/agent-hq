@@ -16,6 +16,7 @@ import {
   Contact,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ThemeSwitch from "./ThemeSwitch";
 
 const NAV = [
   { to: "/", label: "Office", icon: Building2, end: true },
@@ -51,7 +52,11 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-3">
+        <div>
+          <p className="text-label text-fg2 mb-1.5 font-medium">Theme</p>
+          <ThemeSwitch />
+        </div>
         <div className="glass px-4 py-3">
           <p className="text-xs text-fg2 mb-1.5 font-display font-medium">Status</p>
           <div className="flex items-center gap-2">

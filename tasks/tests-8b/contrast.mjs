@@ -77,34 +77,73 @@ const CHECK = () => {
   const de = document.documentElement;
   if (de.scrollWidth > innerWidth + 1) { const wide = [...document.body.querySelectorAll("*")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed" && !e.closest("table, pre, [class*='overflow-x-auto'], [class*='overflow-auto']"); }).slice(0, 3).map((e) => e.tagName.toLowerCase() + "." + String(e.className).slice(0, 50) + " right=" + Math.round(e.getBoundingClientRect().right)); overflow.push(`page scrolls sideways (${de.scrollWidth} > ${innerWidth}) widest: ${wide.join(" | ")}`); }
   for (const aside of document.querySelectorAll("aside")) { if (aside.getBoundingClientRect().right > innerWidth + 1 || !visible(aside)) continue; const sc = [...aside.querySelectorAll("*")].find((e) => e.scrollWidth > e.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(e).overflowX) && !e.closest("table, pre, code") && e.tagName !== "PRE"); if (aside.scrollWidth > aside.clientWidth + 1) overflow.push(`panel scrolls sideways (${aside.scrollWidth} > ${aside.clientWidth})`); else if (sc) overflow.push(`a block inside the panel scrolls sideways: ${sc.tagName}.${String(sc.className).slice(0, 40)}`); }
-  return { out, small, overflow };
+  // Overlap: visible text whose box overlaps other visible text or an icon (rects clipped by scroll/overflow containers).
+  const overlaps = [];
+  const clip = (el, r) => {
+    let x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;
+    for (let e = el; e && e !== document.body; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.overflowX !== "visible" || cs.overflowY !== "visible") { const b = e.getBoundingClientRect(); x0 = Math.max(x0, b.left); y0 = Math.max(y0, b.top); x1 = Math.min(x1, b.right); y1 = Math.min(y1, b.bottom); }
+    }
+    return x1 - x0 > 1 && y1 - y0 > 1 ? { x0, y0, x1, y1 } : null;
+  };
+  const boxes = [];
+  const w2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w2.nextNode(); n; n = w2.nextNode()) {
+    const t = n.nodeValue.replace(/\s+/g, " ").trim();
+    const el = n.parentElement;
+    if (!t || !el || ["SCRIPT", "STYLE", "NOSCRIPT", "OPTION", "TITLE"].includes(el.tagName) || el.closest("svg, .sr-only") || !visible(el) || opacityOf(el) < 0.05) continue;
+    const rg = document.createRange(); rg.selectNodeContents(n);
+    for (const r of rg.getClientRects()) { const c = clip(el, r); if (c && c.x1 > 0 && c.y1 > 0 && c.x0 < innerWidth) boxes.push({ ...c, kind: "text", label: t.slice(0, 28), el }); }
+  }
+  for (const sv of document.querySelectorAll("svg")) {
+    if (!visible(sv) || opacityOf(sv) < 0.05) continue;
+    const c = clip(sv, sv.getBoundingClientRect()); if (c && c.x1 > 0 && c.y1 > 0 && c.x0 < innerWidth) boxes.push({ ...c, kind: "icon", label: "icon", el: sv });
+  }
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i], b = boxes[j];
+    if (a.kind === "icon" && b.kind === "icon") continue;
+    if (a.el === b.el) continue;
+    const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+    if (w > 2 && h > 2 && w * h > 12) {
+      // A fixed floating panel (the Live agent feed and its pill) sits on top of the page by design; it is checked on its own.
+      const fx = (e) => { for (let x = e; x && x !== document.body; x = x.parentElement) if (getComputedStyle(x).position === "fixed") return x; return null; };
+      if (fx(a.el) !== fx(b.el)) continue;
+      overlaps.push(`"${a.label}" (${a.kind}) overlaps "${b.label}" (${b.kind}) by ${Math.round(w)}x${Math.round(h)}px`);
+    }
+  }
+  return { out, small, overflow, overlaps: overlaps.slice(0, 5) };
 };
 
 let scheme = "";
 const report = (name, r) => {
   total++;
   results.push({ scheme, name, ...r });
-  const bad = r.out.length + r.small.length + r.overflow.length;
-  console.log(`${scheme.padEnd(10)} ${name.padEnd(34)} ${bad === 0 ? "ok: 0 under 4.5:1, 0 under 12px, no sideways overflow" : `contrast ${r.out.length}, under 12px ${r.small.length}, overflow ${r.overflow.length}`}`);
+  const bad = r.out.length + r.small.length + r.overflow.length + r.overlaps.length;
+  console.log(`${scheme.padEnd(18)} ${name.padEnd(30)} ${bad === 0 ? "ok: 0 under 4.5:1, 0 under 12px, no overflow, no overlap" : `contrast ${r.out.length}, under 12px ${r.small.length}, overflow ${r.overflow.length}, overlap ${r.overlaps.length}`}`);
   for (const f of r.out) console.log(`        ${f.ratio}:1 (need ${f.need}) "${f.text}" ${f.fg} on ${f.bg}  [${f.el}]`);
   for (const f of r.small) console.log(`        ${f.px}px "${f.text}" [${f.el}]`);
   for (const f of r.overflow) console.log(`        ${f}`);
+  for (const f of r.overlaps) console.log(`        overlap: ${f}`);
 };
 const browser = await chromium.launch({ executablePath: chrome, headless: true });
 const results = [];
-const WIDTHS = [1440, 640];
+const WIDTHS = [1440, 800, 640];
+// Theme settings: Auto on a dark Mac, Auto on a light Mac, forced Light on a dark Mac, forced Dark on a light Mac.
+const THEMES = [{ os: "dark", pick: "auto" }, { os: "light", pick: "auto" }, { os: "dark", pick: "light" }, { os: "light", pick: "dark" }];
 let total = 0;
-for (const [sch, width] of WIDTHS.flatMap((w) => ["dark", "light"].map((c) => [c, w]))) {
+for (const [th, width] of WIDTHS.flatMap((w) => THEMES.map((t) => [t, w]))) {
+  const sch = th.pick === "auto" ? th.os : `${th.pick}(on-${th.os})`;
   scheme = sch + "@" + width;
-  const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: sch });
-  await ctx.addInitScript((k) => { try { localStorage.setItem("agent_hq_api_key", k); } catch { /* */ } }, KEY);
+  const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: th.os });
+  await ctx.addInitScript(([k, pick]) => { try { localStorage.setItem("agent_hq_api_key", k); if (!window.__feedOpen) localStorage.setItem("agent_hq_live_feed_hidden", "1"); if (pick !== "auto") localStorage.setItem("alcance_theme", pick); } catch { /* */ } }, [KEY, th.pick]);
   const page = await ctx.newPage();
   const dismiss = async () => { for (const re of [/finish later/i, /skip for now/i]) { const b = page.getByRole("button", { name: re }).first(); if (await b.count()) await b.click().catch(() => {}); } };
   const settle = async () => { await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(700); await dismiss(); await page.waitForTimeout(200); };
   const run = async (name) => {
     report(name, await page.evaluate(CHECK));
   };
-  const shot = async (name) => { if (shotsDir) { fs.mkdirSync(shotsDir, { recursive: true }); await page.screenshot({ path: path.join(shotsDir, `${name}-${sch}-${width}.png`) }); } };
+  const shot = async (name) => { if (shotsDir) { fs.mkdirSync(shotsDir, { recursive: true }); await page.screenshot({ path: path.join(shotsDir, `${name}-${sch.replace(/[()]/g, "-")}-${width}.png`) }); } };
   const go = async (route) => { await page.goto(base + route); await settle(); };
   const clickText = async (sel, re) => { const loc = page.locator(sel).filter({ hasText: re }).first(); if (await loc.count()) { await loc.click({ timeout: 3000 }).catch(() => {}); await page.waitForTimeout(500); return true; } return false; };
   const closePanel = async () => { await page.keyboard.press("Escape"); await page.waitForTimeout(250); };
@@ -112,7 +151,7 @@ for (const [sch, width] of WIDTHS.flatMap((w) => ["dark", "light"].map((c) => [c
   for (const [route, name] of [["/", "Office"], ["/tasks", "Tasks"], ["/activity", "Activity"], ["/agents", "Agents"], ["/voice", "Voice"], ["/forms", "Forms"], ["/pages", "Pages"], ["/outreach", "Outreach"], ["/prospects", "Prospects"], ["/inbox", "Inbox"], ["/analytics", "Analytics"], ["/webhooks", "Webhooks"], ["/integrations", "Integrations"], ["/settings", "Settings"]]) {
     await go(route);
     await run(name);
-    if (name === "Outreach" || name === "Inbox" || name === "Prospects") await shot(name.toLowerCase());
+    if (["Outreach", "Inbox", "Prospects", "Office", "Webhooks", "Agents", "Integrations"].includes(name)) await shot(name.toLowerCase());
   }
 
   // campaign page + its pop-ups
@@ -139,18 +178,19 @@ for (const [sch, width] of WIDTHS.flatMap((w) => ["dark", "light"].map((c) => [c
   }
 
   // sign-in screen (no key)
-  const ctx2 = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: sch });
+  const ctx2 = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: th.os });
+  if (th.pick !== "auto") await ctx2.addInitScript((pick) => { try { localStorage.setItem("alcance_theme", pick); } catch { /* */ } }, th.pick);
   const p2 = await ctx2.newPage();
   await p2.goto(base + "/outreach");
   await p2.waitForTimeout(1500);
   if (await p2.getByText(/paste your .* api key/i).count()) {
     report("Sign-in screen", await p2.evaluate(CHECK));
-    if (shotsDir) await p2.screenshot({ path: path.join(shotsDir, `signin-${sch}-${width}.png`) });
+    if (shotsDir) await p2.screenshot({ path: path.join(shotsDir, `signin-${sch.replace(/[()]/g, "-")}-${width}.png`) });
   } else console.log(`${scheme} Sign-in screen: gate not shown (skipped)`);
   await ctx2.close();
   await ctx.close();
 }
 await browser.close();
-const bad = results.reduce((n, r) => n + r.out.length + r.small.length + r.overflow.length, 0);
-console.log(`\n${total} page/panel views checked (both modes, ${WIDTHS.join(" and ")} px wide); ${bad} problems (text under 4.5:1, text under 12px, sideways overflow).`);
+const bad = results.reduce((n, r) => n + r.out.length + r.small.length + r.overflow.length + r.overlaps.length, 0);
+console.log(`\n${total} page/panel views checked (${THEMES.length} theme settings, ${WIDTHS.join(", ")} px wide); ${bad} problems (text under 4.5:1, under 12px, sideways overflow, overlapping text/icons).`);
 if (bad) process.exitCode = 1;

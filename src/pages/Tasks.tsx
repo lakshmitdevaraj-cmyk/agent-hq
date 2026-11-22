@@ -104,7 +104,8 @@ export default function Tasks() {
       />
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="overflow-x-auto pb-2">
+        <div className="grid grid-cols-5 gap-4 min-w-[900px]">
           {COLUMNS.map((col) => (
             <KanbanColumn
               key={col.status}
@@ -119,6 +120,7 @@ export default function Tasks() {
               ))}
             </KanbanColumn>
           ))}
+        </div>
         </div>
 
         <DragOverlay dropAnimation={null}>
