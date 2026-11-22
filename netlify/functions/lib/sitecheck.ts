@@ -890,8 +890,8 @@ export function websiteFacts(pages: Page[], ctx: { via: "raw" | "browser"; jsBui
 
   // 1. Mobile friendliness: flagged only when there is no viewport tag or it sets a fixed pixel width (width=980).
   //    A tag with initial-scale=1 (and no fixed width) is mobile friendly, like Duda's "initial-scale=1, minimum-scale=1, maximum-scale=5".
-  const viewport = home.html.match(/<meta\b[^>]*name\s*=\s*["']viewport["'][^>]*>/i)?.[0] ?? null;
-  const fixedWidth = viewport ? /[\s;,"']width\s*=\s*\d+/i.test(viewport) : false;
+  const viewport = home.html.match(/<meta\b[^>]*\bname\s*=\s*["']?viewport\b[^>]*>/i)?.[0] ?? null; // quotes optional: minified pages drop them
+  const fixedWidth = viewport ? /[\s;,"'=]width\s*=\s*\d+/i.test(viewport) : false;
   if (unsure) out.push({ key: "not_mobile_friendly", value: "unknown", evidence: { url: homeUrl, text: "The site is built with JavaScript; a plain download cannot show how it looks on a phone." } });
   else if (viewport && !fixedWidth) out.push({ key: "not_mobile_friendly", value: false, evidence: { url: homeUrl, text: viewport.slice(0, 160) } });
   else out.push({ key: "not_mobile_friendly", value: true, evidence: { url: homeUrl, text: viewport ? `The viewport tag sets a fixed width: ${viewport.slice(0, 120)}` : "The home page has no mobile viewport tag (<meta name=\"viewport\">)." } });

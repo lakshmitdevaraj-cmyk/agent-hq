@@ -5,7 +5,8 @@ import {
 } from "../../netlify/functions/lib/replies";
 
 let n = 0;
-const t = (name: string, fn: () => void) => { fn(); n++; console.log("ok  " + name); };
+let failed = 0;
+const t = (name: string, fn: () => void) => { try { fn(); n++; console.log("ok  " + name); } catch (e) { failed++; console.log("FAIL " + name + "  -> " + String((e as Error).message).split("\n")[0].slice(0, 160)); } };
 
 t("every message.received* type is inbound, outbound types are not", () => {
   for (const ty of ["message.received", "message.received.spam", "message.received.blocked", "message.received.unauthenticated", "message.received.future_thing"]) assert.equal(isInboundEvent(ty), true, ty);
@@ -110,4 +111,5 @@ t("webhook: required event list includes the unauthenticated type; dry run shows
   assert.equal(dryRunWebhookPatch({ webhook_id: "w1", event_types: send }).needs_change, false);
 });
 
-console.log(`\n${n} tests passed`);
+console.log(`\n${n} passed, ${failed} failed`);
+if (failed) process.exit(1);

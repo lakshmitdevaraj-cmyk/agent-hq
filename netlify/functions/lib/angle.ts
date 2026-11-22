@@ -339,9 +339,12 @@ export function sharedRun(a: string, b: string, min = 8): string {
 
 /** The first phrase of `body` (8+ words in a row) that also appears in one of the sources; null when the draft is its own. */
 export function copiedFrom(body: string, sources: string[], min = 8): string | null {
+  // The plain description of the service ("answers calls and website messages, takes the details and sends them to you") is
+  // in the offer and in every email; it is not copying. Everything else still counts.
+  const mine = withoutServiceDescription(body);
   for (const src of sources) {
     if (!src) continue;
-    const r = sharedRun(body, src, min);
+    const r = sharedRun(mine, withoutServiceDescription(src), min);
     if (r) return r;
   }
   return null;
@@ -374,7 +377,7 @@ export const CROSS_EMAIL_WORDS = 12;
 const SERVICE_PHRASES: RegExp[] = [
   /\b(?:answers?|picks? up|takes?|handles?) (?:your |their |the )?(?:phone )?(?:calls?|messages?|website messages?|texts?)(?: and (?:website |web |chat )?(?:calls?|messages?))?\b/gi,
   /\b(?:takes?|gets?|collects?) (?:down )?(?:the |their |your )?(?:caller['’]?s )?(?:details|information|name and number)\b/gi,
-  /\bsends? (?:them|those|it|the details|everything|that)(?: straight| right)? (?:over )?to (?:you|the owner|your team|your phone)\b/gi,
+  /\b(?:sends?|passes?|forwards?|relays?) (?:them|those|it|the details|everything|that|every (?:enquiry|inquiry|lead|message|call))(?: straight| right| directly)? (?:over )?(?:on )?to (?:you|the owner|your team|your phone|the team)\b/gi,
 ];
 let svcMark = 0;
 /** Each removed phrase becomes a one-off marker word, so two emails never "share" a run across the gap. */

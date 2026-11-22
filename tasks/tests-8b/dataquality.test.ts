@@ -4,7 +4,8 @@ import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "../../ne
 import { fitFlags, leadGenWebsite } from "../../netlify/functions/lib/sitecheck";
 
 let n = 0;
-const t = (name: string, fn: () => void) => { fn(); n++; console.log("ok  " + name); };
+let failed = 0;
+const t = (name: string, fn: () => void) => { try { fn(); n++; console.log("ok  " + name); } catch (e) { failed++; console.log("FAIL " + name + "  -> " + String((e as Error).message).split("\n")[0].slice(0, 160)); } };
 
 t("placeholder addresses are junk: filler@godaddy.com, yourname@example.org and friends", () => {
   for (const e of ["filler@godaddy.com", "yourname@example.org", "name@wix.com", "info@domain.com", "abc@sentry.io", "x@godaddy.com", "someone@example.com"]) assert.equal(isJunkEmail(e), true, e);
@@ -77,4 +78,5 @@ t("category alone: rental category is flagged at read time", () => {
   assert.equal(categoryFitFlag(null), null);
 });
 
-console.log(`\n${n} tests passed`);
+console.log(`\n${n} passed, ${failed} failed`);
+if (failed) process.exit(1);
