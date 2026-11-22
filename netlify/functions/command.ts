@@ -35,7 +35,8 @@ import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport,
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
-import { channelsFor, socialSkipReason, precheckSocial, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart } from "./lib/social";
+import { channelsFor, socialSkipReason, socialTypeFor, precheckSocial, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart, type SocialType } from "./lib/social";
+import { deriveTouches, summarizeTouches, touchFromSent, parseSentOn, filterMatches, legacySocialRef, type Touch, type TouchChannel } from "./lib/touches";
 
 function slugify(s: string): string {
   return s
@@ -2163,43 +2164,81 @@ type SocialRecord = {
   created_at: string;
   updated_at: string;
   sent_at?: string | null;
+  type?: SocialType;
+  mentions_email?: boolean;
+  email_date?: string | null;
 };
 
 const socialKey = (campaign_id: string, lead_id: string, channel: string) => `${campaign_id}/${lead_id}/${channel}`;
+const writeTouch = (t: Touch) => writeJson(store(OUTREACH_TOUCHES), `${t.lead_id}/${t.sent_at}-${t.id}`, t);
+/** A message marked sent before batch 8b sits in the draft slot. Before a new message overwrites it, keep it as a touch of its own (same id, so it never counts twice). */
+async function archiveLegacySent(campaign_id: string, lead_id: string, channel: string): Promise<void> {
+  const rec = await readJson<SocialRecord>(store(OUTREACH_SOCIAL), socialKey(campaign_id, lead_id, channel));
+  if (!rec || rec.status !== "sent" || !rec.sent_at) return;
+  const ref = legacySocialRef(campaign_id, lead_id, channel);
+  await writeTouch(touchFromSent({ id: ref, lead_id, campaign_id, channel: channel as TouchChannel, kind: rec.type && rec.type !== "first" ? "follow_up" : "first", sent_at: rec.sent_at, text: rec.parts.map((p) => p.text).filter(Boolean).join("\n\n"), source: "hq", ref }));
+}
 const partsMap = (parts: SocialPart[]): Record<string, string> => Object.fromEntries(parts.map((p) => [p.key, p.text]));
 
-type SocialPlanItem = { lead: Record<string, unknown> & { id: string }; channel: SocialChannel; url: string };
+type SocialPlanItem = { lead: Record<string, unknown> & { id: string }; channel: SocialChannel; url: string; type: SocialType; sentOnChannel: boolean; emailDate?: string | null; earlier?: string | null };
+type SocialSkip = { lead_id: string; name: string; reason: string; channel?: string };
 
-/** Which (lead, channel) pairs get a message, and which leads were skipped and why. */
-async function planSocial(campaign_id: string, leadIds?: string[], channels?: string[], opts: { regenerate?: boolean } = {}): Promise<{ items: SocialPlanItem[]; skipped: Array<{ lead_id: string; name: string; reason: string }> }> {
+const OUTREACH_TOUCHES = "agent-hq-outreach-touches"; // contact history entries: key `<lead_id>/<sent_at>-<id>` (batch 8b)
+
+/** Stored touches (those added by "Mark as sent" and "Record a message sent by hand"), grouped by lead. */
+async function storedTouchesByLead(leadIds?: Set<string>): Promise<Map<string, Touch[]>> {
+  const all = await listJson<Touch>(store(OUTREACH_TOUCHES), "");
+  const m = new Map<string, Touch[]>();
+  for (const t of all) { if (leadIds && !leadIds.has(t.lead_id)) continue; (m.get(t.lead_id) ?? m.set(t.lead_id, []).get(t.lead_id)!).push(t); }
+  return m;
+}
+
+/**
+ * Which (lead, channel) pairs get a message, and what is skipped and why.
+ * A sent email no longer blocks a social message; a reply, do-not-contact, not-fit and a missing page do.
+ * With no lead ids (the bulk run) every lead with a saved page qualifies, emailed or not; a lead on its own may start by hand
+ * without a finished website check (manualStart), which the bulk run never does.
+ */
+async function planSocial(campaign_id: string, leadIds?: string[], channels?: string[], opts: { regenerate?: boolean; type?: string; manualStart?: boolean } = {}): Promise<{ items: SocialPlanItem[]; skipped: SocialSkip[] }> {
   const campaign = await readCampaign<CampaignRecord>(campaign_id);
   if (!campaign) throw new Error("campaign not found");
   const ctx = campaignSkipCtx(campaign);
   const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
-  const emails = await listJson<{ lead_id: string; status?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
-  const bounced = new Set(emails.filter((e) => e.status === "bounced").map((e) => e.lead_id));
-  const existing = new Map((await listJson<SocialRecord>(store(OUTREACH_SOCIAL), `${campaign_id}/`)).map((r) => [`${r.lead_id}/${r.channel}`, r]));
-  const contacts = await loadContacts();
+  const emails = await listJson<{ id: string; lead_id: string; status?: string; sent_at?: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
+  const replies = await listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES), "");
+  const ownOnly = ownReplyEmailIds(replies.filter((r) => r.original_email_id));
+  const repliedLeads = new Set<string>([
+    ...emails.filter((e) => e.status === "replied" && !ownOnly.has(e.id)).map((e) => e.lead_id),
+    ...replies.filter((r) => r.lead_id && !r.is_test).map((r) => String(r.lead_id)),
+  ]);
+  const socials = await listJson<SocialRecord>(store(OUTREACH_SOCIAL), `${campaign_id}/`);
+  const existing = new Map(socials.map((r) => [`${r.lead_id}/${r.channel}`, r]));
+  const stored = await storedTouchesByLead();
   const want = leadIds && leadIds.length ? new Set(leadIds) : null;
   const wantChannels = channels && channels.length ? new Set(channels) : null;
   const items: SocialPlanItem[] = [];
-  const skipped: Array<{ lead_id: string; name: string; reason: string }> = [];
+  const skipped: SocialSkip[] = [];
   for (const lead of leads) {
-    if (want ? !want.has(lead.id) : (lead.email && !isJunkEmail(lead.email as string))) continue; // bulk = leads with no usable email
-    const chans = channelsFor(lead as Parameters<typeof channelsFor>[0]).filter((c) => !wantChannels || wantChannels.has(c.channel));
-    if (chans.length === 0) continue;
-    const email = lead.email as string | null | undefined;
-    const reason = socialSkipReason(lead as Parameters<typeof socialSkipReason>[0], ctx, {
-      bounced: bounced.has(lead.id),
-      contactBlocked: !!(email && !isJunkEmail(email) && contactBlock(contacts, email, campaign_id, { isTest: lead.is_test === true })),
-    });
-    if (reason) { skipped.push({ lead_id: lead.id, name: String(lead.name ?? lead.id), reason }); continue; }
+    if (want && !want.has(lead.id)) continue;
+    const name = String(lead.name ?? lead.id);
+    const links = channelsFor(lead as Parameters<typeof channelsFor>[0]);
+    const chans = links.filter((c) => !wantChannels || wantChannels.has(c.channel));
+    if (chans.length === 0) { if (want) skipped.push({ lead_id: lead.id, name, reason: wantChannels ? "No saved page on that channel" : "No saved Facebook, Instagram or LinkedIn page" }); continue; }
+    const reason = socialSkipReason(lead as Parameters<typeof socialSkipReason>[0], ctx, { replied: repliedLeads.has(lead.id), manualStart: !!want && opts.manualStart === true });
+    if (reason) { skipped.push({ lead_id: lead.id, name, reason }); continue; }
     // The bulk run leaves out low-gap leads (a hint, not a rule: writing for one lead on its own still works).
-    if (!want && typeof lead.gap_score === "number" && lead.gap_score < LOW_GAP) { skipped.push({ lead_id: lead.id, name: String(lead.name ?? lead.id), reason: `low gap (${lead.gap_score}, under ${LOW_GAP})` }); continue; }
+    if (!want && typeof lead.gap_score === "number" && lead.gap_score < LOW_GAP) { skipped.push({ lead_id: lead.id, name, reason: `low gap (${lead.gap_score}, under ${LOW_GAP})` }); continue; }
+    const touches = deriveTouches({ lead_id: lead.id, campaign_id, emails, socials, stored: stored.get(lead.id) ?? [] });
+    const hasEmailSent = touches.some((t) => t.channel === "email");
     for (const c of chans) {
       const have = existing.get(`${lead.id}/${c.channel}`);
-      if (have && (have.status === "sent" || !opts.regenerate)) continue;
-      items.push({ lead, channel: c.channel, url: c.url });
+      if (have && have.status !== "sent" && !opts.regenerate) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "Already has a message ready" }); continue; }
+      const sentOnChannel = touches.some((t) => t.channel === c.channel) || have?.status === "sent";
+      const type = socialTypeFor(opts.type, sentOnChannel);
+      if (type === "follow_up_email" && !hasEmailSent) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "No email has been sent to this lead yet" }); continue; }
+      const lastEmail = [...touches].reverse().find((t) => t.channel === "email");
+      const lastOnChannel = [...touches].reverse().find((t) => t.channel === c.channel);
+      items.push({ lead, channel: c.channel, url: c.url, type, sentOnChannel, emailDate: lastEmail?.sent_at ?? null, earlier: lastOnChannel?.text ? lastOnChannel.text.slice(0, 600) : null });
     }
   }
   return { items, skipped };
@@ -2217,7 +2256,10 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
   const trade = realTradeNow ?? (ctx.anyTrade ? "home services" : (String(lead.category ?? "") || ctx.query || "home services")).slice(0, 60);
   const user = [
     `CHANNEL: ${item.channel}`,
-    `LIMITS: ${limitsText(item.channel)}`,
+    `MESSAGE_TYPE: ${item.type}`,
+    ...(item.type === "follow_up_email" && item.emailDate ? [`EMAIL SENT ON: ${item.emailDate.slice(0, 10)} (mention it naturally; never write \"following up\")`] : []),
+    ...(item.type === "follow_up_channel" && item.earlier ? [`EARLIER MESSAGE ON THIS CHANNEL (do not repeat it):\n${item.earlier}`] : []),
+    `LIMITS: ${limitsText(item.channel, item.type)}`,
     `BUSINESS: ${lead.name ?? "the business"}`,
     `GREETING: ${greeting}`,
     `CITY: ${cityOf(lead.address as string | null) || "(unknown)"}`,
@@ -2227,7 +2269,7 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
     `ANGLE: ${plan.angle.line}`,
     `OFFER (background only, rewrite in your own words, never paste it): "${ctx.offer}"`,
   ].join("\n");
-  const checks = { phoneOnlyOk: plan.angle.code === "phone_only", callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: realTradeNow, copySources: [ctx.offer, ...EXAMPLE_BODIES] }; // short messages may share a plain offer sentence, so they are not compared with each other
+  const checks = { type: item.type, phoneOnlyOk: plan.angle.code === "phone_only", callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: realTradeNow, copySources: [ctx.offer, ...EXAMPLE_BODIES] }; // short messages may share a plain offer sentence, so they are not compared with each other
   let failures: string[] = [];
   let ans: AiJsonResult | null = null;
   let parts: Record<string, string> = {};
@@ -2238,7 +2280,7 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
     const prompt = failures.length === 0 ? user : `${user}\n\nYOUR LAST ANSWER FAILED THESE CHECKS: ${failures.join("; ")}. Write it again and fix them. Output JSON only.`;
     ans = await aiJson("draft", { system: SOCIAL_SYSTEM_PROMPT, user: prompt, temperature: 0.5 }, ai);
     const o = (ans.json && typeof ans.json === "object" ? ans.json : {}) as Record<string, unknown>;
-    parts = partsFromAnswer(item.channel, o);
+    parts = partsFromAnswer(item.channel, o, item.type);
     factUsed = normalizeFactUsed(o.fact_used, plan.facts.length);
     failures = precheckSocial(item.channel, parts, { ...checks, factCount: plan.facts.length, factUsed });
     for (const k of Object.keys(parts)) if (k !== "note" && parts[k] && !parts[k].toLowerCase().startsWith(greeting.toLowerCase())) failures.push(`${k === "dm" ? "the first message" : "the message"} must start with "${greeting},"`);
@@ -2248,7 +2290,7 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
   const now = new Date().toISOString();
   return {
     id: `${item.lead.id}-${item.channel}`, campaign_id, lead_id: item.lead.id, channel: item.channel, url: item.url,
-    parts: partsToList(item.channel, parts), status: "drafted",
+    parts: partsToList(item.channel, parts, item.type), status: "drafted", type: item.type, mentions_email: item.type === "follow_up_email", email_date: item.emailDate ?? null,
     review_status: failures.length ? "check" : null,
     review_reasons: failures.map((f) => `Code check: ${f}`).slice(0, 6),
     reviewed_by: failures.length ? "code checks" : null,
@@ -2267,7 +2309,8 @@ async function askSocialBatch(entries: Array<{ rec: SocialRecord; lead: ReviewLe
   const payload = entries.map(({ rec, lead }) => ({
     ID: rec.id,
     CHANNEL: rec.channel,
-    LIMITS: limitsText(rec.channel),
+    MESSAGE_TYPE: rec.type ?? "first",
+    LIMITS: limitsText(rec.channel, rec.type ?? "first"),
     MESSAGES: partsMap(rec.parts),
     GREETING_EXPECTED: `${greetingFor(lead as Parameters<typeof greetingFor>[0]) ?? "Hi there"},`,
     FACTS_GIVEN_TO_WRITER: rec.draft_facts ?? [],
@@ -2285,7 +2328,7 @@ async function askSocialBatch(entries: Array<{ rec: SocialRecord; lead: ReviewLe
     const e = entries.find((x) => x.rec.id === o.id);
     if (!e || out.has(o.id)) continue;
     const rw = o.rewrite && typeof o.rewrite === "object" ? (o.rewrite as Record<string, unknown>) : null;
-    const rewrite = rw ? partsFromAnswer(e.rec.channel, rw) : null;
+    const rewrite = rw ? partsFromAnswer(e.rec.channel, rw, e.rec.type ?? "first") : null;
     out.set(o.id, {
       verdict: o.verdict.toLowerCase() as ReviewStatus,
       problem: String(o.problem ?? "none"),
@@ -2336,12 +2379,12 @@ async function reviewSocialRecords(campaign_id: string, recs: SocialRecord[], ai
       if (!a) { await save(rec, { review_status: "check", review_reasons: ["Not reviewed: the AI reviewer gave no usable answer."], reviewed_by: null }, { status: "check", reasons: ["no usable answer"] }); continue; }
       if (a.verdict === "check" && a.rewrite && rec.rewrites_used < 1) {
         const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
-        const found = precheckSocial(rec.channel, a.rewrite, { phoneOnlyOk: plan.angle.code === "phone_only", callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: ((lead.site_check as { real_trade?: string | null } | null | undefined)?.real_trade) ?? null, copySources: [DEFAULT_OFFER, ...EXAMPLE_BODIES], factCount: rec.draft_facts.length, factUsed: rec.fact_used });
+        const found = precheckSocial(rec.channel, a.rewrite, { type: rec.type ?? "first", phoneOnlyOk: plan.angle.code === "phone_only", callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: ((lead.site_check as { real_trade?: string | null } | null | undefined)?.real_trade) ?? null, copySources: [DEFAULT_OFFER, ...EXAMPLE_BODIES], factCount: rec.draft_facts.length, factUsed: rec.fact_used });
         if (found.length > 0) {
           await save(rec, { review_status: "check", review_reasons: [...a.reasons, ...found.map((f) => `Rewrite failed code check: ${f}`)].slice(0, 6), reviewed_by: a.model, rewrites_used: 1 }, { status: "check", reasons: a.reasons });
           continue;
         }
-        second.push({ rec: { ...rec, parts: partsToList(rec.channel, a.rewrite), rewrites_used: 1 }, lead, prior: a });
+        second.push({ rec: { ...rec, parts: partsToList(rec.channel, a.rewrite, rec.type ?? "first"), rewrites_used: 1 }, lead, prior: a });
         continue;
       }
       await save(rec, { review_status: a.verdict, review_reasons: a.reasons, reviewed_by: a.model }, { status: a.verdict, reasons: a.reasons });
@@ -2364,7 +2407,7 @@ async function reviewSocialRecords(campaign_id: string, recs: SocialRecord[], ai
   }
 }
 
-export type SocialJobParams = { campaign_id: string; lead_ids?: string[]; channels?: string[]; regenerate?: boolean; resume?: boolean };
+export type SocialJobParams = { campaign_id: string; lead_ids?: string[]; channels?: string[]; regenerate?: boolean; resume?: boolean; type?: string; manual_start?: boolean };
 
 /** The social job: one message at a time with a pause (free Gemini tier), reviewed in groups of up to 5, pausing on Gemini's daily limit. */
 export async function runSocialJob(p: SocialJobParams): Promise<void> {
@@ -2382,7 +2425,7 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
   const failures: Array<{ name: string; error: string }> = [];
   const pending: SocialRecord[] = [];
   let offerText = DEFAULT_OFFER; // set from the campaign/settings below; the reviewer gets the same offer text as the email reviewer
-  const resumeParams = { campaign_id, lead_ids: p.lead_ids, channels: p.channels, regenerate: false, resume: true };
+  const resumeParams = { campaign_id, lead_ids: p.lead_ids, channels: p.channels, regenerate: false, resume: true, type: p.type, manual_start: p.manual_start };
   const flush = async () => {
     if (pending.length === 0) return;
     const batch = pending.splice(0, pending.length);
@@ -2398,7 +2441,7 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
     const cctx = campaignSkipCtx(campaign);
     // A resumed run first reviews the messages written before the pause but never reviewed.
     if (p.resume) pending.push(...(await listJson<SocialRecord>(ss, `${campaign_id}/`)).filter((r) => r.status === "drafted" && r.review_status === null));
-    const { items } = await planSocial(campaign_id, p.lead_ids, p.channels, { regenerate: p.regenerate });
+    const { items } = await planSocial(campaign_id, p.lead_ids, p.channels, { regenerate: p.regenerate, type: p.type, manualStart: p.manual_start });
     const others = (await listJson<SocialRecord>(ss, `${campaign_id}/`)).flatMap((r) => r.parts.map((x) => x.text)).filter(Boolean);
     for (let i = 0; i < items.length && !stopped && !paused; i++) {
       if (Date.now() - t0 > JOB_MAX_MS) { stopped = `Time limit reached after ${made} message${made === 1 ? "" : "s"}. Click Write social messages again to continue.`; break; }
@@ -2407,6 +2450,7 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
       for (let attempt = 1; ; attempt++) {
         try {
           const rec = await writeSocialOne(campaign_id, item, { offer, anyTrade: cctx.anyTrade, query: cctx.query, others, draftsSoFar: made }, ai);
+          await archiveLegacySent(campaign_id, rec.lead_id, rec.channel);
           await writeJson(ss, socialKey(campaign_id, rec.lead_id, rec.channel), rec);
           others.push(...rec.parts.map((x) => x.text));
           made++;
@@ -3106,7 +3150,7 @@ export const handler: Handler = async (event) => {
       case "outreach.social.write": {
         // Records a "social" job for the given leads (or every lead with no usable email but a Facebook, Instagram or LinkedIn page);
         // the page then POSTs { task: "social", params } to the ai-background function. Same skip rules as emails.
-        const { campaign_id, lead_ids, lead_id, channels, regenerate } = params as Record<string, unknown>;
+        const { campaign_id, lead_ids, lead_id, channels, regenerate, type, manual_start } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         if (!(await aiAvailable())) return fail(400, "No AI provider is set up. Add the Gemini key in Settings.");
         const campaign = await readCampaign<CampaignRecord & { job?: { status?: string; progress_at?: string; started_at?: string } }>(campaign_id);
@@ -3117,14 +3161,15 @@ export const handler: Handler = async (event) => {
         }
         const ids = Array.isArray(lead_ids) ? (lead_ids as unknown[]).filter((x): x is string => typeof x === "string") : typeof lead_id === "string" ? [lead_id] : undefined;
         const chans = Array.isArray(channels) ? (channels as unknown[]).filter((x): x is string => typeof x === "string") : typeof channels === "string" ? [channels] : undefined;
-        const plan = await planSocial(campaign_id, ids, chans, { regenerate: regenerate === true });
+        const stype = typeof type === "string" ? type : undefined;
+        const plan = await planSocial(campaign_id, ids, chans, { regenerate: regenerate === true, type: stype, manualStart: manual_start === true });
         if (plan.items.length === 0) {
           const why = plan.skipped.length ? ` Skipped: ${plan.skipped.slice(0, 3).map((x) => `${x.name} (${x.reason})`).join("; ")}.` : "";
           return fail(400, `No social messages to write.${why}`);
         }
         const now = new Date().toISOString();
         await patchState(campaign_id, { job: { kind: "social", status: "running", total: plan.items.length, done: 0, made: 0, started_at: now, progress_at: now } });
-        return ok({ total: plan.items.length, started_at: now, skipped: plan.skipped, params: { campaign_id, lead_ids: ids, channels: chans, regenerate: regenerate === true } });
+        return ok({ total: plan.items.length, started_at: now, skipped: plan.skipped, params: { campaign_id, lead_ids: ids, channels: chans, regenerate: regenerate === true, type: stype, manual_start: manual_start === true } });
       }
 
       case "outreach.social.list": {
@@ -3142,8 +3187,8 @@ export const handler: Handler = async (event) => {
         const ss = store(OUTREACH_SOCIAL);
         const rec = await readJson<SocialRecord>(ss, socialKey(campaign_id, lead_id, channel));
         if (!rec) return fail(404, "message not found");
-        const next = partsToList(rec.channel, { ...partsMap(rec.parts), ...Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, String(v ?? "")])) });
-        const found = precheckSocial(rec.channel, partsMap(next), { factCount: rec.draft_facts?.length ?? 0, factUsed: rec.fact_used });
+        const next = partsToList(rec.channel, { ...partsMap(rec.parts), ...Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, String(v ?? "")])) }, rec.type ?? "first");
+        const found = precheckSocial(rec.channel, partsMap(next), { type: rec.type ?? "first", factCount: rec.draft_facts?.length ?? 0, factUsed: rec.fact_used });
         const now = new Date().toISOString();
         const saved: SocialRecord = { ...rec, parts: next, review_status: "check", review_reasons: ["Edited by you: not reviewed by the AI.", ...found.map((f) => `Code check: ${f}`)].slice(0, 6), reviewed_by: "you", updated_at: now };
         await writeJson(ss, socialKey(campaign_id, lead_id, channel), saved);
