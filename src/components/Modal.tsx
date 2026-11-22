@@ -25,27 +25,21 @@ export default function Modal({ open, onClose, title, description, children, max
   if (!open) return null;
 
   return (
-    // The whole overlay scrolls, so a tall form (like Generate emails) can always
-    // be scrolled to its buttons instead of being clipped by the window.
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-      <div className="relative flex min-h-full items-center justify-center px-6 py-8">
-      <div className={`relative w-full ${maxWidth} glass p-7 animate-fade-in`}>
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white/60 hover:text-white transition"
-          aria-label="Close"
-        >
-          <X size={20} />
-        </button>
-        <h2 className="font-display text-2xl font-bold tracking-wide mb-1">{title}</h2>
-        {description && <p className="text-sm text-white/70 mb-5 font-medium">{description}</p>}
-        {children}
-      </div>
+    // Fixed header, body that scrolls on its own (so the title and the close button never scroll away), and long words wrap
+    // instead of pushing the pop-up wider than the screen. Esc and a click outside close it. Full screen on phones.
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:px-6 sm:py-8" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className={`relative w-full ${maxWidth} glass animate-fade-in flex flex-col max-h-full sm:max-h-[calc(100vh-4rem)] rounded-none sm:rounded-2xl min-w-0`}>
+        <div className="flex items-start gap-3 px-5 sm:px-7 pt-5 sm:pt-7 pb-3 border-b border-white/10 shrink-0">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-wide break-words">{title}</h2>
+            {description && <p className="text-sm text-white/70 mt-1 font-medium break-words">{description}</p>}
+          </div>
+          <button onClick={onClose} className="shrink-0 text-white/60 hover:text-white transition p-1" aria-label="Close">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="px-5 sm:px-7 py-4 sm:py-5 overflow-y-auto overflow-x-hidden min-h-0 flex-1 break-words scroll-smooth [&_table]:block [&_table]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words">{children}</div>
       </div>
     </div>
   );

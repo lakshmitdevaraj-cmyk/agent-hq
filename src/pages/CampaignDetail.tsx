@@ -1089,14 +1089,14 @@ export default function CampaignDetail() {
               );
             })()}
             {(() => {
-              const reach = leads.filter((l) => !l.email && !l.is_test && !l.excluded && !l.do_not_contact && !l.skip_reason && !(typeof l.gap_score === "number" && l.gap_score < 30) && (l.social?.facebook || l.social?.instagram || l.social?.linkedin_company || l.social?.linkedin_person)).length;
+              const reach = leads.filter((l) => !l.is_test && !l.excluded && !l.do_not_contact && !l.skip_reason && !(typeof l.gap_score === "number" && l.gap_score < 30) && (l.social?.facebook || l.social?.instagram || l.social?.linkedin_company || l.social?.linkedin_person)).length;
               const running = campaign.job?.kind === "social" && campaign.job.status === "running";
               if (reach === 0 && !running) return null;
               return (
                 <button
                   onClick={() => void startSocial()}
                   disabled={running}
-                  title="Writes a short first message for each lead you can only reach on Facebook, Instagram or LinkedIn. You copy and send them yourself; the app never posts anything."
+                  title="Writes a short message for each lead with a Facebook, Instagram or LinkedIn page, whether or not you have emailed them (leads that replied are left out). You copy and send them yourself; the app never posts anything."
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-xs font-bold tracking-wide transition disabled:opacity-50"
                 >
                   {running ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
@@ -1965,7 +1965,7 @@ function LeadDetailModal({ lead, emailedOn, socialBusy, socialJobSeq, onWriteSoc
           <SiteDetails lead={lead} />
         </div>
 
-        <SocialMessages lead={lead} emailedOn={emailedOn} busy={socialBusy} jobSeq={socialJobSeq} onWrite={onWriteSocial} />
+        <SocialMessages lead={lead} emailedOn={emailedOn} busy={socialBusy} jobSeq={socialJobSeq} onWrite={onWriteSocial} order="oldest" />
 
         {/* Metadata block */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

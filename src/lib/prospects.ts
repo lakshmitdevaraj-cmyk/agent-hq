@@ -30,7 +30,27 @@ export type Prospect = LeadInfo & {
   /** A known look-alike of a real mail/ISP domain (consolidate.net for consolidated.net). A flag only. */
   email_typo?: { domain: string; suggestion: string } | null;
   email_manual_at?: string | null;
+  /** Contact history summary (batch 8b): touches per channel, newest touch, and whether they replied on any channel. */
+  touches?: TouchSummary;
+  /** Social messages written and waiting to be sent. */
+  social_drafts?: Array<{ channel: string; review_status: string | null; type: string }>;
+  /** "I looked at their Facebook page": when, what I found, and a note. */
+  fb_checked?: { at: string; result: "real" | "gone" | "not_fit"; note: string } | null;
 };
+
+export type TouchSummary = { counts: Record<"email" | "facebook" | "instagram" | "linkedin", number>; last_at: string | null; replied: boolean; total: number };
+export type Touch = { id: string; lead_id: string; campaign_id: string | null; channel: "email" | "facebook" | "instagram" | "linkedin"; kind: "first" | "follow_up"; sent_at: string; text: string; subject?: string | null; source: "hq" | "manual"; derived?: boolean };
+
+export const FB_RESULT_LABEL: Record<string, string> = { real: "Real page", gone: "Page gone", not_fit: "Not a fit" };
+
+/** "Email ×2 · Facebook ×1 · last 22 Nov" (empty when nothing was sent). */
+export function touchesText(r: Prospect): string {
+  const t = r.touches;
+  if (!t || t.total === 0) return "";
+  const names: Array<["email" | "facebook" | "instagram" | "linkedin", string]> = [["email", "Email"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["linkedin", "LinkedIn"]];
+  const parts = names.filter(([k]) => t.counts[k] > 0).map(([k, n]) => `${n} ×${t.counts[k]}`);
+  return `${parts.join(" · ")}${t.last_at ? ` · last ${dayMonth(t.last_at)}` : ""}`;
+}
 
 /** HQ's own flags that hide a lead like a ticked Not a fit (until you keep it). Other automatic skips (state, trade, bad address) are only labelled. */
 const AUTO_HIDE = ["wholesaler", "lead_gen", "not_home_service", "chain"];
@@ -123,15 +143,17 @@ const csvCell = (v: unknown): string => {
   return `"${s.replace(/"/g, '""')}"`;
 };
 
+const touchCsv = (r: Prospect): Array<number | string> => { const t = r.touches; return t ? [t.counts.email, t.counts.facebook, t.counts.instagram, t.counts.linkedin, t.last_at ? t.last_at.slice(0, 10) : "", t.replied ? "Yes" : ""] : [0, 0, 0, 0, "", ""]; };
+
 export function prospectsToCsv(rows: Prospect[]): string {
-  const head = ["Business", "Owner", "Owner confidence", "Campaign", "Niche", "Area", "Address", "Email", "Phone", "Gap score", "Gap reasons", "Email status", "Draft review", "Warnings", "Not a fit", "Not a fit reason", "Not a fit note", "Contacted", "Emailed on", "Social messages sent", "Website", "Mobile friendly", "Tap-to-call link", "Secure (https)", "Copyright year", "LinkedIn company", "LinkedIn person", "Facebook", "Instagram", "WhatsApp", "Contact form", "Yelp", "Nextdoor", "Google reviews", "Google Maps"];
+  const head = ["Business", "Owner", "Owner confidence", "Campaign", "Niche", "Area", "Address", "Email", "Phone", "Gap score", "Gap reasons", "Email status", "Draft review", "Warnings", "Not a fit", "Not a fit reason", "Not a fit note", "Contacted", "Emails sent", "Facebook sent", "Instagram sent", "LinkedIn sent", "Last touch", "Replied", "Facebook checked", "Emailed on", "Social messages sent", "Website", "Mobile friendly", "Tap-to-call link", "Secure (https)", "Copyright year", "LinkedIn company", "LinkedIn person", "Facebook", "Instagram", "WhatsApp", "Contact form", "Yelp", "Nextdoor", "Google reviews", "Google Maps"];
   const lines = [head.map(csvCell).join(",")];
   for (const r of rows) {
     const so = r.social ?? {};
     lines.push(
       [
         r.name, r.owner_name, r.owner_confidence, r.campaign_name, r.category, areaOf(r.address), r.address, r.email, r.phone,
-        r.gap_score, (r.gap_reasons ?? []).join("; "), STATUS_LABEL[r.email_status], r.review_status ? REVIEW_LABEL[r.review_status] : "", fitLabels(r).join("; "), isNotFit(r) ? "Yes" : "", r.excluded ? reasonLabel(r.excluded_reason) : (r.auto_not_fit ? `${reasonLabel(r.auto_not_fit.code) || "Other"} (automatic)` : (r.not_fit_kept ? "Kept by me" : "")), r.excluded ? (r.excluded_note ?? "") : "", contactedText(r), r.emailed_at ? r.emailed_at.slice(0, 10) : "", (r.social_sent ?? []).map((x) => `${x.channel} ${x.sent_at.slice(0, 10)}`).join("; "), r.website,
+        r.gap_score, (r.gap_reasons ?? []).join("; "), STATUS_LABEL[r.email_status], r.review_status ? REVIEW_LABEL[r.review_status] : "", fitLabels(r).join("; "), isNotFit(r) ? "Yes" : "", r.excluded ? reasonLabel(r.excluded_reason) : (r.auto_not_fit ? `${reasonLabel(r.auto_not_fit.code) || "Other"} (automatic)` : (r.not_fit_kept ? "Kept by me" : "")), r.excluded ? (r.excluded_note ?? "") : "", contactedText(r), ...touchCsv(r), r.fb_checked ? `${FB_RESULT_LABEL[r.fb_checked.result]} ${r.fb_checked.at.slice(0, 10)}${r.fb_checked.note ? ` (${r.fb_checked.note})` : ""}` : "", r.emailed_at ? r.emailed_at.slice(0, 10) : "", (r.social_sent ?? []).map((x) => `${x.channel} ${x.sent_at.slice(0, 10)}`).join("; "), r.website,
         ...["not_mobile_friendly", "phone_not_tappable", "no_https", "old_copyright"].map((k) => { const f = r.site_check?.facts?.find((x) => x.key === k); return f ? factResult(f) : ""; }),
         so.linkedin_company, so.linkedin_person, so.facebook, so.instagram, r.site_check?.whatsapp_url, r.site_check?.contact_form_url,
         so.yelp, so.nextdoor, so.google_reviews, r.maps_url,
