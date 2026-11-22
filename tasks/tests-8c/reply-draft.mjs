@@ -1,0 +1,21 @@
+// Draft reply helper against the LOCAL server (real Gemini only for the writing part). Nothing is sent. Usage: node tasks/tests-8c/reply-draft.mjs
+import fs from "node:fs";
+const KEY = fs.readFileSync((process.env.TMPDIR || "/tmp") + "/tests-8b-key.txt", "utf8").trim();
+const base = "http://localhost:8890";
+const call = async (action, params = {}) => (await (await fetch(`${base}/api/command`, { method: "POST", headers: { "Content-Type": "application/json", "X-API-Key": KEY }, body: JSON.stringify({ action, params }) })).json());
+const imp = (store, rows) => call("data.import", { store, overwrite: true, records: rows.map(([key, v]) => ({ key, value: JSON.stringify(v) })) });
+const stamp = Date.now().toString(36), t0 = "2026-11-10T10:00:00.000Z", camp = `rd-${stamp}`;
+await imp("agent-hq-outreach-campaigns", [[camp, { id: camp, name: "Reply draft test", status: "ready", created_at: t0, query: "plumbing", location: "Katy, TX" }]]);
+await imp("agent-hq-outreach-leads", [[`${camp}/${t0}-l`, { id: `l${stamp}`, campaign_id: camp, name: "Brazos Valley Plumbing", email: "shiftforge.ai+x@gmail.com", is_test: true, created_at: t0, category: "Plumber", address: "1 Main St, Katy, TX 77494", owner_name: "Sam", contact_name: "Sam", owner_confidence: "high" }]]);
+await imp("agent-hq-outreach-replies", [[`${camp}/r1`, { id: `r${stamp}`, campaign_id: camp, lead_id: `l${stamp}`, from: "Sam <shiftforge.ai+x@gmail.com>", subject: "Re: plumbing calls", text: "Sure, send the recording. Does it work with our dispatch software too?", received_at: "2026-11-21T10:00:00.000Z", handled: false, is_test: true }]]);
+const before = await call("outreach.settings.get");
+const s0 = before.data ?? {};
+const keep = { booking_link: s0.booking_link ?? "", time_zone: s0.time_zone ?? "" };
+await call("outreach.settings.set", { booking_link: "", time_zone: "" });
+let r = await call("outreach.reply.draft", { id: `r${stamp}` });
+console.log("empty Settings ->", r.ok ? "UNEXPECTED OK" : r.error);
+await call("outreach.settings.set", { booking_link: "https://cal.example.com/lakshmi-test", time_zone: "America/Los_Angeles" });
+r = await call("outreach.reply.draft", { id: `r${stamp}` });
+console.log(r.ok ? `\n${r.data.draft}\n\nzone: ${r.data.prospect_time_zone} assumed: ${r.data.assumed_zone}\n${r.data.note}` : "ERROR " + r.error);
+await call("outreach.settings.set", keep);
+console.log("\nNothing was sent anywhere. Settings restored.");

@@ -218,12 +218,24 @@ for dramatically higher reply rates:
 
 | `framework` | Step 1 | Step 2 | Step 3 |
 |---|---|---|---|
-| `one-off` (default) | Single email. No follow-ups. | — | — |
+| `three-step` (default, shown as "Alcance 3-step") | Something true about them, then a yes/no offer of a free recording | A new angle and a second free thing | The last email: who else is the right person |
+| `one-off` | Single email. No follow-ups. | — | — |
 | `pas` | Name the pain (no pitch) | Agitate the cost | Propose solution + CTA |
 | `aida` | Attention hook | Build interest / proof | Desire + low-friction CTA |
 | `sdr` | Direct 2-line pitch | Value-add (free resource) | Breakup email ("last time") |
 
-When drafting a sequence, **batch by step, not by lead**:
+`three-step` is written differently: ONE call per lead writes all three emails together
+(`outreach.draft.start` then the background `draft` task); each email gets its own review
+status (ready / check / blocked) from the free code checks and the AI reviewer. Emails 2 and 3
+go out as a real reply in email 1's thread (never a made-up "Re:" subject), and only after
+the earlier one was sent; a lead that replied never gets a later step. The free assets, proof
+line, booking link, time zone and follow-up gaps come from Settings: if an asset is empty the
+draft is refused ("Check this: add a free asset in Settings"). No email in the sequence asks
+for a call. A call is only offered in a reply to someone who answered: `outreach.reply.draft
+{ id }` writes a short answer, one sentence on why a 30-minute call helps them, three times
+computed from Settings and the lead's state, and the booking link. It is never sent.
+
+For the older frameworks, **batch by step, not by lead**:
 - Loop 1: for every lead, generate step 1
 - Loop 2: for every lead, generate step 2 (references step 1)
 - Loop 3: for every lead, generate step 3 (references 1 and 2)
@@ -318,7 +330,7 @@ cold strangers.
   first messages for **Facebook** (40-80 words), **Instagram** (25-50 words) and
   **LinkedIn** (connection note of at most 200 characters, hello only; plus a first
   message of 40-80 words), only for leads with a saved page on that channel. No
-  links, no signature, a "30-minute free call". Same skip rules as emails
+  links, no signature, no call or meeting ask in cold messages. Same skip rules as emails
   (excluded, do-not-contact, chain/franchise, lead-gen, not home-service, bounced)
   and the website must be checked first. Order: free code checks, ONE writer retry
   at most, then the AI reviewer in groups of up to 5; **at most one rewrite per

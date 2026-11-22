@@ -1,4 +1,6 @@
+import { scanBanned } from "./lib/messagerules";
 import type { Handler } from "@netlify/functions";
+import { STATE_TZ, stateFromAddress, validTimeZone, proposeSlots, REPLY_SYSTEM_PROMPT, replyUserPrompt, assembleReply } from "./lib/replydraft";
 import { connectLambda } from "@netlify/blobs";
 import https from "node:https";
 import { nanoid } from "nanoid";
@@ -5081,6 +5083,45 @@ export const handler: Handler = async (event) => {
           if (rec?.id === id) return ok(rec);
         }
         return fail(404, "reply not found");
+      }
+
+      // Draft a reply to an inbound answer: the AI writes two short parts, code adds three call times and the booking link. Never sent.
+      case "outreach.reply.draft": {
+        const { id } = params as Record<string, string>;
+        if (!id) return fail(400, "id required");
+        const settings = await readOutreachSettings();
+        const bookingLink = (settings.booking_link ?? "").trim();
+        const tz = (settings.time_zone ?? "").trim();
+        if (!bookingLink || !tz) return fail(400, `Check this: add ${!bookingLink && !tz ? "a booking link and your time zone" : !bookingLink ? "a booking link" : "your time zone"} in Settings, then try again.`);
+        if (!validTimeZone(tz)) return fail(400, "Check this: the time zone in Settings is not a valid one (for example America/Chicago).");
+        const rs = store(OUTREACH_REPLIES);
+        const reply = (await listJson<{ id: string; text?: string | null; html?: string | null; subject?: string | null; from?: string | null; lead_id?: string | null; campaign_id?: string | null; original_email_id?: string | null }>(rs)).find((r) => r.id === id);
+        if (!reply) return fail(404, "reply not found");
+        const text = (reply.text && reply.text.trim()) || replyBodyText(reply as never) || "";
+        if (!text) return fail(400, "This reply has no text to answer.");
+        const leads = reply.campaign_id ? await listJson<Record<string, unknown>>(store(OUTREACH_LEADS), `${reply.campaign_id}/`) : [];
+        const lead = leads.find((l) => l.id === reply.lead_id) ?? {};
+        const emails = reply.campaign_id ? await listJson<{ id: string; lead_id: string; sequence_position?: number; body_text?: string; sender_name?: string }>(store(OUTREACH_EMAILS), `${reply.campaign_id}/`) : [];
+        const first = emails.find((e) => e.id === reply.original_email_id) ?? emails.filter((e) => e.lead_id === reply.lead_id).sort((a, b) => (a.sequence_position ?? 1) - (b.sequence_position ?? 1))[0];
+        const camp = reply.campaign_id ? await readJson<{ default_sender_name?: string }>(store("agent-hq-outreach-campaigns"), reply.campaign_id) : null;
+        const senderName = (first?.sender_name || camp?.default_sender_name || "Lakshmi Devaraj").trim();
+        const st = stateFromAddress(lead.address);
+        const prospectTz = st ? STATE_TZ[st] : tz;
+        const slots = proposeSlots(new Date(), tz, prospectTz);
+        const c = a3Context(lead);
+        let answer = "", whyCall = "", hint = "";
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const ans = await aiJson("draft", { system: REPLY_SYSTEM_PROMPT, user: replyUserPrompt({ from: reply.from, subject: reply.subject, text }, { name: typeof lead.name === "string" ? lead.name : undefined, city: c.city, owner: typeof lead.owner_name === "string" ? lead.owner_name : undefined }, first?.body_text) + hint, temperature: 0.4 }, {});
+          const j = ans.json as { answer?: unknown; why_call?: unknown };
+          answer = typeof j?.answer === "string" ? j.answer : "";
+          whyCall = typeof j?.why_call === "string" ? j.why_call : "";
+          const hits = scanBanned(`${answer} ${whyCall}`).filter((h) => h.level === "hard");
+          if (answer && whyCall && hits.length === 0) { hint = ""; break; }
+          hint = `\nFix these problems and answer again: ${!answer || !whyCall ? "both parts are needed; " : ""}${hits.map((h) => h.label).join("; ")}`;
+        }
+        if (!answer || !whyCall) return fail(502, "The writer did not return a usable draft. Try again.");
+        const draft = assembleReply({ greeting: c.greeting + ",", answer, whyCall, slots, bookingLink, senderName });
+        return ok({ draft, slots, prospect_time_zone: prospectTz, assumed_zone: !st, note: "These times are proposals from your Settings time zone: check them against your real calendar before sending. Nothing was sent." });
       }
 
       case "outreach.replies.convert_to_task": {

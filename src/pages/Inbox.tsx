@@ -58,6 +58,23 @@ export default function Inbox() {
 
   usePolling(refresh, 30000, []);
 
+  // "Draft reply": the draft is only shown here for editing. Nothing is ever sent from this button.
+  const [draft, setDraft] = useState<{ id: string; text: string; note: string } | null>(null);
+  const [draftErr, setDraftErr] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  async function draftReply(id: string) {
+    setDrafting(true);
+    setDraftErr(null);
+    try {
+      const r = await call<{ draft: string; note: string; assumed_zone: boolean }>("outreach.reply.draft", { id });
+      setDraft({ id, text: r.draft, note: r.assumed_zone ? `${r.note} The lead's state was not found, so the times are in your own time zone.` : r.note });
+    } catch (e) {
+      setDraftErr(e instanceof Error ? e.message : "Could not draft a reply");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
   async function syncMissed() {
     setBusy(true);
     setErr(null);
@@ -217,6 +234,15 @@ export default function Inbox() {
                   )}
                 </div>
                 <button
+                  onClick={() => void draftReply(selected.id)}
+                  disabled={drafting || selected.opt_out}
+                  title={selected.opt_out ? "This person asked us to stop" : "Writes a short answer with three call times. It is only shown here for you to edit; nothing is sent."}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
+                >
+                  {drafting ? <Loader2 size={12} className="animate-spin" /> : <MessageSquare size={12} />}
+                  Draft reply
+                </button>
+                <button
                   onClick={() => convertToTask(selected.id)}
                   disabled={busy}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
@@ -236,6 +262,24 @@ export default function Inbox() {
               <h2 className="font-display text-xl font-bold text-fg mb-4">{selected.subject ?? "(no subject)"}</h2>
               {/* Plain text only: an inbound email's own HTML is never rendered (its colours, links and scripts are not ours to run). */}
               <pre className="whitespace-pre-wrap break-words font-sans text-sm text-fg2 leading-relaxed">{selected.text || "(no text)"}</pre>
+              {draftErr && <div className="mt-4 text-sm text-red-300">{draftErr}</div>}
+              {draft && draft.id === selected.id && (
+                <div className="mt-5 pt-4 border-t border-line">
+                  <div className="text-xs text-fg2 mb-2">Draft reply (edit it, then copy it into your email app). {draft.note}</div>
+                  <textarea
+                    value={draft.text}
+                    onChange={(e) => setDraft({ ...draft, text: e.target.value })}
+                    rows={12}
+                    className="w-full rounded-lg border border-line bg-fg/[0.03] p-3 text-sm text-fg leading-relaxed"
+                  />
+                  <button
+                    onClick={() => { try { void navigator.clipboard.writeText(draft.text); } catch { /* the text stays selectable */ } }}
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-fg/[0.04] hover:bg-fg/[0.08] border border-line text-fg2 text-xs font-semibold"
+                  >
+                    Copy
+                  </button>
+                </div>
+              )}
               {selected.campaign_id && (
                 <div className="mt-5 pt-4 border-t border-line text-xs text-muted">
                   From campaign <Link to={`/outreach/${selected.campaign_id}`} className="text-primary hover:underline">view campaign →</Link>
