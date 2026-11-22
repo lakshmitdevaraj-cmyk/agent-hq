@@ -1,4 +1,5 @@
 import { scanBanned } from "./lib/messagerules";
+import { SOCIAL_SEQ_SYSTEM_PROMPT, SOCIAL_SEQ_REVIEW_PROMPT, socialSeqUserPrompt, parseSocialSeq, checkSocialSeq, socialFailureLines, parseSocialReview, mergeSocial, type SeqLeadInfo, type SocialStepCheck } from "./lib/socialseq";
 import type { Handler } from "@netlify/functions";
 import { STATE_TZ, stateFromAddress, validTimeZone, proposeSlots, REPLY_SYSTEM_PROMPT, replyUserPrompt, assembleReply } from "./lib/replydraft";
 import { connectLambda } from "@netlify/blobs";
@@ -2439,7 +2440,7 @@ async function planSocial(campaign_id: string, leadIds?: string[], channels?: st
       // A continued "Rewrite existing" run leaves out the messages it already rewrote before it paused.
       if (have && have.status !== "sent" && opts.since && have.created_at >= opts.since) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "Already rewritten in this run" }); continue; }
       const sentOnChannel = touches.some((t) => t.channel === c.channel) || have?.status === "sent";
-      const type = socialTypeFor(opts.type, sentOnChannel);
+      const type = socialTypeFor(opts.type ?? "sequence", sentOnChannel); // no type given = the full written run (batch 8c); "first" still writes the older single message
       if (type === "follow_up_email" && !hasEmailSent) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "No email has been sent to this lead yet" }); continue; }
       const lastEmail = [...touches].reverse().find((t) => t.channel === "email");
       const lastOnChannel = [...touches].reverse().find((t) => t.channel === c.channel);
@@ -2453,8 +2454,63 @@ async function planSocial(campaign_id: string, leadIds?: string[], channels?: st
 
 type SocialWriteCtx = { offer: string; anyTrade: boolean; query: string; others: string[]; draftsSoFar: number };
 
+/**
+ * Writes EVERY step of one channel in one call (Facebook/Instagram: first, follow-up, last; LinkedIn: note, first, follow-up, last), runs the free code
+ * checks (ONE retry that lists the exact failures), then ONE AI review. Each step keeps its own status. Settings supplies the free asset and proof line.
+ */
+async function writeSocialSequence(campaign_id: string, item: SocialPlanItem, ctx: SocialWriteCtx, ai: GeminiAiOpts): Promise<SocialRecord> {
+  const settings = await readOutreachSettings();
+  const inp = resolveInputs(settings, String(item.lead.name ?? ""));
+  if (!inp.freeAsset1) throw new Error("Check this: add a free asset in Settings");
+  const lead = item.lead as Record<string, unknown>;
+  const c = a3Context(lead);
+  const li: SeqLeadInfo = { name: typeof lead.name === "string" ? lead.name : undefined, greeting: item.channel === "facebook" && !(lead.owner_confidence === "high" && lead.owner_name) ? "Hi there" : c.greeting, city: c.city, trade: c.trade, details: c.details.map((d) => d.text), facts: c.plan.facts.map((f) => ({ n: f.n, text: f.text })) };
+  let hint = "";
+  let texts: Record<string, string> = {};
+  let checks: SocialStepCheck[] = [];
+  let factUsed: number | null = null;
+  let model = "";
+  let calls = 0;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    calls++;
+    const ans = await aiJson("draft", { system: SOCIAL_SEQ_SYSTEM_PROMPT, user: socialSeqUserPrompt(item.channel, li, inp, ctx.offer, hint || undefined), temperature: 0.5 }, ai);
+    model = ans.model;
+    const parsed = parseSocialSeq(item.channel, ans.json);
+    if (!parsed) { hint = "the answer did not contain every message in the JSON shape"; debugLog("social", { lead: lead.name, channel: item.channel, attempt: attempt + 1, code_failures: [hint] }); continue; }
+    texts = parsed.texts;
+    for (const k of Object.keys(texts)) if (k !== "note" && (k === "message" || k === "dm") && !texts[k].toLowerCase().startsWith(li.greeting.toLowerCase())) texts[k] = `${li.greeting},\n\n${texts[k].replace(/^hi[^,\n]*,\s*/i, "")}`;
+    factUsed = parsed.fact_used;
+    checks = checkSocialSeq(item.channel, texts, inp);
+    const fails = socialFailureLines(checks);
+    debugLog("social", { lead: lead.name, channel: item.channel, attempt: attempt + 1, parts: texts, code_failures: fails });
+    if (fails.length === 0) break;
+    hint = fails.join("; ");
+  }
+  if (checks.length === 0) throw new Error("The writer did not return the messages");
+  let verdicts: ReturnType<typeof parseSocialReview> = [];
+  try {
+    const evidence = { business: lead.name ?? null, city: c.city, greeting_expected: li.greeting, google_rating: typeof lead.rating === "number" ? lead.rating : null, google_reviews: typeof lead.reviews_count === "number" ? lead.reviews_count : null, true_details: li.details, facts: li.facts.map((f) => f.text) };
+    const rv = await aiJson("review", { system: SOCIAL_SEQ_REVIEW_PROMPT, user: JSON.stringify({ CHANNEL: item.channel, LEAD: lead.name ?? "", SAVED_EVIDENCE: evidence, MESSAGES: checks.map((k) => ({ step: k.key, text: texts[k.key] })), CODE_FINDINGS: checks.map((k) => ({ step: k.key, problems: k.reasons })) }), temperature: 0.1 }, ai);
+    verdicts = parseSocialReview(rv.json);
+  } catch (err) {
+    if (err instanceof GeminiError && (err.kind === "daily_quota" || err.kind === "rate_limited")) throw err;
+  }
+  const RANKS = { ready: 0, check: 1, blocked: 2 } as const;
+  const merged = checks.map((k) => ({ key: k.key, ...mergeSocial(k, verdicts) }));
+  const worst = merged.reduce((w, m) => (RANKS[m.status] > RANKS[w] ? m.status : w), "ready" as "ready" | "check" | "blocked");
+  const now = new Date().toISOString();
+  return {
+    id: `${item.lead.id}-${item.channel}`, campaign_id, lead_id: item.lead.id, channel: item.channel, url: item.url,
+    parts: partsToList(item.channel, texts, "sequence").map((p) => { const m = merged.find((x) => x.key === p.key)!; return { ...p, sent_at: null, review_status: m.status, review_reasons: m.reasons }; }),
+    status: "drafted", type: "sequence", review_status: worst, review_reasons: merged.flatMap((m) => m.reasons.map((r) => `${m.key === "message" ? "first" : m.key}: ${r}`)).slice(0, 6),
+    reviewed_by: verdicts.length ? model : "code checks", rewrites_used: calls > 1 ? 1 : 0, fact_used: factUsed, draft_facts: c.plan.facts, angle: c.plan.angle.code, written_by: model,
+    created_at: now, updated_at: now, sent_at: null,
+  };
+}
+
 /** Writes one message: first answer plus, if the code checks fail, ONE retry listing the exact failures. Never reviewed here. */
 async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: SocialWriteCtx, ai: GeminiAiOpts): Promise<SocialRecord> {
+  if (item.type === "sequence") return writeSocialSequence(campaign_id, item, ctx, ai);
   const lead = item.lead as ReviewLead & Record<string, unknown>;
   const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
   const details = leadDetails(lead as Parameters<typeof leadDetails>[0]);
@@ -3467,6 +3523,26 @@ export const handler: Handler = async (event) => {
         const ss = store(OUTREACH_SOCIAL);
         const rec = await readJson<SocialRecord>(ss, socialKey(campaign_id, lead_id, channel));
         if (!rec) return fail(404, "message not found");
+        if (rec.type === "sequence") {
+          // Each step is edited on its own: saved as written, code-checked, never re-reviewed by the AI automatically.
+          const inp = resolveInputs(await readOutreachSettings(), "");
+          const texts = { ...partsMap(rec.parts), ...Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, String(v ?? "")])) };
+          const checks = checkSocialSeq(rec.channel, texts, inp);
+          const nowS = new Date().toISOString();
+          const nextParts: SocialPart[] = rec.parts.map((p0) => {
+            if (!(p0.key in parts)) return p0;
+            if (p0.sent_at) return p0; // a step already sent by hand is history and is not rewritten
+            const ck = checks.find((x) => x.key === p0.key)!;
+            const st = ck.status === "ready" ? "check" : ck.status;
+            return { ...p0, text: String(parts[p0.key] ?? "").trim(), review_status: st, review_reasons: ["Edited by you: not reviewed by the AI.", ...ck.reasons].slice(0, 5) };
+          });
+          const RK = { ready: 0, check: 1, blocked: 2 } as const;
+          const openParts = nextParts.filter((x) => !x.sent_at);
+          const worstS = openParts.reduce((w, x) => (x.review_status && RK[x.review_status] > RK[w] ? x.review_status : w), "ready" as "ready" | "check" | "blocked");
+          const savedSeq: SocialRecord = { ...rec, parts: nextParts, review_status: worstS, review_reasons: nextParts.filter((x) => x.review_reasons?.length && !x.sent_at).flatMap((x) => x.review_reasons!.map((r) => `${x.key === "message" ? "first" : x.key}: ${r}`)).slice(0, 6), reviewed_by: "you", updated_at: nowS };
+          await writeJson(ss, socialKey(campaign_id, lead_id, channel), savedSeq);
+          return ok(savedSeq);
+        }
         const next = partsToList(rec.channel, { ...partsMap(rec.parts), ...Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, String(v ?? "")])) }, rec.type ?? "first");
         const found = precheckSocial(rec.channel, partsMap(next), { type: rec.type ?? "first", factCount: rec.draft_facts?.length ?? 0, factUsed: rec.fact_used });
         const now = new Date().toISOString();
@@ -3478,13 +3554,40 @@ export const handler: Handler = async (event) => {
       case "outreach.social.mark_sent": {
         // "I sent this by hand" (sent_on = the day it was sent, earlier days allowed) or Undo (sent:false). The message becomes a touch of its
         // own and the draft slot is cleared, so the next message on that channel can be written as a follow-up. The app never sends anything.
-        const { campaign_id, lead_id, channel, sent, sent_on, touch_id } = params as { campaign_id?: string; lead_id?: string; channel?: string; sent?: boolean; sent_on?: string; touch_id?: string };
+        const { campaign_id, lead_id, channel, sent, sent_on, touch_id, part } = params as { campaign_id?: string; lead_id?: string; channel?: string; sent?: boolean; sent_on?: string; touch_id?: string; part?: string };
         if (!campaign_id || !lead_id || !channel) return fail(400, "campaign_id, lead_id and channel required");
         if (!["facebook", "instagram", "linkedin"].includes(channel)) return fail(400, "unknown channel");
         const ss = store(OUTREACH_SOCIAL);
         const key = socialKey(campaign_id, lead_id, channel);
         const rec = await readJson<SocialRecord>(ss, key);
         const now = new Date().toISOString();
+        if (part) {
+          // One step of a written run: it becomes a touch of its own and the rest of the run stays. The app never sends anything.
+          const base = rec ?? (touch_id ? (await listJson<Touch & { snapshot?: SocialRecord }>(store(OUTREACH_TOUCHES), `${lead_id}/`)).find((t) => t.id === touch_id)?.snapshot ?? null : null);
+          if (!base || base.type !== "sequence") return fail(404, "message not found");
+          const idx = base.parts.findIndex((x) => x.key === part);
+          if (idx < 0) return fail(400, "unknown step");
+          if (sent === false) {
+            const tid = touch_id ?? base.parts[idx].touch_id ?? null;
+            if (tid) { const tb = (await listJson<Touch>(store(OUTREACH_TOUCHES), `${lead_id}/`)).find((t) => t.id === tid); if (tb) await store(OUTREACH_TOUCHES).delete(`${lead_id}/${tb.sent_at}-${tb.id}`); }
+            const parts2 = base.parts.map((x, i) => (i === idx ? { ...x, sent_at: null, touch_id: null } : x));
+            await writeJson(ss, key, { ...base, parts: parts2, status: "drafted", updated_at: now });
+            return ok({ undone: true, ...(await leadTouchState(campaign_id, lead_id)) });
+          }
+          if (!rec) return fail(404, "message not found");
+          if (rec.parts[idx].sent_at) return ok({ already: true, ...(await leadTouchState(campaign_id, lead_id)) });
+          const atP = parseSentOn(sent_on);
+          if (!atP) return fail(400, "That date is not valid or is in the future.");
+          const before = await leadTouchState(campaign_id, lead_id);
+          const had = before.touches.some((t) => t.channel === channel && t.sent_at < atP);
+          const tp = { ...touchFromSent({ id: nanoid(10), lead_id, campaign_id, channel: channel as TouchChannel, kind: had ? "follow_up" : "first", sent_at: atP, text: rec.parts[idx].text, source: "hq" }), snapshot: rec };
+          await writeTouch(tp);
+          const parts3 = rec.parts.map((x, i) => (i === idx ? { ...x, sent_at: atP, touch_id: tp.id } : x));
+          const allDone = parts3.every((x) => x.sent_at || x.skipped);
+          if (allDone) await ss.delete(key); else await writeJson(ss, key, { ...rec, parts: parts3, updated_at: now });
+          await logActivity({ category: "outreach", summary: `Marked ${channel} ${part} as sent (${atP.slice(0, 10)}) for lead ${lead_id}` });
+          return ok({ touch_id: tp.id, ...(await leadTouchState(campaign_id, lead_id)) });
+        }
         if (sent === false) {
           const tb = touch_id ? (await listJson<Touch & { snapshot?: SocialRecord }>(store(OUTREACH_TOUCHES), `${lead_id}/`)).find((t) => t.id === touch_id) : null;
           if (tb) {

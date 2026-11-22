@@ -3,7 +3,7 @@ import { call, callBackground } from "@/lib/api";
 import { shortDate, type LeadInfo } from "@/lib/leadInfo";
 import type { Touch, TouchSummary } from "@/lib/prospects";
 
-type Part = { key: string; label: string; text: string };
+type Part = { key: string; label: string; text: string; sent_at?: string | null; touch_id?: string | null; review_status?: "ready" | "check" | "blocked" | null; review_reasons?: string[] };
 type SocialRow = {
   id: string;
   campaign_id: string;
@@ -15,7 +15,7 @@ type SocialRow = {
   review_status: "ready" | "check" | "blocked" | null;
   review_reasons: string[];
   sent_at?: string | null;
-  type?: "first" | "follow_up_email" | "follow_up_channel";
+  type?: "first" | "follow_up_email" | "follow_up_channel" | "sequence";
 };
 type TouchState = { touches: Touch[]; summary: TouchSummary; touch_id?: string };
 
@@ -28,7 +28,7 @@ const STATUS_CLASS: Record<string, string> = {
   check: "border-amber-500/40 text-amber-300 bg-amber-500/10",
   blocked: "border-red-500/40 text-red-300 bg-red-500/10",
 };
-const TYPE_TEXT: Record<string, string> = { first: "First message", follow_up_email: "Follow-up (mentions your email)", follow_up_channel: "Follow-up" };
+const TYPE_TEXT: Record<string, string> = { first: "First message", follow_up_email: "Follow-up (mentions your email)", follow_up_channel: "Follow-up", sequence: "All messages written together" };
 
 const wordCount = (s: string) => (s.trim().match(/\S+/g) ?? []).length;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -143,10 +143,10 @@ export function SocialMessages({ lead, emailedOn, busy, jobSeq, onWrite, onChang
   async function copy(r: SocialRow, p: Part) {
     try { await navigator.clipboard.writeText(p.text); setCopied(`${r.channel}-${p.key}`); setTimeout(() => setCopied(null), 1500); } catch { setErr("Could not copy. Select the text and copy it by hand."); }
   }
-  async function markSent(r: SocialRow) {
-    setBusyKey(`sent-${r.channel}`);
+  async function markSent(r: SocialRow, part?: string) {
+    setBusyKey(`sent-${r.channel}${part ? `-${part}` : ""}`);
     try {
-      const res = await call<TouchState>("outreach.social.mark_sent", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, sent_on: sentOn[r.channel] || today() });
+      const res = await call<TouchState>("outreach.social.mark_sent", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, sent_on: sentOn[r.channel] || today(), ...(part ? { part } : {}) });
       setLast(res.touch_id ? { channel: r.channel, touch_id: res.touch_id } : null);
       setState(res);
       const rr = await call<SocialRow[]>("outreach.social.list", { campaign_id: r.campaign_id, lead_id: r.lead_id });
@@ -155,11 +155,11 @@ export function SocialMessages({ lead, emailedOn, busy, jobSeq, onWrite, onChang
       setErr(null);
     } catch (e) { setErr(e instanceof Error ? e.message : "Could not save"); } finally { setBusyKey(null); }
   }
-  async function undo(channel: string, touchId?: string) {
+  async function undo(channel: string, touchId?: string, part?: string) {
     if (!campaignId) return;
     setBusyKey(`undo-${channel}`);
     try {
-      await call("outreach.social.mark_sent", { campaign_id: campaignId, lead_id: lead.id, channel, sent: false, ...(touchId ? { touch_id: touchId } : {}) });
+      await call("outreach.social.mark_sent", { campaign_id: campaignId, lead_id: lead.id, channel, sent: false, ...(touchId ? { touch_id: touchId } : {}), ...(part ? { part } : {}) });
       setLast(null);
       await refreshAfter();
     } catch (e) { setErr(e instanceof Error ? e.message : "Could not undo"); } finally { setBusyKey(null); }
@@ -216,7 +216,7 @@ export function SocialMessages({ lead, emailedOn, busy, jobSeq, onWrite, onChang
           <>
             {canMentionEmail && (
               <select value={type} onChange={(e) => setType(e.target.value as "first" | "follow_up_email")} aria-label="Message type" className="bg-inset border border-line rounded-md px-2 py-1 text-label text-fg">
-                <option value="first">First message</option>
+                <option value="first">All messages (one run)</option>
                 <option value="follow_up_email">Follow-up (mention my email)</option>
               </select>
             )}
@@ -253,6 +253,8 @@ export function SocialMessages({ lead, emailedOn, busy, jobSeq, onWrite, onChang
                   <div className="flex items-center gap-2 text-label text-muted mb-0.5">
                     <span>{p.label}</span>
                     <span>{p.key === "note" ? `${text.length}/200 characters` : `${wordCount(text)} words`}</span>
+                    {r.type === "sequence" && p.review_status && <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${STATUS_CLASS[p.review_status]}`}>{STATUS_TEXT[p.review_status]}</span>}
+                    {r.type === "sequence" && p.sent_at && <span className="px-1.5 py-0.5 rounded-md border border-green-500/40 bg-green-500/10 text-green-300 text-label font-mono">Sent on {shortDate(p.sent_at)}</span>}
                   </div>
                   {editing === channel ? (
                     <textarea value={text} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} rows={p.key === "note" ? 3 : 6} className="w-full bg-inset border border-line rounded-md px-2 py-1.5 text-xs text-fg" />
@@ -260,13 +262,21 @@ export function SocialMessages({ lead, emailedOn, busy, jobSeq, onWrite, onChang
                     <p className="whitespace-pre-wrap text-xs text-fg2 leading-relaxed break-words">{p.text}</p>
                   )}
                   {editing !== channel && <button onClick={() => void copy(r, p)} className="mt-1 px-2 py-0.5 rounded bg-fg/5 hover:bg-fg/10 border border-line text-label text-fg2">{copied === k ? "Copied" : `Copy ${p.label.toLowerCase()}`}</button>}
+                  {editing !== channel && r.type === "sequence" && (p.sent_at ? (
+                    <button onClick={() => void undo(channel, p.touch_id ?? undefined, p.key)} disabled={busyKey === `undo-${channel}`} className="mt-1 ml-1 px-2 py-0.5 rounded bg-fg/5 hover:bg-fg/10 border border-line text-label text-fg2">Undo "sent"</button>
+                  ) : (
+                    <button onClick={() => void markSent(r, p.key)} disabled={busyKey === `sent-${channel}-${p.key}`} className="mt-1 ml-1 px-2 py-0.5 rounded-md bg-green-500/15 hover:bg-green-500/25 border border-green-500/40 text-label text-green-200 disabled:opacity-50">Mark {p.label.toLowerCase()} as sent</button>
+                  ))}
+                  {r.type === "sequence" && p.review_status && p.review_status !== "ready" && !p.sent_at && p.review_reasons && p.review_reasons.length > 0 && <ul className="text-label text-amber-200 list-disc pl-4 mt-1">{p.review_reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>}
                 </div>
               );
             })}
-            {r.review_reasons.length > 0 && r.review_status !== "ready" && <ul className="text-label text-amber-200 list-disc pl-4">{r.review_reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+            {r.type !== "sequence" && r.review_reasons.length > 0 && r.review_status !== "ready" && <ul className="text-label text-amber-200 list-disc pl-4">{r.review_reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>}
             <div className="flex items-center gap-2 flex-wrap">
               <a href={url} target="_blank" rel="noopener noreferrer" className={btn}>Open their page</a>
-              {r.status === "sent" ? (
+              {r.type === "sequence" ? (
+                <input type="date" max={today()} value={sentOn[channel] ?? today()} onChange={(e) => setSentOn((x) => ({ ...x, [channel]: e.target.value }))} aria-label={`Date sent on ${LABEL[channel]}`} className="bg-inset border border-line rounded-md px-1.5 py-1 text-label text-fg" />
+              ) : r.status === "sent" ? (
                 <button onClick={() => void undo(channel)} disabled={busyKey === `undo-${channel}`} className={btn}>Undo "sent"</button>
               ) : (
                 <>

@@ -7,8 +7,9 @@ import { leadGenDecision } from "./leadgen";
 import { leadSkipReason, isGovEduEmail } from "./outreach";
 
 export type SocialChannel = "facebook" | "instagram" | "linkedin";
-export type SocialPartKey = "message" | "note" | "dm";
-export type SocialPart = { key: SocialPartKey; label: string; text: string };
+export type SocialPartKey = "message" | "note" | "dm" | "follow_up" | "last";
+/** One text of a message. In a "sequence" record every part is a step of its own with its own status; sent_at is set when it was marked sent by hand. */
+export type SocialPart = { key: SocialPartKey; label: string; text: string; sent_at?: string | null; skipped?: boolean; review_status?: "ready" | "check" | "blocked" | null; review_reasons?: string[]; touch_id?: string | null };
 
 type PartSpec = { key: SocialPartKey; label: string; minWords?: number; maxWords?: number; maxChars?: number; needsCall: boolean };
 export const SOCIAL_SPECS: Record<SocialChannel, { label: string; parts: PartSpec[] }> = {
@@ -29,17 +30,29 @@ export const SOCIAL_CHANNELS: SocialChannel[] = ["facebook", "instagram", "linke
  * follow_up_email  = the user picked "Follow-up (mention my email)": refers to the email naturally
  * follow_up_channel = a second message on a channel where one was already sent
  */
-export type SocialType = "first" | "follow_up_email" | "follow_up_channel";
-export const SOCIAL_TYPES: SocialType[] = ["first", "follow_up_email", "follow_up_channel"];
+export type SocialType = "first" | "follow_up_email" | "follow_up_channel" | "sequence";
+export const SOCIAL_TYPES: SocialType[] = ["first", "follow_up_email", "follow_up_channel", "sequence"];
+
+/**
+ * "sequence" = every step of a channel written together (batch 8c): Facebook and Instagram first / follow-up / last; LinkedIn
+ * connection note, first message, follow-up, last. Each step is its own part, edited and marked sent one at a time.
+ */
+export const SEQUENCE_SPECS: Record<SocialChannel, PartSpec[]> = {
+  facebook: [{ key: "message", label: "First message", needsCall: false }, { key: "follow_up", label: "Follow-up", needsCall: false }, { key: "last", label: "Last message", needsCall: false }],
+  instagram: [{ key: "message", label: "First message", needsCall: false }, { key: "follow_up", label: "Follow-up", needsCall: false }, { key: "last", label: "Last message", needsCall: false }],
+  linkedin: [{ key: "note", label: "Connection note", needsCall: false }, { key: "dm", label: "First message", needsCall: false }, { key: "follow_up", label: "Follow-up", needsCall: false }, { key: "last", label: "Last message", needsCall: false }],
+};
 
 /** The type of a new message: first by default; a follow-up only when a message was already sent on that channel or the user picked it. */
 export function socialTypeFor(requested: string | null | undefined, sentOnChannel: boolean): SocialType {
   if (requested === "follow_up_email") return "follow_up_email";
+  if (requested === "sequence" && !sentOnChannel) return "sequence";
   return sentOnChannel ? "follow_up_channel" : "first";
 }
 
 /** The texts a message has: LinkedIn's connection note belongs to a first message only; a follow-up is the message alone. */
 export function partsFor(channel: SocialChannel, type: SocialType = "first"): PartSpec[] {
+  if (type === "sequence") return SEQUENCE_SPECS[channel];
   const all = SOCIAL_SPECS[channel].parts;
   return type === "first" ? all : all.filter((p) => p.key !== "note");
 }
