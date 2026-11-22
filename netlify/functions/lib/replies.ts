@@ -110,13 +110,21 @@ export function buildReplyRecord(o: {
   };
 }
 
+/**
+ * A stored reply is a test when it says so, or (replies stored before batch 8b have no flag) when it came from one of Lakshmi's own addresses.
+ * Read-time only: nothing is rewritten.
+ */
+export function isTestReply(r: { is_test?: boolean; from?: string | null }): boolean {
+  return r.is_test === true || (r.is_test === undefined && isOwnAddress(r.from));
+}
+
 /** Emails whose every stored reply came from Lakshmi herself: they do not count as replied. */
-export function ownReplyEmailIds(replies: Array<{ original_email_id?: string | null; is_test?: boolean }>): Set<string> {
+export function ownReplyEmailIds(replies: Array<{ original_email_id?: string | null; is_test?: boolean; from?: string | null }>): Set<string> {
   const hasReal = new Set<string>();
   const hasOwn = new Set<string>();
   for (const r of replies) {
     if (!r.original_email_id) continue;
-    (r.is_test ? hasOwn : hasReal).add(r.original_email_id);
+    (isTestReply(r) ? hasOwn : hasReal).add(r.original_email_id);
   }
   return new Set([...hasOwn].filter((id) => !hasReal.has(id)));
 }

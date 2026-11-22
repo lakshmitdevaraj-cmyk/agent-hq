@@ -31,7 +31,7 @@ import { nextPacificMidnight, resumeAtFor, fakeQuotaHit, istText, newStats, type
 import { evidenceFor, codeReview, unbackedFactClaims, factsForReviewer, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
 import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, screenshotErrorsByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
-import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, replyBodyText, type ListedMessage } from "./lib/replies";
+import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, isTestReply, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, replyBodyText, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
@@ -1521,7 +1521,7 @@ async function withLeadCount<T extends Record<string, unknown>>(c: T): Promise<T
 async function campaignEmails(id: string): Promise<Array<{ status?: string; click_count?: number; own_reply_only?: boolean }>> {
   const [emails, replies] = await Promise.all([
     listJsonFast<{ id?: string; status?: string; click_count?: number }>(store(OUTREACH_EMAILS), `${id}/`),
-    listJsonFast<{ original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES), `${id}/`),
+    listJsonFast<{ original_email_id?: string | null; is_test?: boolean; from?: string | null }>(store(OUTREACH_REPLIES), `${id}/`),
   ]);
   const ownOnly = ownReplyEmailIds(replies);
   return emails.map((e) => (e.id && ownOnly.has(e.id) ? { ...e, own_reply_only: true } : e));
@@ -2210,11 +2210,11 @@ async function planSocial(campaign_id: string, leadIds?: string[], channels?: st
   const ctx = campaignSkipCtx(campaign);
   const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
   const emails = await listJson<{ id: string; lead_id: string; status?: string; sent_at?: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
-  const replies = await listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean }>(store(OUTREACH_REPLIES), "");
+  const replies = await listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; from?: string | null }>(store(OUTREACH_REPLIES), "");
   const ownOnly = ownReplyEmailIds(replies.filter((r) => r.original_email_id));
   const repliedLeads = new Set<string>([
     ...emails.filter((e) => e.status === "replied" && !ownOnly.has(e.id)).map((e) => e.lead_id),
-    ...replies.filter((r) => r.lead_id && !r.is_test).map((r) => String(r.lead_id)),
+    ...replies.filter((r) => r.lead_id && !isTestReply(r)).map((r) => String(r.lead_id)),
   ]);
   const socials = await listJson<SocialRecord>(store(OUTREACH_SOCIAL), `${campaign_id}/`);
   const existing = new Map(socials.map((r) => [`${r.lead_id}/${r.channel}`, r]));
@@ -2496,13 +2496,13 @@ async function leadTouchState(campaign_id: string, lead_id: string): Promise<{ t
     listJson<{ id: string; lead_id: string; status?: string; sent_at?: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`),
     listJson<SocialRecord>(store(OUTREACH_SOCIAL), `${campaign_id}/${lead_id}/`),
     listJson<Touch>(store(OUTREACH_TOUCHES), `${lead_id}/`),
-    listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; received_at?: string }>(store(OUTREACH_REPLIES), ""),
+    listJson<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; received_at?: string; from?: string | null }>(store(OUTREACH_REPLIES), ""),
   ]);
   const emails = emailsAll.filter((e) => e.lead_id === lead_id);
   const ownOnly = ownReplyEmailIds(replies.filter((r) => r.original_email_id));
-  const replied = emails.some((e) => e.status === "replied" && !ownOnly.has(e.id)) || replies.some((r) => r.lead_id === lead_id && !r.is_test);
+  const replied = emails.some((e) => e.status === "replied" && !ownOnly.has(e.id)) || replies.some((r) => r.lead_id === lead_id && !isTestReply(r));
   const touches = deriveTouches({ lead_id, campaign_id, emails, socials, stored });
-  const lastReply = replies.filter((r) => r.lead_id === lead_id && !r.is_test && r.received_at).map((r) => r.received_at as string).sort().pop() ?? null;
+  const lastReply = replies.filter((r) => r.lead_id === lead_id && !isTestReply(r) && r.received_at).map((r) => r.received_at as string).sort().pop() ?? null;
   return { touches: touches.map(({ ...t }) => { delete (t as { snapshot?: unknown }).snapshot; return t; }), summary: summarizeTouches(touches, replied, { at: lastReply, via: "email" }) };
 }
 
@@ -3952,12 +3952,12 @@ export const handler: Handler = async (event) => {
           listJsonFast<{ id?: string; lead_id?: string; status?: string; sent_at?: string; created_at?: string; review_status?: string }>(store(OUTREACH_EMAILS)),
           listJsonFast<{ id: string; name?: string; query?: string }>(store(OUTREACH_CAMPAIGNS)),
           listJsonFast<{ lead_id?: string; campaign_id?: string; channel?: string; status?: string; sent_at?: string | null; type?: string; review_status?: string | null; parts?: Array<{ text?: string }> }>(store(OUTREACH_SOCIAL)),
-          listJsonFast<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; received_at?: string }>(store(OUTREACH_REPLIES)),
+          listJsonFast<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; received_at?: string; from?: string | null }>(store(OUTREACH_REPLIES)),
           listJsonFast<Touch>(store(OUTREACH_TOUCHES)),
         ]);
-        const repliedByReply = new Set(replyRows.filter((r) => r.lead_id && !r.is_test).map((r) => String(r.lead_id)));
+        const repliedByReply = new Set(replyRows.filter((r) => r.lead_id && !isTestReply(r)).map((r) => String(r.lead_id)));
         const repliedAtByLead = new Map<string, string>(); // latest reply per lead (replies arrive by email)
-        for (const r of replyRows) if (r.lead_id && !r.is_test && r.received_at && r.received_at > (repliedAtByLead.get(String(r.lead_id)) ?? "")) repliedAtByLead.set(String(r.lead_id), r.received_at);
+        for (const r of replyRows) if (r.lead_id && !isTestReply(r) && r.received_at && r.received_at > (repliedAtByLead.get(String(r.lead_id)) ?? "")) repliedAtByLead.set(String(r.lead_id), r.received_at);
         const emailsByLead = new Map<string, typeof emails>();
         for (const e of emails) if (e.lead_id) (emailsByLead.get(e.lead_id) ?? emailsByLead.set(e.lead_id, []).get(e.lead_id)!).push(e);
         const socialsByLead = new Map<string, typeof socials>();
@@ -4820,10 +4820,10 @@ export const handler: Handler = async (event) => {
         const { campaign_id, limit = 200 } = params as Record<string, unknown>;
         const s = store(OUTREACH_REPLIES);
         const prefix = typeof campaign_id === "string" && campaign_id ? `${campaign_id}/` : undefined;
-        const rows = await listJson<{ received_at?: string; text?: string | null; html?: string | null }>(s, prefix);
+        const rows = await listJson<{ received_at?: string; text?: string | null; html?: string | null; is_test?: boolean; from?: string | null }>(s, prefix);
         rows.sort((a, b) => ((a.received_at ?? "") < (b.received_at ?? "") ? 1 : -1));
         // Replies stored before the HTML fallback have an empty text: fill it from the html when read (no data rewrite).
-        return ok(rows.slice(0, typeof limit === "number" ? limit : 200).map((r) => (r.text && r.text.trim() ? r : { ...r, text: replyBodyText(r) || r.text || null })));
+        return ok(rows.slice(0, typeof limit === "number" ? limit : 200).map((r0) => { const r = { ...r0, is_test: isTestReply(r0) }; return r.text && r.text.trim() ? r : { ...r, text: replyBodyText(r) || r.text || null }; }));
       }
 
       case "outreach.replies.delete": {

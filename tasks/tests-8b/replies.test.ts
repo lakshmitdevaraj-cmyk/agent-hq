@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   isInboundEvent, flagFor, isOwnAddress, isHealthCheckMessage, isBounceReport, replySubject, buildReplyRecord,
-  ownReplyEmailIds, repliedEmailCount, listedToMessage, isListedInbound, webhookEventsToSend, dryRunWebhookPatch, REQUIRED_WEBHOOK_EVENTS, listMessagesQuery, replyBodyText,
+  ownReplyEmailIds, isTestReply, repliedEmailCount, listedToMessage, isListedInbound, webhookEventsToSend, dryRunWebhookPatch, REQUIRED_WEBHOOK_EVENTS, listMessagesQuery, replyBodyText,
 } from "../../netlify/functions/lib/replies";
 import { isOptOutReply, isAutoReply } from "../../netlify/functions/lib/outreach";
 import type { ListedMessage } from "../../netlify/functions/lib/replies";
@@ -151,6 +151,15 @@ t("reply text: webhook and sync both pass through ingestInboundReply, which fill
   assert.equal(replyBodyText(listed).split("\n")[0], "Got it");
   const rec = buildReplyRecord({ id: "r", eventType: "message.received.unauthenticated", message: { ...listed, text: replyBodyText(listed) }, match: null, own: [], optOut: false });
   assert.equal(rec.text!.split("\n")[0], "Got it");
+});
+
+t("replies stored before batch 8b (no is_test flag) from Lakshmi's own addresses count as tests, so a campaign shows 0 replies", () => {
+  const stored = [{ original_email_id: "e1", from: "lakshmi devaraj <lakshmi_devaraj@yahoo.com>" }, { original_email_id: "e2", from: "Santhana <santhana@regalelectrolysis.com>" }, { original_email_id: "e3", from: "x <shiftforge.ai+t1@gmail.com>", is_test: false }];
+  assert.equal(isTestReply(stored[0]), true);
+  assert.equal(isTestReply(stored[1]), false);
+  assert.equal(isTestReply(stored[2]), false, "an explicit flag wins");
+  const own = ownReplyEmailIds(stored);
+  assert.ok(own.has("e1") && !own.has("e2") && !own.has("e3"));
 });
 
 console.log(`\n${n} passed, ${failed} failed`);
