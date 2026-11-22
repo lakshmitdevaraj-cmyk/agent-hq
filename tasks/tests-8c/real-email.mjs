@@ -47,7 +47,7 @@ if (process.argv[3] === "pipeline") {
   ok(rows.length === 4 && rows.every((r) => r.framework === "four-step" && r.sequence_total === 4), "real writer saved 4 rows, framework four-step, total 4: " + rows.map((r) => `${r.framework}/${r.sequence_position}/${r.sequence_total}`).join(" "));
   // set Ready by hand where the reviewer said Check (so the send path is exercised); Blocked rows would be a real failure
   ok(!rows.some((r) => r.review_status === "blocked"), "no email was blocked: " + rows.map((r) => r.review_status).join(","));
-  for (const r0 of rows.filter((x) => x.review_status === "check")) await imp("agent-hq-outreach-emails", [[`${camp}/${r0.created_at}-${r0.id}`, { ...r0, review_status: "ready" }]]); // a person confirms a "check" by hand
+  for (const r0 of rows.filter((x) => x.review_status === "check")) await imp("agent-hq-outreach-emails", [[`${camp}/${r0.created_at}-${r0.id}`, { ...r0, review_status: "ready", review_reasons: [], reviewed_by: "you" }]]); // a person confirms a "check" by hand
   const send = (pos) => call("outreach.emails.send", { campaign_id: camp, email_ids: [rows.find((r) => r.sequence_position === pos).id], confirm: true, base_url: base });
   let r = await send(3); ok((r.data?.sent ?? 0) === 0, "email 3 before email 1 is not sent: " + JSON.stringify(r).slice(0, 160));
   r = await send(1); ok((r.data?.sent ?? 0) === 1, "email 1 sent via mock: " + JSON.stringify(r).slice(0, 140));

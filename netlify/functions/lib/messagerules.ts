@@ -68,6 +68,8 @@ export type StepCtx = {
   freeAsset?: string;
   /** Settings proof line: a claim that the sender built or uses the assistant must stay close to it. */
   proofLine?: string;
+  /** Texts of the lead's earlier emails (email 1 first): used to find a sentence repeated word for word. */
+  earlierTexts?: string[];
   /** Figures the sender has put a named source behind in Settings (these demo and statistic figures may then be quoted). */
   namedSources?: string;
 };
@@ -88,7 +90,7 @@ export const wordCount = (t: string): number => (t.trim().match(/\S+/g) ?? []).l
 const URL_RE = /\bhttps?:\/\/\S+|\bwww\.\S+|\b[a-z0-9-]+\.(?:com|net|org|io|ai|co|us|app|site|biz|info)\b(?:\/\S*)?/i;
 const ADDRESS_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
 const PHONE_RE = /\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/;
-const CALL_ASK_RE = /\b(?:book|schedule|set up|hop on|jump on|grab|arrange|have|take|get on|do|fit in)\s+(?:a|an|some|\d+|\d+-minute|\d+ minutes?)\s+(?:quick |short |brief |free |discovery |intro |30-minute |15-minute )*(?:call|chat|demo|meeting|sync|zoom|walkthrough|conversation)\b|\b(?:30|15|20)[- ]?minute (?:free )?(?:call|chat|demo|meeting)\b|\b(?:free )?(?:call|demo|meeting) (?:with me|this week|next week|tomorrow)\b|\bcan we (?:talk|speak|chat|meet)\b|\bwould you (?:be )?(?:open|up) (?:to|for) a (?:call|chat|demo|meeting)\b/i;
+const CALL_ASK_RE = /\b(?:book|schedule|set up|hop on|jump on|grab|arrange|have|take|get on|do|fit in)\s+(?:a|an|some|\d+|\d+-minute|\d+ minutes?)\s+(?:quick |short |brief |free |discovery |intro |30-minute |15-minute )*(?:call|chat|demo|meeting|sync|zoom|walkthrough|conversation)\b|\b(?:30|15|20)[- ]?minute (?:free )?(?:call|chat|demo|meeting)\b|\b(?:free )?(?:call|demo|meeting) (?:with me|this week|next week|tomorrow)\b|\bcan we (?:talk|speak|chat|meet)\b|\bwould you (?:be )?(?:open|up) (?:to|for) a (?:call|chat|demo|meeting)\b|\bdiscussion calls?\b/i;
 const OFFER_RE = /\b(?:we set up|we build|i set up|i build|i built|i help|i can set up|ai (?:receptionist|assistant|agent|phone)|answering service|our (?:service|product|software)|virtual receptionist|shiftforge)\b/i;
 const RATING_RE = /\b\d(?:\.\d)?\s*(?:stars?|\/\s*5|rating)\b|\b\d[\d,]*\s+(?:google\s+)?reviews?\b|★/i;
 const CRITICISM_RE = /\byour (?:web ?site|site|page|contact form|form|live chat|chat|online booking|booking (?:form|page))\b[^.?!]{0,60}\b(?:is|looks|seems|feels|has)\b[^.?!]{0,30}\b(?:outdated|old|dated|bad|poor|slow|ugly|broken|confusing|clunky|lacking|weak|missing|terrible)\b|\b(?:your (?:web ?site|site|contact form|form)) (?:doesn(?:'|’)?t|does not|fails to|lacks)\b|\b(?:wrong|bad|poor|broken) with your (?:web ?site|site)\b/i;
@@ -106,6 +108,23 @@ export const SOCIAL_WORD_LIMITS: Record<string, { min?: number; max: number }> =
   facebook_follow_up: { max: 70 }, instagram_follow_up: { max: 50 }, linkedin_follow_up: { max: 80 },
   facebook_last: { max: 55 }, instagram_last: { max: 45 }, linkedin_last: { max: 60 }, linkedin_first: { max: 100 },
 };
+
+/** The sentences of a message without its greeting line, lowercased and stripped to letters and digits. */
+export function sentencesOf(text: string): string[] {
+  const lines = text.split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  if (lines.length && /^(?:hi|hello|hey|dear)\b[^.?!]{0,40},?$/i.test(lines[0])) lines.shift();
+  return lines.join(" ").split(/(?<=[.?!])\s+/).map((x) => x.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()).filter((x) => x.length >= 15);
+}
+
+/** "I" versus "you" after the first sentence (the observation about them); one "I help ..." sentence is allowed. */
+export function iVersusYou(text: string): { i: number; you: number } {
+  const lines = text.split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  if (lines.length && /^(?:hi|hello|hey|dear)\b[^.?!]{0,40},?$/i.test(lines[0])) lines.shift();
+  const sentences = lines.join(" ").split(/(?<=[.?!])\s+/).slice(1);
+  let helpAllowed = true;
+  const rest = sentences.filter((x) => { if (helpAllowed && /^I help\b/i.test(x)) { helpAllowed = false; return false; } return true; }).join(" ");
+  return { you: (rest.match(/\byou(?:r|rs)?\b/gi) ?? []).length, i: (rest.match(/\b(?:i|i'm|i've|i'll|my)\b/gi) ?? []).length };
+}
 
 export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[] {
   const hits: Hit[] = [...scanBanned(text)];
@@ -134,7 +153,8 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
     if (chars > 450) hits.push(H("too-long", "soft", `Email 1 is ${chars} characters`, "About 450 characters at most."));
     if (!ctx.freeAsset?.trim()) hits.push(H("no-asset", "soft", "No free asset in Settings", "Check this: add a free asset in Settings."));
     else if (!ASSET_ASK_RE.test(t)) hits.push(H("no-asset-ask", "soft", "No yes/no offer to send something", "Close by offering to send the free asset."));
-    const you = (t.match(/\byou(?:r|rs)?\b/gi) ?? []).length, i = (t.match(/\b(?:i|i'm|i've|i'll|my)\b/gi) ?? []).length;
+    const { i, you } = iVersusYou(t);
+    if (ctx.proofLine?.trim() && (/\bI(?:'ve| have)? (?:built|made|created|use|run|put together)\b/i.test(t) || /\bmy own\b|\b(?:my|our) (?:own )?website\b|\bsame assistant\b/i.test(t))) hits.push(H("proof-in-email1", "soft", "The proof line is in email 1", "Email 1 is the observation, what you help with and the offer. The proof line goes in email 3."));
     if (i > you) hits.push(H("more-i-than-you", "soft", "More \"I\" than \"you\"", "Talk about them more than about you."));
   } else if (kind === "email2") {
     if (chars > 350) hits.push(H("too-long", "soft", `Email 2 is ${chars} characters`, "About 350 characters at most."));
@@ -145,6 +165,9 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
     if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the earlier emails", "Each email is shorter than the one before."));
     if (!ctx.freeAsset?.trim()) hits.push(H("no-asset", "soft", "No free asset in Settings", "Check this: add a free asset in Settings."));
     else if (!ASSET_ASK_RE.test(t)) hits.push(H("no-asset-ask", "soft", "No yes/no offer to send something", "Close with one yes/no offer to send the free asset."));
+    const seen = new Set((ctx.earlierTexts ?? []).flatMap(sentencesOf));
+    const rep = sentencesOf(t).find((x) => seen.has(x));
+    if (rep) hits.push(H("repeats-earlier", "soft", "Repeats a sentence from an earlier email", "Email 3 must not repeat any sentence of email 1: re-offer the free asset in new, shorter words.", ), );
   } else if (kind === "email4") {
     if (chars > 240) hits.push(H("too-long", "soft", `Email 4 is ${chars} characters`, "About 240 characters at most."));
     if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the earlier emails", "The last email is the shortest."));

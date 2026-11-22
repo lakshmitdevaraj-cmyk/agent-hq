@@ -123,5 +123,5 @@ const RANK: Record<StepStatus, number> = { ready: 0, check: 1, blocked: 2 };
 export function mergeSocial(code: SocialStepCheck, ai: SocialVerdict[]): { status: StepStatus; reasons: string[] } {
   const v = ai.find((x) => x.key === code.key || x.key === WRITER_KEY[code.key]) ?? { key: code.key, verdict: "check" as StepStatus, reasons: ["The AI reviewer did not answer for this message"] };
   const status = RANK[v.verdict] > RANK[code.status] ? v.verdict : code.status;
-  return { status, reasons: [...code.reasons, ...(v.verdict === "ready" ? [] : v.reasons)].slice(0, 5) };
+  return { status, reasons: status === "ready" ? [] : [...code.reasons, ...(v.verdict === "ready" ? [] : v.reasons)].slice(0, 5) };
 }

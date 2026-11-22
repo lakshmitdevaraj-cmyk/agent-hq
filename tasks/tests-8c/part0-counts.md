@@ -13,16 +13,14 @@ build counts a lead that only has an unsent email draft as contacted (as the rul
 19 further leads that the old rule did not catch now hide, because the new sign list includes a free Google Sites page,
 a name that is only trade words and a town, and a one-city page on a keyword website (all under 10 reviews, not contacted).
 
-## The leads that newly hide (re-counted live on 22 Nov, same read-only method, excluded leads left out)
-18 rows (16 different businesses; MPG Plumbing LLC and Rudan LLc each sit in two campaigns). All have under 10 reviews, none contacted. My first count said 19; this one skips leads already excluded by hand (1 fewer).
+## Fix after review: initials, LLC, Inc, Co are not "trade words and a town" (re-run live on 22 Nov)
+A name with initials (MPG, ABC) or a company ending (LLC, Inc, Co, Corp, Ltd) no longer counts as a trade-words-only name.
+Exactly four rows change, nothing else moves: MPG Plumbing LLC (x2, 2 reviews), ABC Pasadena Air & Heating (1) and
+League City HVAC & Duct Services Co. (0) go from hidden to visible. Hidden by the lead-gen rule: 91 -> 87 (excluded leads left out).
 
+## The leads that newly hide now (14 rows, none contacted, all under 10 reviews)
 | Name | Reviews | Sign |
 |---|---|---|
-| MPG Plumbing LLC (x2) | 2 | name is only trade words and a town |
-| ABC Pasadena Air & Heating | 1 | name is only trade words and a town |
-| League City HVAC & Duct Services Co. | 0 | name is only trade words and a town |
-| Conroe Heating & Air Conditioning | 9 | name is only trade words and a town |
-| Conroe AC Repair | 7 | name is only trade words and a town |
 | Rudan LLc (x2) | 5 | free Google Sites page |
 | Tank & Tankless Water Heaters Cypress | 3 | free Google Sites page |
 | Gas Water Heaters The Woodlands TX | 0 | free Google Sites page |
@@ -32,7 +30,9 @@ a name that is only trade words and a town, and a one-city page on a keyword web
 | Water Heaters The Woodlands TX | 2 | free Google Sites page + name is only trade words and a town |
 | Trusty Plumbers - Plumbing Services Woodlands | 8 | one city page on a keyword website |
 | Foster AC & Heating | 2 | one city page on a keyword website |
-| Diamond Peak HVAC | 0 | website name has nothing to do with the business name (.site) |
-| Frontier Core HVAC | 0 | website name has nothing to do with the business name (.site) |
+| Diamond Peak HVAC | 0 | website name unrelated to the business name (.site) |
+| Frontier Core HVAC | 0 | website name unrelated to the business name (.site) |
+| Conroe Heating & Air Conditioning | 9 | name is only trade words and a town |
+| Conroe AC Repair | 7 | name is only trade words and a town |
 
-Closest to the line (real-looking, 7 to 9 reviews): Conroe Heating & Air Conditioning (9), Trusty Plumbers (8), Conroe AC Repair (7).
+Closest to the line: Conroe Heating & Air Conditioning (9), Trusty Plumbers (8), Conroe AC Repair (7).

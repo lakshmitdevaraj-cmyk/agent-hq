@@ -44,16 +44,22 @@ t("email 1: over 450 characters is Check; no free asset set is Check with the Se
   assert.match(r.reasons.join(" "), /add a free asset in Settings/);
 });
 t("email 2 must be shorter than email 1 and carry the second asset; email 3 the shortest, asks who the right person is", () => {
-  const e2 = "I wrote about missed calls last week. Another way to hear it: want me to send a number you can ring to try the assistant yourself?";
+  const e2 = "I wrote about missed calls last week. Another way to see it: a customer rings at dinner time, gets no answer and books someone else. Want me to send a number you can ring to try the assistant yourself?";
   assert.equal(statusOf(checkStep("email2", e2, { freeAsset: "a number", earlierChars: [E1.length] })).status, "ready");
   assert.equal(statusOf(checkStep("email2", E1, { freeAsset: "a number", earlierChars: [E1.length] })).status, "check");
-  const e3 = "I built an assistant on my own website that answers owners' questions about missed calls. Want me to send a recording of it?";
-  const P = "I built the assistant on my own home-services website that answers owners' questions about missed calls and books a discussion call";
+  const e3 = "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls. Do you still want the recording?";
+  const P = "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls.";
   assert.equal(statusOf(checkStep("email3", e3, { freeAsset: "a recording", proofLine: P, earlierChars: [E1.length, e2.length] })).status, "ready");
   assert.equal(statusOf(checkStep("email3", "Fine to say no.", { freeAsset: "a recording", proofLine: P, earlierChars: [E1.length, e2.length] })).status, "check");
   const e4 = "This is my last email. Who is the right person for new customer calls? A no is fine.";
   assert.equal(statusOf(checkStep("email4", e4, { earlierChars: [E1.length, e2.length, e3.length] })).status, "ready");
   assert.notEqual(statusOf(checkStep("email4", "Is there someone else who looks after the phones? Fine to say no.", { earlierChars: [E1.length, e2.length, e3.length] })).status, "ready");
+});
+t("I versus you: the first sentence is not counted and one 'I help' sentence is allowed", () => {
+  const ok = "Hi Sam,\n\nI see Brazos Valley Plumbing has 4.8 stars from 210 reviews. I help plumbers keep calls they would lose. Would you like me to send a recording of an AI receptionist answering for your business?";
+  assert.ok(!checkStep("email1", ok, { freeAsset: "a recording" }).some((h) => h.id === "more-i-than-you"));
+  const bad = "Hi Sam,\n\nBrazos has 4.8 stars. I help plumbers. I built this. I like it. I use it. Want me to send a recording?";
+  assert.ok(checkStep("email1", bad, { freeAsset: "a recording" }).some((h) => h.id === "more-i-than-you"));
 });
 t("the demo and statistic figures are blocked unless Settings names a source", () => {
   for (const x of ["Apex Cooling saw +38% more bookings.", "About 27% of calls go unanswered.", "That is $81.9K a year."]) {

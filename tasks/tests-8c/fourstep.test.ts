@@ -10,7 +10,7 @@ const GOOD = {
   subject: "missed calls",
   email_1: "Hi Sam,\n\nKaty Air Pros has 4.8 stars from 210 Google reviews, and callers who hit voicemail often ring the next company. I help AC companies keep those calls. Want me to send a 2-minute recording of an AI receptionist answering for your business?",
   email_2: "Hi Sam,\n\nI wrote to you about missed calls earlier. Another way to see it: a customer rings at dinner time, gets no answer and books someone else. Want me to send a phone number you can ring to try the assistant?",
-  email_3: "Hi Sam,\n\nI built an assistant on my own website that answers owners' questions about missed calls. Want me to send a short recording of it answering for your business?",
+  email_3: "Hi Sam,\n\nI use the same assistant on my own home-services website, where it answers business owners' questions about missed calls. Do you still want the recording?",
   email_4: "Hi Sam,\n\nThis is my last email. Who is the right person for new customer calls? A no is fine.",
 };
 
@@ -65,7 +65,7 @@ t("empty Settings: a cleared free asset makes email 1 and 2 'Check this: add a f
 t("the writer prompt carries the empty marker, the proof line and both free things; no web address is asked for", () => {
   const p = sequenceUserPrompt({ name: "Katy Air", greeting: "Hi there", city: "Katy", trade: "HVAC", details: ["4.8 stars from 210 reviews"], facts: [] }, resolveInputs({ free_asset_1: "" }, "Katy Air"), "answers calls");
   assert.match(p, /FREE THING 1 \(offer it in email 1/);
-  assert.match(p, /PROOF LINE: I built the assistant/);
+  assert.match(p, /PROOF LINE: I use the same assistant/);
   assert.match(p, /FREE THING 2/);
   assert.match(SEQUENCE_SYSTEM_PROMPT, /Never ask for a call/);
 });
@@ -94,6 +94,25 @@ t("a plain mention of their contact form is allowed; criticising it is still blo
   assert.equal(ok[0].status, "ready", JSON.stringify(ok[0].reasons));
   const bad = checkSequence(parseSequence({ ...GOOD, email_1: GOOD.email_1.replace("and callers", "and your contact form is slow; callers") })!.steps, inp);
   assert.equal(bad[0].status, "blocked");
+});
+t("email 3 must not repeat a sentence of email 1; the same proof line in email 1 is a Check; 'discussion call' is blocked", () => {
+  const inp = resolveInputs({}, "X");
+  const rep = checkSequence(parseSequence({ ...GOOD, email_3: "Hi Sam,\n\nI use the same assistant on my own home-services website, where it answers business owners' questions about missed calls. Want me to send a 2-minute recording of an AI receptionist answering for your business?" })!.steps, inp);
+  assert.ok(rep[2].hits.some((h) => h.id === "repeats-earlier"), JSON.stringify(rep[2].reasons));
+  assert.notEqual(rep[2].status, "ready");
+  const e1proof = checkSequence(parseSequence({ ...GOOD, email_1: GOOD.email_1.replace("I help AC companies keep those calls.", "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls.") })!.steps, inp);
+  assert.ok(e1proof[0].hits.some((h) => h.id === "proof-in-email1"));
+  const dc = checkSequence(parseSequence({ ...GOOD, email_3: "Hi Sam,\n\nI built the assistant on my own website, where it books a discussion call. Do you still want the recording?" })!.steps, inp);
+  assert.equal(dc[2].status, "blocked");
+});
+t("a Ready email never lists reasons; a listed reason means Check or Blocked", () => {
+  const inp = resolveInputs({}, "X");
+  const checks = checkSequence(parseSequence(GOOD)!.steps, inp);
+  const m = mergeStatus(checks[0], { step: 1, verdict: "ready", reasons: ["leftover remark"] });
+  assert.equal(m.status, "ready"); assert.deepEqual(m.reasons, []);
+  const bad = checkSequence(parseSequence({ ...GOOD, email_2: GOOD.email_2 + " ".repeat(5) + "x".repeat(200) })!.steps, inp);
+  const mb = mergeStatus(bad[1], { step: 2, verdict: "ready", reasons: [] });
+  assert.notEqual(mb.status, "ready"); assert.ok(mb.reasons.length > 0);
 });
 t("AI reviewer: the worse of code and AI wins; a missing AI answer is Check", () => {
   const checks = checkSequence(parseSequence(GOOD)!.steps, resolveInputs({}, "X"));

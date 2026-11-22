@@ -26,6 +26,14 @@ t("sign: domain unrelated to the business name on a throwaway ending", () => {
 t("sign: one city page on a keyword website", () => {
   assert.ok(leadGenSigns(L({ website: "https://hvac-repair-guys.com/Dickinson" })).some((x) => x.code === "city_page"));
 });
+t("sign: a name with initials or LLC/Inc/Co is a company name, not trade words and a town", () => {
+  for (const nm of ["MPG Plumbing LLC", "ABC Pasadena Air & Heating", "League City HVAC & Duct Services Co.", "Katy Plumbing Inc"]) assert.ok(!leadGenSigns(L({ name: nm, website: "https://acme-home.com" })).some((x) => x.code === "name_trade"), nm);
+  // HVAC / AC / TX are trade words, not initials: these still count
+  assert.ok(leadGenSigns(L({ name: "Conroe AC Repair", website: "https://acme-home.com", address: "1 Main St, Conroe, TX 77301" })).some((x) => x.code === "name_trade"));
+  // an old stored name sign is dropped for such a name too
+  assert.ok(!leadGenSigns(L({ name: "MPG Plumbing LLC", site_check: { lead_gen_listing: "The business name is only trade words and a town" } })).some((x) => x.code === "name_trade"));
+  assert.equal(leadGenDecision(L({ name: "MPG Plumbing LLC", reviews_count: 2, address: "1 Main St, Katy, TX 77494" }), false), null);
+});
 t("sign: the Google business name is only trade words and a town", () => {
   assert.ok(leadGenSigns(L({ name: "HVAC Repair League City", website: "https://acme-home.com" })).some((x) => x.code === "name_trade"));
 });

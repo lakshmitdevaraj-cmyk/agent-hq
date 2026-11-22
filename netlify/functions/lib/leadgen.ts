@@ -58,6 +58,15 @@ function sentenceAround(s: string, i: number): string {
   return s.slice(from, end >= 0 ? end : s.length).trim();
 }
 
+/**
+ * A business name with initials (MPG, ABC) or a company ending (LLC, Inc, Co, Corp, Ltd) is a company name, not "trade words and a town",
+ * even when the rest of it is a trade and a town.
+ */
+export function hasCompanyMark(name: string): boolean {
+  if (/\b(?:llc|l\.l\.c|inc|incorporated|corp|corporation|ltd|co|company)\b\.?/i.test(name.replace(/&/g, " "))) return true;
+  return name.split(/[^A-Za-z]+/).some((w) => /^[A-Z]{2,5}$/.test(w) && !["HVAC", "AC", "TX", "USA", "LP", "DIY"].includes(w));
+}
+
 /** Every lead-gen sign for a lead: the ones that come from its own fields, plus those saved by an earlier website check. */
 export function leadGenSigns(l: LeadGenLead): LeadGenSign[] {
   const out = new Map<string, LeadGenSign>();
@@ -79,6 +88,7 @@ export function leadGenSigns(l: LeadGenLead): LeadGenSign[] {
   }
   if (l.name && hasTrade(l.name) && keywordDomain(compact(l.name) + ".com", city)) add({ code: "name_trade", text: "The business name is only trade words and a town" });
   for (const s of parseStoredSigns(l.site_check?.lead_gen_listing)) add(s);
+  if (l.name && hasCompanyMark(l.name)) out.delete("name_trade");
   return [...out.values()];
 }
 

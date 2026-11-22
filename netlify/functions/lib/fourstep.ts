@@ -13,7 +13,7 @@ import { checkStep, checkSubject, statusOf, mentionsRating, tidySubject, type Hi
 
 export const DEFAULT_ASSET_1 = "a 2-minute recording of an AI receptionist answering a call for [business name]: taking the job details and booking it";
 export const DEFAULT_ASSET_2 = "a phone number you can call to hear the assistant yourself";
-export const DEFAULT_PROOF = "I built the assistant on my own home-services website that answers owners' questions about missed calls and books a discussion call";
+export const DEFAULT_PROOF = "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls.";
 export const DEFAULT_GAPS = [3, 8, 15];
 
 export type StepInputs = { freeAsset1: string; freeAsset2: string; proofLine: string; namedSources: string };
@@ -52,9 +52,9 @@ EMAIL 1 (sent on day 0; about 400 characters at most)
 - Start with the GREETING you are given and a comma, then a new line.
 - First sentence: one specific true thing about THEM that the reader could check in a minute. Take it from TRUE DETAILS or FACTS only. State a rating plainly if you use one, with no praise.
 - Then say what you do, in first person, in the shape "I help <their kind of business> <one concrete outcome>". The outcome is about calls they would otherwise lose.
-- Then ONE supporting line. If PROOF LINE is given, say it in words very close to the PROOF LINE itself: it says what was built and where (the sender's own website). Never say "my business", "my company" or "my home-services business": the sender does not run one. If it is empty, skip this line. Never invent a client, a result or a number.
+- NO proof line and no sentence about where or how the assistant is used: the proof belongs in email 3 only. Never say "my business" or "my company": the sender does not run one. Never invent a client, a result or a number.
 - Close with one yes/no question offering to send FREE THING 1. Never ask for a call, a meeting, a demo or any time.
-- Use "you" more than "I". No links, no email addresses, no phone numbers.
+- After the first sentence, use "you" and "your" more than "I" (the one "I help ..." sentence is not counted). No links, no email addresses, no phone numbers.
 
 EMAIL 2 (sent on day 3; shorter than email 1, aim for about 280 characters and never above 340)
 - Greeting, then open with one short clause that points back at email 1 (for example "I wrote to you earlier about missed calls."), without repeating what it said.
@@ -63,7 +63,7 @@ EMAIL 2 (sent on day 3; shorter than email 1, aim for about 280 characters and n
 
 EMAIL 3 (sent on day 8; shorter than email 2, aim for about 220 characters and never above 290)
 - Greeting, then ONE short proof sentence taken from the PROOF LINE in words very close to it (never "my business"; if the PROOF LINE is empty, skip the proof and say one plain true thing about calls instead).
-- Close with one yes/no question offering FREE THING 1 (or FREE THING 2 if that reads better).
+- Close with a short yes/no re-offer of FREE THING 1 in NEW words, for example "Do you still want the recording?" or "Should I still send that recording?". Do NOT copy any sentence from email 1: not the proof, not the offer. Never describe the recording again in the same words.
 - No new argument.
 
 EMAIL 4 (sent on day 15; the shortest, aim for about 160 characters and never above 230)
@@ -90,7 +90,7 @@ For each email answer with a verdict:
 - "check": a person should look (thin evidence, awkward wording).
 - "blocked": a claim about the business that SAVED_EVIDENCE does not support, a result or client that is invented, a claim that the sender runs a business of their own (the assistant was built on the sender's own website), or a wrong owner name in the greeting.
 
-SENDER_SETTINGS holds the sender's own proof line and two free things. The proof line is TRUE and allowed to be quoted or closely paraphrased, even though it says the assistant was built on the sender's own website (that is not a claim that the sender runs a business) and even if it mentions a call. A free thing that is a recording or a number to ring to hear the assistant is the free offer itself, not a request for a call or meeting with the sender.
+SENDER_SETTINGS holds the sender's own proof line and two free things. The proof line is TRUE and allowed to be quoted or closely paraphrased, even though it says the assistant was built on the sender's own website (that is not a claim that the sender runs a business) and even if it mentions a call. The proof line belongs in email 3 only; email 1 must not carry it. A free thing that is a recording or a number to ring to hear the assistant is the free offer itself, not a request for a call or meeting with the sender.
 
 Email 4 is meant to ask who the right person is for new customer calls; that is not a request for a call or meeting and is no reason for "check".
 
@@ -115,7 +115,7 @@ export function sequenceUserPrompt(l: SequenceLead, inp: StepInputs, offerBackgr
     l.details.length ? `TRUE DETAILS ABOUT THEM:\n${l.details.map((d, i) => `${i + 1}. ${d}`).join("\n")}` : "TRUE DETAILS ABOUT THEM:\n(none saved)",
     l.facts.length ? `FACTS YOU MAY USE:\n${l.facts.map((f) => `${f.n}. ${f.text}`).join("\n")}` : "FACTS YOU MAY USE:\n(none: open with a true detail, or the town and trade, and claim nothing else about them)",
     `HOW THE ASSISTANT WORKS (background, rewrite in your own words): ${offerBackground}`,
-    `FREE THING 1 (offer it in email 1; email 3 may offer it again): ${inp.freeAsset1 || "(empty)"}`,
+    `FREE THING 1 (offer it in email 1; email 3 re-offers it in new words): ${inp.freeAsset1 || "(empty)"}`,
     `FREE THING 2 (offer it in email 2): ${inp.freeAsset2 || "(empty)"}`,
     `PROOF LINE: ${inp.proofLine || "(empty)"}`,
     hint ? `\nYOUR LAST ANSWER FAILED THESE CHECKS: ${hint}\nWrite all four again and fix them. JSON only.` : "",
@@ -144,7 +144,7 @@ export function checkSequence(steps: SeqStep[], inp: StepInputs): StepCheck[] {
   const lens: number[] = [];
   let ratingSeen = false;
   return steps.map((s, i) => {
-    const hits = checkStep(kinds[i], s.body, { channel: "email", earlierChars: lens.slice(), ratingAlready: ratingSeen, freeAsset: i === 1 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, namedSources: inp.namedSources });
+    const hits = checkStep(kinds[i], s.body, { channel: "email", earlierChars: lens.slice(), ratingAlready: ratingSeen, freeAsset: i === 1 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, earlierTexts: steps.slice(0, i).map((x) => x.body), namedSources: inp.namedSources });
     if (i === 0) hits.push(...checkSubject(s.subject));
     lens.push(s.body.length);
     if (mentionsRating(s.body)) ratingSeen = true;
@@ -180,6 +180,6 @@ export function mergeStatus(code: StepCheck, ai: AiStepVerdict | undefined): { s
   const kept = offerOk ? a0.reasons.filter((r) => !OFFER_TALK.test(r)) : a0.reasons;
   const a = a0.verdict === "check" && offerOk && a0.reasons.length > 0 && kept.length === 0 ? { ...a0, verdict: "ready" as StepStatus, reasons: [] } : { ...a0, reasons: kept };
   const status = RANK[a.verdict] > RANK[code.status] ? a.verdict : code.status;
-  const reasons = [...code.reasons, ...(a.verdict === "ready" ? [] : a.reasons)].slice(0, 5);
+  const reasons = status === "ready" ? [] : [...code.reasons, ...(a.verdict === "ready" ? [] : a.reasons)].slice(0, 5);
   return { status, reasons };
 }
