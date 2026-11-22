@@ -33,6 +33,7 @@ import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, 
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
 import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
+import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
 import { channelsFor, socialSkipReason, precheckSocial, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart } from "./lib/social";
 
 function slugify(s: string): string {
@@ -2035,6 +2036,11 @@ function autoNotFit(lead: Record<string, unknown>, ctx: ReturnType<typeof campai
   const sc = (lead.site_check ?? {}) as { not_home_service?: string | null; lead_gen_listing?: string | null };
   if (sc.not_home_service) return { code: /wholesal|distribut|supplier/i.test(sc.not_home_service) ? "wholesaler" : "not_home_service", detail: sc.not_home_service };
   if (sc.lead_gen_listing) return { code: "lead_gen", detail: sc.lead_gen_listing };
+  // Flags that need no website download, so leads checked before are covered too (a flag only: the lead is never deleted).
+  const dg = domainLeadGenFlag(lead as Parameters<typeof domainLeadGenFlag>[0]);
+  if (dg) return { code: "lead_gen", detail: dg };
+  const cf = categoryFitFlag(typeof lead.category === "string" ? lead.category : null);
+  if (cf) return { code: "not_home_service", detail: cf };
   return null;
 }
 
@@ -3595,6 +3601,23 @@ export const handler: Handler = async (event) => {
         const { campaign_id, lead_id, email } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id || typeof lead_id !== "string" || !lead_id) return fail(400, "campaign_id and lead_id required");
         if (typeof email !== "string") return fail(400, "email required");
+        if (email.trim() === "") {
+          // Clearing: the address was wrong (a placeholder, a typo). The lead keeps everything else; its unsent drafts have no
+          // address to go to, so they are removed (sent emails are history and stay).
+          const f0 = await findLeadRow(campaign_id, lead_id);
+          if (!f0) return fail(404, "lead not found");
+          const nowC = new Date().toISOString();
+          const cur = (await findLeadRow(campaign_id, lead_id))?.lead ?? f0.lead;
+          const prevC = (cur.email as string | null | undefined) ?? null;
+          await writeJson(store(OUTREACH_LEADS), f0.key, { ...cur, email: null, email_source: "manual", email_manual_at: nowC, junk_email: null, ...(prevC ? { previous_email: prevC } : {}), updated_at: nowC });
+          let removed = 0;
+          const esC = store(OUTREACH_EMAILS);
+          for (const eb of (await esC.list({ prefix: `${campaign_id}/` })).blobs) {
+            const em = await readJson<Record<string, unknown>>(esC, eb.key);
+            if (em?.lead_id === lead_id && em.status === "drafted") { await esC.delete(eb.key); removed++; }
+          }
+          return ok({ email: null, email_source: "manual", email_manual_at: nowC, drafts_updated: 0, drafts_removed: removed, warning: removed > 0 ? `${removed} unsent draft${removed === 1 ? "" : "s"} for this lead were removed because there is no address to send to.` : null });
+        }
         const next = cleanEmail(email);
         if (!next || isJunkEmail(next)) return fail(400, "That is not a valid email address.");
         if (isGovEduEmail(next)) return fail(400, "A .gov or .edu address is never used as a sales contact.");
@@ -3720,6 +3743,7 @@ export const handler: Handler = async (event) => {
             excluded: l.excluded === true, excluded_reason: (l.excluded_reason as string | undefined) ?? null, excluded_note: (l.excluded_note as string | undefined) ?? null,
             email_source: (l.email_source as string | undefined) ?? null, email_manual_at: (l.email_manual_at as string | undefined) ?? null,
             not_fit_kept: l.not_fit_kept === true,
+            email_typo: possibleTypoDomain(l.email as string | null | undefined),
             auto_not_fit: l.excluded === true ? null : autoNotFit(l, campCtx.get(l.campaign_id as string) ?? { location: null, query: "", anyTrade: true }),
           };
         });

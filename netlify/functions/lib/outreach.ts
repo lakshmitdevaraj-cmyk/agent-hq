@@ -430,10 +430,12 @@ export function cleanEmail(raw: string | null | undefined): string | null {
 const JUNK_DOMAINS = [
   "example.com", "example.org", "example.net", "email.com", "contractor.com", "sentry.io", "wixpress.com",
   "sentry-next.wixpress.com", "domain.com", "yourdomain.com", "yoursite.com", "mysite.com", "website.com", "test.com", "sample.com",
+  // Website builders and registrars fill their templates with placeholder addresses (filler@godaddy.com, name@wix.com).
+  "godaddy.com", "wix.com", "wixsite.com", "squarespace.com", "domainsbyproxy.com", "secureserver.net",
 ];
 const PLACEHOLDER_LOCALS = new Set([
   "johndoe", "janedoe", "john.doe", "jane.doe", "yourname", "youremail", "your.email", "youremailaddress", "your-email",
-  "first.last", "firstlast", "firstname.lastname", "username", "email", "name", "user", "someone", "test", "noreply", "no-reply",
+  "first.last", "firstlast", "firstname.lastname", "username", "email", "name", "user", "someone", "test", "noreply", "no-reply", "filler", "placeholder", "sample", "yourcompany", "company",
 ]);
 
 /** Placeholder / tracking / asset-looking addresses that are never a business contact. */

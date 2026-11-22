@@ -27,6 +27,8 @@ export type Prospect = LeadInfo & {
   auto_not_fit?: { code: string; detail: string } | null;
   not_fit_kept?: boolean;
   email_source?: string | null;
+  /** A known look-alike of a real mail/ISP domain (consolidate.net for consolidated.net). A flag only. */
+  email_typo?: { domain: string; suggestion: string } | null;
   email_manual_at?: string | null;
 };
 

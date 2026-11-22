@@ -28,13 +28,13 @@ function EmailField({ lead, onSaved }: { lead: Prospect; onSaved: (patch: Record
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  async function save() {
-    const v = value.trim();
-    if (!EMAIL_SHAPE.test(v)) { setErr("That does not look like an email address."); return; }
+  async function save(clear = false) {
+    const v = clear ? "" : value.trim();
+    if (!clear && !EMAIL_SHAPE.test(v)) { setErr("That does not look like an email address."); return; }
     if (!lead.campaign_id) return;
     setBusy(true); setErr(null); setNote(null);
     try {
-      const r = await call<{ email: string; email_source: string; email_manual_at: string; drafts_updated: number; warning: string | null }>("outreach.lead.set_email", { campaign_id: lead.campaign_id, lead_id: lead.id, email: v });
+      const r = await call<{ email: string | null; email_source: string; email_manual_at: string; drafts_updated: number; warning: string | null }>("outreach.lead.set_email", { campaign_id: lead.campaign_id, lead_id: lead.id, email: v });
       onSaved({ email: r.email, email_source: r.email_source, email_manual_at: r.email_manual_at });
       setNote([r.drafts_updated > 0 ? `${r.drafts_updated} unsent draft${r.drafts_updated === 1 ? "" : "s"} now go to this address.` : null, r.warning].filter(Boolean).join(" "));
       setEditing(false);
@@ -46,6 +46,7 @@ function EmailField({ lead, onSaved }: { lead: Prospect; onSaved: (patch: Record
         <div className="flex items-center gap-1.5 flex-wrap">
           <input autoFocus type="email" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void save(); }} placeholder="name@company.com" className="flex-1 min-w-[180px] bg-black/30 border border-white/15 rounded-md px-2 py-1.5 text-xs text-white font-mono" />
           <button onClick={() => void save()} disabled={busy} className="px-2 py-1 rounded-md bg-primary/20 border border-primary/40 text-primary text-[11px] font-bold disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+          {lead.email && <button onClick={() => { if (confirm("Remove this email address from the lead? Unsent drafts for it are removed too.")) void save(true); }} disabled={busy} className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/40 text-red-300 text-[11px] disabled:opacity-50">Clear email</button>}
           <button onClick={() => { setEditing(false); setErr(null); }} className="px-2 py-1 rounded-md bg-white/5 border border-white/15 text-[11px] text-white/70">Cancel</button>
         </div>
       ) : (
@@ -55,6 +56,7 @@ function EmailField({ lead, onSaved }: { lead: Prospect; onSaved: (patch: Record
           <button onClick={() => { setValue(lead.email ?? ""); setEditing(true); setNote(null); }} disabled={!lead.campaign_id} className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/15 text-[10px] text-white/80">Edit email</button>
         </div>
       )}
+      {lead.email_typo && lead.email && <p className="text-[11px] text-amber-200/90">Possible typo: <span className="font-mono">{lead.email_typo.domain}</span> looks like <span className="font-mono">{lead.email_typo.suggestion}</span>. Check it; nothing was changed.</p>}
       {err && <p className="text-[11px] text-red-300">{err}</p>}
       {note && <p className="text-[11px] text-amber-200/90">{note}</p>}
     </div>

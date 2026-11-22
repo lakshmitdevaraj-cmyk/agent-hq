@@ -145,7 +145,7 @@ function hasContactForm(html: string): boolean {
   });
 }
 
-const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
+export const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
 
 /** "booking" = a real scheduler; "request_form" = a button that only opens the site's own contact form. */
 function classifyBookLink(a: Anchor, pageUrl: string): "booking" | "request_form" | null {
@@ -292,7 +292,7 @@ export function siteHoursWording(pages: Page[]): { hours_usable: boolean; advert
   return { hours_usable: true, advertises_emergency: advertises, mentions_24_7: mentions, evidence: null };
 }
 
-const INDUSTRIAL_RX = /\b(industrial|marine|manufactur\w*|wholesale|distribut(?:or|ion)|oem\b|engineered|shipyard|offshore|vessel|oilfield|commercial (?:and|&) industrial|fabricat\w*|chiller|process (?:cooling|control)|replacement parts)\b/gi;
+const INDUSTRIAL_RX = /\b(industrial|marine|manufactur\w*|wholesale|distribut(?:or|ion)|oem\b|engineered|shipyard|offshore|vessel|oilfield|commercial (?:and|&) industrial|fabricat\w*|chillers?|process (?:cooling|control)|replacement parts|rentals?|nationwide|temporary)\b/gi;
 const RESIDENTIAL_RX = /\b(homeowners?|residential|your home|home comfort|house|homes)\b/i;
 const LEADGEN_HOSTS = /(?:^|\.)(?:angi|angieslist|homeadvisor|thumbtack|yelp|bbb|yellowpages|manta|mapquest|porch|networx|fixr|buildzoom|houzz|nextdoor|facebook|superpages|chamberofcommerce|cylex|hotfrog|bark|expertise|homeguide|improvenet|fixd)\.(?:com|org|net)$/i;
 const LEADGEN_TEXT = /(?:get|compare)\s+(?:free\s+)?(?:quotes|estimates)\s+from|find\s+(?:a\s+)?(?:local\s+)?(?:pro|contractor|plumber|electrician|hvac|roofer)s?\s+near|we\s+connect\s+(?:you|homeowners)\s+with|top\s+\d+\s+(?:best\s+)?(?:hvac|plumb|electric|roof)|directory\s+of/i;
@@ -316,24 +316,38 @@ export function wholesalerFlag(text: string, category?: string | null): string |
   return null;
 }
 
-const TRADE_WORDS = ["hvac", "ductcleaning", "airduct", "duct", "waterheater", "plumbing", "plumber", "heating", "cooling", "airconditioning", "acrepair", "aircon", "furnace", "electric", "electrician", "roofing", "roofer", "dryervent"];
-const FILLER_TOKENS = ["1st", "first", "choice", "best", "top", "the", "and", "of", "in", "near", "me", "pro", "pros", "services", "service", "company", "repair", "repairs", "install", "installation", "air", "ac", "a", "c", "tx", "texas", "local", "cheap", "affordable", "emergency", "24", "7", "hour", "hr", "guys", "experts", "crew", "co", "inc", "llc"];
-const THROWAWAY_TLD = /\.(?:xyz|site|pro|online|top|club|info|biz|click|live|store|website|space|today|co)$/i;
-const TOLL_FREE = /(?:\+?1[\s.-]?)?\(?\b8(?:00|33|44|55|66|77|88)\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/;
+export const TRADE_WORDS = ["hvac", "ductcleaning", "airduct", "duct", "waterheater", "plumbing", "plumber", "heating", "cooling", "airconditioning", "acrepair", "aircon", "furnace", "electric", "electrician", "roofing", "roofer", "dryervent"];
+export const FILLER_TOKENS = ["cleaning", "clean", "cleaners", "airco", "1st", "first", "choice", "best", "top", "the", "and", "of", "in", "near", "me", "pro", "pros", "services", "service", "company", "repair", "repairs", "install", "installation", "air", "ac", "a", "c", "tx", "texas", "local", "cheap", "affordable", "emergency", "24", "7", "hour", "hr", "guys", "experts", "crew", "co", "inc", "llc"];
+export const THROWAWAY_TLD = /\.(?:xyz|site|pro|online|top|club|info|biz|click|live|store|website|space|today|co)$/i;
+export const TOLL_FREE = /(?:\+?1[\s.-]?)?\(?\b8(?:00|33|44|55|66|77|88)\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/;
+
+/** Equipment / generator / vehicle rental companies rent to businesses, not repair or install for homes. Category text only. */
+export function categoryFitFlag(category: string | null | undefined): string | null {
+  const c = (category ?? "").trim();
+  return c && /\brentals?\b/i.test(c) && !/apartment|vacation|property|house|home/i.test(c) ? `Google lists it as "${c}": a rental company, not a home-service company` : null;
+}
 
 const compact = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** Does the domain's name consist only of trade words, the town and filler (no real brand)? */
-function keywordDomain(host: string, city: string): boolean {
+export function keywordDomain(host: string, city: string): boolean {
   const label = compact(host.replace(/\.[a-z]{2,}$/i, "").replace(/\.[a-z]{2,}$/i, ""));
   if (!label) return false;
-  const hasTrade = TRADE_WORDS.some((w) => label.includes(w));
-  if (!hasTrade) return false;
-  let rest = label;
+  if (!TRADE_WORDS.some((w) => label.includes(w))) return false;
   const c = compact(city);
-  if (c.length >= 4) rest = rest.split(c).join("");
-  for (const w of [...TRADE_WORDS, ...FILLER_TOKENS].sort((a, b) => b.length - a.length)) rest = rest.split(w).join("");
-  return rest.replace(/\d+/g, "").length <= 3 && (c.length < 4 ? true : label.includes(c));
+  const vocab = [...TRADE_WORDS, ...FILLER_TOKENS, ...(c.length >= 4 ? [c] : [])].filter((w) => w.length >= 2);
+  // Split the name into trade words, filler and the town; digits are free. Whatever cannot be explained is the company name:
+  // up to 3 stray letters are tolerated, a real brand ("mock", "aquatrails") leaves more.
+  const n = label.length;
+  const best: number[] = new Array(n + 1).fill(Infinity);
+  best[0] = 0;
+  for (let i = 0; i < n; i++) {
+    if (best[i] === Infinity) continue;
+    if (/\d/.test(label[i])) best[i + 1] = Math.min(best[i + 1], best[i]);
+    best[i + 1] = Math.min(best[i + 1], best[i] + 1);
+    for (const w of vocab) if (label.startsWith(w, i)) best[i + w.length] = Math.min(best[i + w.length], best[i]);
+  }
+  return best[n] <= 3 && (c.length < 4 ? true : label.includes(c));
 }
 
 /**
@@ -364,8 +378,8 @@ export function leadGenWebsite(pages: Page[], website: string | null | undefined
     if (words.length > 0 && !words.some((w) => label.includes(w)) && !TRADE_WORDS.some((t) => label.includes(t))) strong.push(`The website name "${host}" has nothing to do with the business name, on a throwaway domain ending`);
   }
   if (ctx.tls_problem) weak.push("The website has an invalid security certificate");
-  if (kw && fewReviews) strong.push(`The website name "${host}" is only trade words and the town, with no company name`);
-  else if (kw) weak.push(`The website name "${host}" is only trade words and the town`);
+  // A web address that is only trade words and a town ("plumbingofcypress.com") names no company, however many reviews the listing has.
+  if (kw) strong.push(`The website name "${host}" is only trade words and the town, with no company name`);
   // A footer or pages that list many other companies as a network.
   if (host) {
     const others = new Set<string>();
@@ -399,6 +413,10 @@ export function fitFlags(pages: Page[], website?: string | null, ctx: FitCtx = {
   let notHome: string | null = null;
   if (hits.size >= 2 && !RESIDENTIAL_RX.test(text)) notHome = `Site talks about ${[...hits].slice(0, 4).join(", ")} and nothing about homes`;
   if (!notHome) notHome = wholesalerFlag(text, ctx.category);
+  // Engineering consultants and construction companies whose site talks only about industrial or commercial work.
+  const cat = (ctx.category ?? "").trim();
+  if (!notHome && /\b(?:engineering consultant|construction company)\b/i.test(cat) && !RESIDENTIAL_RX.test(text) && /\b(?:industrial|commercial|institutional|municipal|general contractors?)\b/i.test(text)) notHome = `Google lists it as "${cat}" and the site talks only about industrial or commercial work`;
+  if (!notHome) notHome = categoryFitFlag(cat);
   return { not_home_service: notHome, lead_gen_listing: leadGenWebsite(pages, website, ctx) };
 }
 
