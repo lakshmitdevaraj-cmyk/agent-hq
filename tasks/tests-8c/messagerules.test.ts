@@ -23,7 +23,7 @@ t("dashes as punctuation: hit and miss (a hyphen inside a word is fine)", () => 
 t("placeholders: hit and miss", () => { for (const s of ["Hi {{first_name}}", "Hi [First Name]", "Hi {name}", "Hi %name%", "Hi <<name>>"]) has(s, "merge-field"); not("Hi Sam,", "merge-field"); });
 t("HTML: hit and miss", () => { has("Hi<br>there", "html"); has("a&nbsp;b", "html"); not("5 < 6 and 7 > 3", "html"); });
 t("negated pitch and hedging: hit and miss", () => { has("I'm not pitching anything", "negated-pitch"); has("no pitch, promise", "negated-pitch"); has("hope this isn't weird", "hedge"); not("I send recordings.", "negated-pitch"); });
-t("template filler and emoji are SOFT", () => { assert.equal(scanBanned("in today's fast-paced world")[0].level, "soft"); assert.equal(scanBanned("hi 🙂")[0].level, "soft"); });
+t("template filler is SOFT; an emoji is HARD", () => { assert.equal(scanBanned("in today's fast-paced world")[0].level, "soft"); assert.equal(scanBanned("hi 🙂")[0].level, "hard"); });
 t("claiming they said something is SOFT (warn only)", () => { const h = scanBanned("As you mentioned, calls are slow"); assert.equal(h[0].id, "claimed-memory"); assert.equal(h[0].level, "soft"); });
 t("every banned rule has a label and a reason", () => { for (const r of BANNED) { assert.ok(r.label && r.because && r.id); } });
 
@@ -47,8 +47,8 @@ t("email 2 must be shorter than email 1 and carry the second asset; email 3 the 
   const e2 = "I wrote about missed calls last week. Another way to see it: a customer rings at dinner time, gets no answer and books someone else. Want me to send a number you can ring to try the assistant yourself?";
   assert.equal(statusOf(checkStep("email2", e2, { freeAsset: "a number", earlierChars: [E1.length] })).status, "ready");
   assert.equal(statusOf(checkStep("email2", E1, { freeAsset: "a number", earlierChars: [E1.length] })).status, "check");
-  const e3 = "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls. Do you still want the recording?";
-  const P = "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls.";
+  const e3 = "I built an assistant for my agency's website that answers home-service owners' questions about missed calls and books a discussion call. Do you still want the recording?";
+  const P = "I built an assistant for my agency's website that answers home-service owners' questions about missed calls and books a discussion call.";
   assert.equal(statusOf(checkStep("email3", e3, { freeAsset: "a recording", proofLine: P, earlierChars: [E1.length, e2.length] })).status, "ready");
   assert.equal(statusOf(checkStep("email3", "Fine to say no.", { freeAsset: "a recording", proofLine: P, earlierChars: [E1.length, e2.length] })).status, "check");
   const e4 = "This is my last email. Who is the right person for new customer calls? A no is fine.";
@@ -67,8 +67,9 @@ t("the demo and statistic figures are blocked unless Settings names a source", (
     assert.notEqual(statusOf(checkStep("email1", E1 + " " + x, { freeAsset: ASSET, namedSources: "Our 2026 call audit" })).status, "blocked", x + " with a source");
   }
 });
-t("rating repeated across messages is Check; criticising the website is BLOCKED", () => {
-  assert.equal(statusOf(checkStep("email2", "You have 4.8 stars. Want me to send a number?", { freeAsset: "n", ratingAlready: true, earlierChars: [999] })).status, "check");
+t("rating repeated across messages is BLOCKED; criticising the website is BLOCKED (also 'no live chat or online booking')", () => {
+  assert.equal(statusOf(checkStep("email2", "You have 4.8 stars. Want me to send a number?", { freeAsset: "n", ratingAlready: true, earlierChars: [999] })).status, "blocked");
+  assert.equal(statusOf(checkStep("email1", "Your website offers a contact or call-back form, but no live chat or online booking. Want me to send a recording?", { freeAsset: ASSET })).status, "blocked");
   assert.equal(statusOf(checkStep("email1", "Your website looks outdated and slow. Want me to send a recording?", { freeAsset: ASSET })).status, "blocked");
 });
 t("subject: under 3 words, lowercase, not a question, never Re:/Fwd:", () => {
@@ -112,6 +113,20 @@ t("asks to send a free thing in several natural wordings; criticising their cont
 });
 
 t("praise of the rating is flattery", () => { for (const x of ["a great 4.8 rating", "which is great to see", "a solid rating", "an impressive record"]) has(x, "flattery"); not("has a 4.8 rating from 210 reviews", "flattery"); });
+
+t("false familiarity and owning a home-services business are BLOCKED", () => {
+  for (const x of ["As we discussed, calls slip.", "Following our chat last week.", "In our conversation you said so.", "As we talked, it helps."]) has(x, "false-familiarity");
+  for (const x of ["I run a plumbing company that answers calls.", "I own an HVAC business and built this."]) has(x, "false-business-claim");
+  not("I built an assistant for my agency's website that answers home-service owners' questions about missed calls and books a discussion call.", "false-business-claim");
+  assert.equal(statusOf(checkStep("email1", E1 + " We discussed this on our call.", { freeAsset: ASSET })).status, "blocked");
+});
+t("same assistant is BLOCKED; the exact proof line is fine", () => { has("I use the same assistant on my own website.", "same-assistant"); not("I built an assistant for my agency's website.", "same-assistant"); });
+t("reasons: every one is listed once and none contradicts its label", () => {
+  const r = statusOf(checkStep("email2", E1, { freeAsset: "a number", earlierChars: [E1.length] })).reasons;
+  assert.equal(new Set(r).size, r.length);
+  assert.ok(r.some((x) => /Not shorter than/.test(x)));
+  assert.ok(!r.some((x) => /Not shorter than/.test(x) && /is shorter than/.test(x)), r.join(" | "));
+});
 
 console.log(`\n${n} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -48,6 +48,7 @@ export default function FollowUps() {
   const [msg, setMsg] = useState<string | null>(null);
   const [sentOn, setSentOn] = useState<string>("");
   const [moveFor, setMoveFor] = useState<{ key: string; date: string } | null>(null);
+  const [undoSent, setUndoSent] = useState<{ label: string; items: Array<{ campaign_id: string; lead_id: string; channel: string; part: string; touch_id: string }> } | null>(null);
   const [skipFor, setSkipFor] = useState<{ key: string; note: string } | null>(null);
   const loaded = useRef(false);
 
@@ -83,9 +84,10 @@ export default function FollowUps() {
   };
 
   const toggle = (k: string) => { const n = new Set(ticked); if (n.has(k)) n.delete(k); else n.add(k); setTick(n); };
-  const pickedRows = rows.shown.filter((r) => ticked.has(rowKey(r)));
-  // Rows the bulk buttons can act on: due today or overdue, and Ready (email) or markable (social).
-  const bulkable = rows.shown.filter((r) => (r.bucket === "overdue" || r.bucket === "today") && (tab === "email" ? r.channel === "email" && !!r.email_id && r.review_status === "ready" : r.channel !== "email" && r.can_mark));
+  // Rows that can be ticked, on both Due and This week: Ready emails, and social messages that can be marked.
+  const tickable = (r: FollowRow) => (r.channel === "email" ? !!r.email_id && r.review_status === "ready" : r.can_mark);
+  const bulkable = rows.shown.filter(tickable);
+  const pickedRows = rows.shown.filter((r) => ticked.has(rowKey(r)) && tickable(r));
   const allBulkTicked = bulkable.length > 0 && bulkable.every((r) => ticked.has(rowKey(r)));
   const selectAll = () => { const n = new Set(ticked); for (const r of bulkable) n.add(rowKey(r)); setTick(n); };
   const clearTicks = () => { const n = new Set(ticked); for (const r of rows.shown) n.delete(rowKey(r)); setTick(n); };
@@ -125,12 +127,16 @@ export default function FollowUps() {
       setMsg(`Sent ${sent} email${sent === 1 ? "" : "s"}${problems ? `; ${problems} could not be sent (open the campaign to see why)` : ""}.`);
     });
   }
-  const markSent = (r: FollowRow) => act(`sent-${rowKey(r)}`, () => call("outreach.social.mark_sent", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key, sent_on: sentOn || data?.today }));
+  const markSent = (r: FollowRow) => act(`sent-${rowKey(r)}`, async () => {
+    const res = await call<{ touch_id?: string }>("outreach.social.mark_sent", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key, sent_on: sentOn || data?.today });
+    setUndoSent(res.touch_id ? { label: `Marked ${r.step_label.toLowerCase()} for ${r.name} as sent.`, items: [{ campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key, touch_id: res.touch_id }] } : null);
+  });
+  const undoMarked = () => { const u = undoSent; if (!u) return; void act("undo-sent", async () => { for (const i of u.items) await call("outreach.social.mark_sent", { ...i, sent: false }); setUndoSent(null); setMsg("Undone: it is back in the list as not sent."); }); };
   async function markMany() {
     const list = pickedRows.filter((r) => r.channel !== "email" && r.can_mark);
     if (list.length === 0) return;
     if (!confirm(`Mark ${list.length} message${list.length === 1 ? "" : "s"} as sent on ${sentOn || data?.today}? Do this only for messages you really sent by hand.`)) return;
-    await act("bulk", async () => { for (const r of list) await call("outreach.social.mark_sent", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key, sent_on: sentOn || data?.today }); setTick(new Set([...ticked].filter((k) => !list.some((r) => rowKey(r) === k)))); });
+    await act("bulk", async () => { const done: NonNullable<typeof undoSent>["items"] = []; for (const r of list) { const res = await call<{ touch_id?: string }>("outreach.social.mark_sent", { campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key, sent_on: sentOn || data?.today }); if (res.touch_id) done.push({ campaign_id: r.campaign_id, lead_id: r.lead_id, channel: r.channel, part: r.step_key, touch_id: res.touch_id }); } setUndoSent(done.length ? { label: `Marked ${done.length} message${done.length === 1 ? "" : "s"} as sent.`, items: done } : null); setTick(new Set([...ticked].filter((k) => !list.some((r) => rowKey(r) === k)))); });
   }
   const update = (r: FollowRow, op: string, value?: unknown) => call("followups.update", { lead_id: r.lead_id, channel: r.channel, step_key: r.step_key, op, value });
   async function saveEdit(r: FollowRow) {
@@ -147,7 +153,7 @@ export default function FollowUps() {
       <div className="flex items-center gap-2 flex-wrap mb-3">
         {(["email", "social"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg border text-sm font-semibold ${tab === t ? "bg-primary/20 border-primary/50 text-primary" : "bg-fg/[0.04] border-line text-fg2"}`}>
-            {t === "email" ? "Email" : "Social"} ({tabCounts(t).today} today · {tabCounts(t).week} this week)
+            {t === "email" ? "Email" : "Social media"} ({tabCounts(t).today} today · {tabCounts(t).week} this week)
           </button>
         ))}
         <div className="flex-1" />
@@ -158,15 +164,17 @@ export default function FollowUps() {
         <button onClick={() => void load()} className={btn} aria-label="Refresh"><RefreshCw size={12} className="inline mr-1" />Refresh</button>
       </div>
       {msg && <p className="text-sm text-green-300 mb-2">{msg}</p>}
+      {undoSent && <p className="text-sm text-green-300 mb-2">{undoSent.label} <button className={btn} disabled={busy === "undo-sent"} onClick={undoMarked}>Undo</button> <button className={btn} onClick={() => setUndoSent(null)}>Dismiss</button></p>}
 
       {tab === "email" && rows.shown.length > 0 && (
         <div className="flex items-center gap-2 mb-3 text-sm flex-wrap">
           {selectControls}
           {pickedRows.length > 0 && <>
-            <span className="text-fg2">{pickedRows.length} ticked ({pickedRows.filter((r) => r.review_status === "ready").length} Ready)</span>
-            <button onClick={() => void sendEmails()} disabled={busy === "send" || !pickedRows.some((r) => r.review_status === "ready")} className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/50 text-primary text-xs font-bold disabled:opacity-50">{busy === "send" ? "Sending…" : "Send the Ready ones"}</button>
+            <span className="text-fg2">{pickedRows.length} selected</span>
+            <button onClick={() => void sendEmails()} disabled={busy === "send"} className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/50 text-primary text-xs font-bold disabled:opacity-50">{busy === "send" ? "Sending…" : `Send ${pickedRows.length} selected email${pickedRows.length === 1 ? "" : "s"}`}</button>
           </>}
-          <span className="text-label text-muted">Only emails marked Ready can be sent from here. Check this and Blocked ones are opened from their campaign.</span>
+          {pickedRows.length === 0 && <span className="text-label text-amber-300">{bulkable.length === 0 ? "Nothing here is Ready to send. Open the campaign to fix Check this or Blocked emails." : "Tick the Ready emails you want to send."}</span>}
+          <span className="text-label text-muted">Only emails marked Ready can be ticked. Check this and Blocked ones are opened from their campaign.</span>
         </div>
       )}
       {tab === "social" && (
@@ -194,7 +202,7 @@ export default function FollowUps() {
           return (
             <GlassCard key={k} className="!p-4">
               <div className="flex items-start gap-3">
-                <input type="checkbox" checked={ticked.has(k)} onChange={() => toggle(k)} aria-label={`Tick ${r.name}`} className="mt-1" />
+                <input type="checkbox" checked={ticked.has(k)} disabled={!tickable(r)} title={tickable(r) ? undefined : r.channel === "email" ? "Only Ready emails can be sent from here. Open the campaign to fix this one." : "This message cannot be marked as sent yet."} onChange={() => toggle(k)} aria-label={`Tick ${r.name}`} className="mt-1 disabled:opacity-30" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-fg">{r.name}</span>
@@ -266,6 +274,7 @@ export default function FollowUps() {
             {rows.stopped.map((r) => (
               <div key={rowKey(r)} className="text-sm text-fg2 flex gap-2 flex-wrap items-center">
                 <span className="font-medium text-fg">{r.name}</span><span className="text-label text-muted">{CH[r.channel]}</span>
+                <Link to={`/outreach/${r.campaign_id}`} className="text-label text-primary hover:underline">{r.campaign_name}</Link>
                 <span className="text-amber-300">{STOP_TEXT[r.stopped_reason ?? "replied"]}</span>
                 {r.stopped_reason === "replied" && r.by_hand && <button className={btn} onClick={() => void act("undo", () => call("followups.replied", { lead_id: r.lead_id, undo: true }))}>Undo "replied"</button>}
               </div>

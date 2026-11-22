@@ -43,9 +43,9 @@ export type LeadFacts = {
 
 const ANGLES: Record<AngleCode, string> = {
   after_hours: "Calls when the office is closed (they advertise emergency service but the office is closed on evenings or weekends)",
-  instant_answers: "Website visitors get an instant answer (today the only option is waiting for a call back)",
+  instant_answers: "Customers who would rather send a message than wait for a call back: some are lost when nobody answers right away. Describe ONLY lost calls and lost customers; NEVER say anything about their website, contact form, chat or booking",
   missed_calls: "Calls missed while the team is out on jobs. PHONE CALLS ONLY: never mention website messages, chat, forms or booking",
-  phone_only: "Website visitors can only call: the site has no form, chat or online booking, so anyone who would rather send a message or book online has no way to",
+  phone_only: "Customers who would rather send a message or book than call: some are lost when nobody picks up. Describe ONLY lost calls and lost customers; NEVER say what their website has or lacks",
   general: "Calls missed while the team is out on jobs or after hours (general; no claim about this business). PHONE CALLS ONLY: never mention website messages, chat, forms or booking, because the business may already have them",
 };
 
@@ -57,6 +57,11 @@ const ANGLES: Record<AngleCode, string> = {
  * Uncertain facts (never checked, site needs a browser check) -> no claim about the business at all.
  */
 const NO_HOURS_NOTE = ". Their site says they are available 24/7, so NEVER say \"after hours\", \"closed\", \"evenings\", \"weekends\" or \"overnight\": talk about calls missed while the team is busy on jobs";
+
+function withoutSiteGapFacts(plan: AnglePlan): AnglePlan {
+  const kept = plan.facts.filter((f) => !isSiteGapFact(f.text)).map((f, i) => ({ ...f, n: i + 1 }));
+  return kept.length === plan.facts.length ? plan : { ...plan, facts: kept };
+}
 
 function pickAngleBase(lead: LeadFacts): AnglePlan {
   const sc = lead.site_check;
@@ -112,12 +117,14 @@ function pickAngleBase(lead: LeadFacts): AnglePlan {
  * fact, and only when the check says "true" AND the page switches off automatic number links (iPhone Safari makes
  * plain numbers tappable on its own, so otherwise the claim would be wrong for many visitors). The writer picks one fact in total (fact_used).
  */
+/** A fact about what their website lacks ("only a contact form: no live chat", "only a phone number", "plain text number"): it steers the angle but is never given to a writer, because a message must not criticise the site. */
+export const isSiteGapFact = (text: string): boolean => /(?:website|site)[^.]{0,70}(?:only offers|only gives|no (?:live )?chat|no contact form|no online booking|plain text|not a tap)|only a phone number|only offers a/i.test(text);
+
 export function pickAngle(lead: LeadFacts): AnglePlan {
-  const plan = pickAngleBase(lead);
+  const plan = withoutSiteGapFacts(pickAngleBase(lead));
   if (plan.uncertain) return plan;
-  const f = lead.site_check?.facts?.find((x) => x.key === "phone_not_tappable" && x.value === true && x.no_autolink === true);
-  if (!f || !["missed_calls", "after_hours", "phone_only", "general"].includes(plan.angle.code)) return plan;
-  return { ...plan, facts: [...plan.facts, { n: plan.facts.length + 1, text: "On their website the phone number is plain text, not a tap-to-call link, so a visitor on a phone cannot call with one tap.", evidence: `${f.evidence.text} (${f.evidence.url})` }] };
+  // The tap-to-call fact is a statement about what their website lacks, so it is no longer offered to a writer (messages describe lost calls, never their site).
+  return plan;
 }
 
 // ── True details about the business (used to make every email specific) ──

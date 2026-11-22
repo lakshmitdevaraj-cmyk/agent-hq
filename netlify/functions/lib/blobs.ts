@@ -30,7 +30,7 @@ export async function listJson<T>(s: Store, prefix?: string): Promise<T[]> {
   const out: T[] = [];
   for (const b of blobs) {
     const v = await readJson<T>(s, b.key);
-    if (v) out.push(v);
+    if (v !== null && typeof v === "object") out.push(v); // a stray plain string or number in a store is skipped, never returned as a record
   }
   return out;
 }
@@ -47,5 +47,5 @@ export async function listJsonFast<T>(s: Store, prefix?: string, concurrency = 2
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, blobs.length) }, worker));
-  return out.filter((v): v is T => v !== null);
+  return out.filter((v): v is T => v !== null && typeof v === "object"); // stray plain strings/numbers are skipped
 }

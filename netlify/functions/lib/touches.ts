@@ -26,7 +26,7 @@ export type Touch = {
 };
 
 type EmailLike = { id?: string; lead_id?: string; status?: string; sent_at?: string; created_at?: string; sequence_position?: number; subject?: string; body_text?: string };
-type SocialLike = { campaign_id?: string; lead_id?: string; channel?: string; status?: string; sent_at?: string | null; parts?: Array<{ text?: string }>; type?: string };
+type SocialLike = { campaign_id?: string; lead_id?: string; channel?: string; status?: string; sent_at?: string | null; parts?: Array<{ key?: string; text?: string; sent_at?: string | null; touch_id?: string | null }>; type?: string };
 
 export const legacySocialRef = (campaign_id: string, lead_id: string, channel: string) => `social-${campaign_id}-${lead_id}-${channel}`;
 
@@ -50,7 +50,18 @@ export function deriveTouches(i: { lead_id: string; campaign_id: string | null; 
     out.push({ id: `email-${e.id ?? at}`, lead_id: i.lead_id, campaign_id: i.campaign_id, channel: "email", kind: (e.sequence_position ?? 1) > 1 ? "follow_up" : "first", sent_at: at, text: e.body_text ?? "", subject: e.subject ?? null, source: "hq", derived: true });
   }
   const replaced = new Set(i.stored.map((s) => s.ref).filter((x): x is string => !!x));
+  const storedIds = new Set(i.stored.map((s) => s.id));
   for (const s of i.socials) {
+    if (s.lead_id === i.lead_id && s.channel && s.type === "sequence") {
+      // A written run keeps each step's sent date on the step itself. A step with no stored entry of its own still counts as sent,
+      // so Prospects, the lead panel and Follow-ups always agree.
+      for (const p of s.parts ?? []) {
+        if (!p.sent_at || (p.touch_id && storedIds.has(p.touch_id))) continue;
+        const id = `social-${s.campaign_id ?? ""}-${i.lead_id}-${s.channel}-${p.key ?? p.sent_at}`;
+        out.push({ id, lead_id: i.lead_id, campaign_id: s.campaign_id ?? i.campaign_id, channel: s.channel as TouchChannel, kind: "first", sent_at: p.sent_at, text: p.text ?? "", source: "hq", derived: true });
+      }
+      continue;
+    }
     if (s.lead_id !== i.lead_id || s.status !== "sent" || !s.sent_at || !s.channel) continue;
     const ref = legacySocialRef(s.campaign_id ?? "", i.lead_id, s.channel);
     if (replaced.has(ref)) continue;

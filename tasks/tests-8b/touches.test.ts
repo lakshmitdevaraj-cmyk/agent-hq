@@ -105,5 +105,18 @@ t("summary carries the latest reply date and the last message sent on any channe
   assert.equal(summarizeTouches(ts, false, { at: "2026-11-21T09:00:00Z" }).replied_at, null);
 });
 
+t("a written run's sent steps count as touches, so Prospects and Follow-ups agree (and a stored entry is not counted twice)", () => {
+  const seq = { campaign_id: "C", lead_id: "L9", channel: "linkedin", status: "drafted", type: "sequence", sent_at: null, parts: [
+    { key: "note", text: "Note text", sent_at: "2026-10-28T11:00:00Z" },
+    { key: "dm", text: "DM text", sent_at: "2026-11-02T11:00:00Z", touch_id: "T-stored" },
+    { key: "follow_up", text: "Follow up", sent_at: null },
+  ] };
+  const stored = [touchFromSent({ id: "T-stored", lead_id: "L9", campaign_id: "C", channel: "linkedin", kind: "follow_up", sent_at: "2026-11-02T11:00:00Z", text: "DM text", source: "hq" })];
+  const tl = deriveTouches({ lead_id: "L9", campaign_id: "C", emails: [], socials: [seq], stored });
+  assert.equal(tl.length, 2);
+  assert.equal(summarizeTouches(tl, false).counts.linkedin, 2);
+  assert.equal(summarizeTouches(tl, false).total, 2);
+});
+
 console.log(`\n${n} passed, ${failed} failed`);
 if (failed) process.exit(1);

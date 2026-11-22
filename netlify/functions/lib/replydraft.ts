@@ -45,10 +45,27 @@ export function zonedInstant(y: number, mo: number, d: number, h: number, tz: st
   return new Date(guess);
 }
 
-function slotText(at: Date, tz: string): string {
+/** "CST", "EST" ... and "IST" for India (Intl prints "GMT+5:30" for it). */
+function zoneLabel(at: Date, tz: string): string {
+  if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta") return "IST";
+  return new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(at).find((p) => p.type === "timeZoneName")?.value ?? tz;
+}
+
+function clock(at: Date, tz: string): string {
   const o: Record<string, string> = {};
-  for (const p of new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).formatToParts(at)) o[p.type] = p.value;
-  return `${o.weekday}, ${o.month} ${o.day} at ${o.hour}:${o.minute} ${o.dayPeriod} ${o.timeZoneName}`;
+  for (const p of new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).formatToParts(at)) o[p.type] = p.value;
+  return `${o.hour}:${o.minute} ${o.dayPeriod}`;
+}
+
+/** The slot as the prospect reads it, then the sender's own clock: "Tuesday, November 24 at 10:00 AM CST (9:30 PM IST for me)". */
+function slotText(at: Date, tz: string, senderTz?: string): string {
+  const o: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }).formatToParts(at)) o[p.type] = p.value;
+  const base = `${o.weekday}, ${o.month} ${o.day} at ${o.hour}:${o.minute} ${o.dayPeriod} ${zoneLabel(at, tz)}`;
+  if (!senderTz || senderTz === tz) return base;
+  const mine = partsIn(at, senderTz), theirs = partsIn(at, tz);
+  const dayNote = mine.d !== theirs.d ? ` on ${new Intl.DateTimeFormat("en-US", { timeZone: senderTz, weekday: "short" }).format(at)}` : "";
+  return `${base} (${clock(at, senderTz)}${dayNote} ${zoneLabel(at, senderTz)} for me)`;
 }
 
 export type Slot = { at: string; text: string };
@@ -59,6 +76,14 @@ export type Slot = { at: string; text: string };
  * These are proposals: match them against the real calendar before sending.
  */
 export function proposeSlots(now: Date, senderTz: string, prospectTz: string, count = 3): Slot[] {
+  // First the sender's 9:00 to 17:00; when the two zones barely overlap (an India based sender and a US prospect) the sender's evenings
+  // count too, up to 23:30, so there are always three proposals.
+  const strict = slotsWithin(now, senderTz, prospectTz, count, 540, 1020);
+  if (strict.length >= count) return strict;
+  return slotsWithin(now, senderTz, prospectTz, count, 480, 1410);
+}
+
+function slotsWithin(now: Date, senderTz: string, prospectTz: string, count: number, fromMin: number, toMin: number): Slot[] {
   const prefer = [10, 14, 11, 15, 9, 13, 12, 16]; // preferred start hours in the prospect's zone, tried in order
   const out: Slot[] = [];
   const base = partsIn(now, prospectTz);
@@ -74,11 +99,11 @@ export function proposeSlots(now: Date, senderTz: string, prospectTz: string, co
       const at = zonedInstant(y, mo, d, h, prospectTz);
       const mine = partsIn(at, senderTz);
       const startMin = mine.h * 60 + mine.mi;
-      if (startMin < 540 || startMin + 30 > 1020) continue; // the sender's 9:00 to 17:00
+      if (startMin < fromMin || startMin + 30 > toMin) continue; // inside the sender's window
       const key = at.toISOString();
       if (seen.has(key)) continue;
       seen.add(key);
-      const text = slotText(at, prospectTz);
+      const text = slotText(at, prospectTz, senderTz);
       out.push({ at: key, text });
       break;
     }
@@ -87,8 +112,8 @@ export function proposeSlots(now: Date, senderTz: string, prospectTz: string, co
 }
 
 export const REPLY_SYSTEM_PROMPT = `You write the short middle of a reply to a person who answered a cold email from a small AI-receptionist company. Output JSON only: {"answer": string, "why_call": string}.
-- "answer": one or two plain sentences that answer what the person actually wrote or asked. Use only what is in their message and the saved facts. If they asked something you cannot know, say you will confirm it on the call. Never invent prices, results or customers.
-- "why_call": exactly one sentence saying why a 30-minute call helps THEM (for example, seeing the assistant answer a call for their business). It is about their benefit, not ours.
+- "answer": ONE or TWO plain sentences that answer what the person actually wrote or asked, using only what is in their message and the saved facts. If they asked for a call at a time (for example "Can you call me tomorrow?"), say yes to a call and, if one of the TIMES LISTED BELOW is on the day they asked for, say that day works; otherwise say the nearest times are below. The times are already printed right under your text, so NEVER say they will be sent later or shortly. Never promise a time that is not listed. If they asked something you cannot know, say you will cover it on the call. Never invent prices, results or customers. Never say "we discussed", "our chat" or "our conversation": nothing was discussed yet.
+- "why_call": exactly ONE sentence saying why a 30-minute call helps THEM (for example, seeing the assistant answer a call for their business). It is about their benefit, not ours.
 - No greeting, no sign-off, no times, no links (these are added separately). No exclamation marks, no dashes used as punctuation, no emoji, no hype, no apology.
 - Plain, warm, direct. Do not repeat their words back to them.`;
 
@@ -102,4 +127,20 @@ export function assembleReply(o: { greeting: string; answer: string; whyCall: st
   if (o.slots.length) lines.push("Would any of these work for a 30-minute call?", ...o.slots.map((s) => `- ${s.text}`), "");
   lines.push(`If it is easier, pick a time here: ${o.bookingLink}`, "", "Best,", o.senderName);
   return lines.join("\n");
+}
+
+/** The first `n` sentences of a text (the writer sometimes runs long). */
+export function firstSentences(text: string, n: number): string {
+  const parts = text.trim().replace(/\s+/g, " ").match(/[^.?!]+[.?!]+(?:\s|$)|[^.?!]+$/g) ?? [text.trim()];
+  return parts.slice(0, n).join("").trim();
+}
+export const sentenceCount = (text: string): number => (text.trim().replace(/\s+/g, " ").match(/[^.?!]+[.?!]+(?:\s|$)|[^.?!]+$/g) ?? []).length;
+
+const NOT_A_PERSON = /\b(?:llc|inc|co|corp|ltd|plumbing|hvac|heating|air|roofing|electric|services?|team|office|support|info|sales|admin|contact|mail)\b/i;
+/** "Katy Owner <katy@x.com>" gives "Katy". Null when the sender line has no personal first name (just an address, or a business). */
+export function firstNameFromSender(from: string | null | undefined): string | null {
+  const name = /^\s*"?([^"<]+?)"?\s*</.exec(from ?? "")?.[1]?.trim();
+  if (!name || /@/.test(name) || NOT_A_PERSON.test(name)) return null;
+  const first = name.split(/\s+/)[0].replace(/[^A-Za-z'-]/g, "");
+  return first.length >= 2 ? first[0].toUpperCase() + first.slice(1) : null;
 }

@@ -1,6 +1,6 @@
 // Social sequences (Facebook, Instagram, LinkedIn): every step of a channel written in ONE call, checked by code per step, then one AI review.
 // Own prompt wording. The shared structure rules live in messagerules.ts. Pure helpers only.
-import { checkStep, statusOf, mentionsRating, type Hit, type StepKind, type StepStatus } from "./messagerules";
+import { checkStep, statusOf, mentionsRating, dedupeReasons, type Hit, type StepKind, type StepStatus } from "./messagerules";
 import type { SocialChannel, SocialPartKey } from "./social";
 import type { StepInputs } from "./fourstep";
 
@@ -28,14 +28,14 @@ CONNECTION NOTE (linkedin only; 200 characters at most, hard limit)
 
 FIRST MESSAGE
 - Start with the GREETING and a comma (Facebook: use "Hi there" unless the GREETING names the owner).
-- One specific true observation about them from TRUE DETAILS or FACTS: their rating and reviews, their trade, their town, their hours, their crews or services. Nothing about their website, contact form, live chat or online booking unless it is in TRUE DETAILS, and then only as a plain fact, never a judgement. If you state a rating, state it plainly with no praise words (no "great", "impressive").
+- One specific true observation about them from TRUE DETAILS or FACTS: their rating and reviews, their trade, their town, their hours, their crews or services. Never write about their website, contact form, live chat or online booking: not what it offers, not what it lacks. Never say or imply you already spoke (no "we discussed", "our chat", "our conversation"). State their rating or review count only if RATING ALREADY USED is absent, and then in one message only. If you state a rating, state it plainly with no praise words (no "great", "impressive").
 - Then ONE problem that is common for businesses like theirs, about calls or customers they lose when nobody picks up.
 - End on one easy question that takes one word to answer. Do not describe what you sell, do not offer anything, do not mention a call or a meeting, no link.
 - Length: Facebook 40 to 60 words; Instagram 30 to 45 words; LinkedIn 40 to 70 words. Exactly one question mark in the whole message.
 
 FOLLOW-UP (clearly shorter than the first message: 20 to 35 words, and fewer words than your first message)
 - Greeting, then one clause that points back to your earlier message without repeating it. Never write "following up", "checking in" or "circling back", and never call your earlier message a chat, a conversation or a talk: it was a message.
-- ONE supporting line from PROOF LINE in words very close to it (never say "my business" or "my company": the assistant was built on the sender's own website; skip it if the PROOF LINE is empty). Never invent a client, a result or a number.
+- ONE supporting line: the PROOF LINE copied word for word, nothing added, dropped or swapped (never "my own website"; never say "my business", "my company" or "the same assistant": the assistant was built for the sender's agency website; skip it if the PROOF LINE is empty). Never invent a client, a result or a number.
 - Close with one yes/no question offering FREE THING. No call, no meeting, no link.
 - Do not state their rating again.
 
@@ -54,7 +54,7 @@ Answer JSON only: an array of {"step": "<the step key given>", "verdict": "ready
 
 export type SeqLeadInfo = { name?: string; greeting: string; city: string; trade: string; details: string[]; facts: Array<{ n: number; text: string }> };
 
-export function socialSeqUserPrompt(channel: SocialChannel, l: SeqLeadInfo, inp: StepInputs, offerBackground: string, hint?: string): string {
+export function socialSeqUserPrompt(channel: SocialChannel, l: SeqLeadInfo, inp: StepInputs, offerBackground: string, hint?: string, ratingElsewhere = false): string {
   return [
     `CHANNEL: ${channel}`,
     `BUSINESS: ${l.name ?? "the business"}`,
@@ -66,6 +66,7 @@ export function socialSeqUserPrompt(channel: SocialChannel, l: SeqLeadInfo, inp:
     `HOW THE ASSISTANT WORKS (background, rewrite in your own words): ${offerBackground}`,
     `FREE THING (offered in the follow-up): ${inp.freeAsset1 || "(empty)"}`,
     `PROOF LINE: ${inp.proofLine || "(empty)"}`,
+    ratingElsewhere ? "RATING ALREADY USED: another message to this business already states their rating or review count. Do NOT state any rating, star count or review count." : "",
     hint ? `\nYOUR LAST ANSWER FAILED THESE CHECKS: ${hint}\nWrite all of them again and fix them. JSON only.` : "",
   ].filter(Boolean).join("\n");
 }
@@ -88,10 +89,10 @@ export function parseSocialSeq(channel: SocialChannel, json: unknown): { texts: 
 export type SocialStepCheck = { key: SocialPartKey; status: StepStatus; reasons: string[]; hits: Hit[] };
 
 /** Free code checks for every step of one channel (hard hit = blocked, soft = check). */
-export function checkSocialSeq(channel: SocialChannel, texts: Record<string, string>, inp: StepInputs): SocialStepCheck[] {
+export function checkSocialSeq(channel: SocialChannel, texts: Record<string, string>, inp: StepInputs, opts: { ratingElsewhere?: boolean } = {}): SocialStepCheck[] {
   const out: SocialStepCheck[] = [];
   const lens: number[] = [];
-  let ratingSeen = false;
+  let ratingSeen = !!opts.ratingElsewhere; // another message of this lead (any channel) already stated the rating
   for (const k of SEQ_KEYS[channel]) {
     const text = texts[k] ?? "";
     const hits = checkStep(kindOf(k), text, { channel, earlierChars: k === "follow_up" || k === "last" ? lens.slice() : [], ratingAlready: ratingSeen, freeAsset: k === "follow_up" ? inp.freeAsset1 : undefined, proofLine: inp.proofLine, namedSources: inp.namedSources });
@@ -123,5 +124,5 @@ const RANK: Record<StepStatus, number> = { ready: 0, check: 1, blocked: 2 };
 export function mergeSocial(code: SocialStepCheck, ai: SocialVerdict[]): { status: StepStatus; reasons: string[] } {
   const v = ai.find((x) => x.key === code.key || x.key === WRITER_KEY[code.key]) ?? { key: code.key, verdict: "check" as StepStatus, reasons: ["The AI reviewer did not answer for this message"] };
   const status = RANK[v.verdict] > RANK[code.status] ? v.verdict : code.status;
-  return { status, reasons: status === "ready" ? [] : [...code.reasons, ...(v.verdict === "ready" ? [] : v.reasons)].slice(0, 5) };
+  return { status, reasons: status === "ready" ? [] : dedupeReasons([...code.reasons, ...(v.verdict === "ready" ? [] : v.reasons)]) };
 }

@@ -33,9 +33,11 @@ export const BANNED: Rule[] = [
   R("html", "hard", "HTML in a plain-text message", "Plain text only.", /<\/?(?:a|b|i|u|p|br|div|span|img|table|ul|li|strong|em|h[1-6])(?:\s[^<>]*)?\/?>|&nbsp;/i),
   R("negated-pitch", "hard", "Saying what you are not doing", "\"Not selling\" makes the reader think of selling. Say what you are doing.", /\b(?:not (?:here )?(?:to )?(?:pitch|pitching|sell|selling|trying to sell)|no (?:sales )?pitch|this isn(?:'|’)?t a (?:sales )?pitch)\b/i),
   R("hedge", "hard", "Hedging", "Write flat and sure.", /\b(?:hope this isn(?:'|’)?t weird|worth (?:a |30 )?(?:seconds?|minute)|if you have a (?:sec|second|minute|moment))\b/i),
-  R("false-business-claim", "hard", "Claims a business the sender does not run", "The sender built the assistant on their own website. Never write \"my business\", \"my company\" or \"my home-services business\".", /\bmy (?:own )?(?:home[- ]?services? |plumbing |hvac |roofing |electrical )?(?:business|company)\b/i),
+  R("false-business-claim", "hard", "Claims a business the sender does not run", "The sender built the assistant on their own website. Never write \"my business\", \"my company\" or \"my home-services business\".", /\b(?:my|our) (?:own )?(?:home[- ]?services? |plumbing |hvac |roofing |electrical |service )?(?:business|company)\b|\bI (?:own|run|operate) (?:a |an )?(?:home[- ]?services?|plumbing|hvac|roofing|electrical)\b/i),
+  R("false-familiarity", "hard", "Claims a past talk that never happened", "Nothing was discussed yet: this is a first contact. Never write \"we discussed\", \"our chat\" or \"our conversation\".", /\b(?:we|i)(?:'ve| have)? (?:discussed|talked|spoke|chatted)\b|\bour (?:earlier |previous |last |recent )?(?:chat|conversation|talk|call|discussion|meeting)\b|\bas (?:we|i) (?:discussed|talked|spoke|mentioned)\b|\b(?:calls?|things?|topics?) (?:we|that we) (?:discussed|talked about|covered)\b|\bwhen (?:we|i) (?:spoke|talked|chatted)\b|\bgood (?:chatting|talking|speaking) (?:with|to) you\b/i),
+  R("same-assistant", "hard", "\"The same assistant\" claim", "Say what the proof line says: an assistant was built for the agency's website. Never \"the same assistant\" as theirs.", /\bsame (?:ai |virtual )?(?:assistant|receptionist|system|tool)\b/i),
   R("ai-filler", "soft", "Template filler", "Filler that signals a template.", /\b(?:in today(?:'|’)?s (?:fast[- ]paced|digital)|delve into|leverage synerg\w+|it(?:'|’)?s worth noting)\b/i),
-  R("emoji", "soft", "Emoji", "Wrong register for a first message and a spam signal.", /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u),
+  R("emoji", "hard", "Emoji", "Wrong register for a first message and a spam signal.", /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u),
   R("claimed-memory", "soft", "Claiming they said something", "Only true if they actually said it. Check this.", /\b(?:as you (?:mentioned|said|told me)|you told me|like you said|you mentioned (?:that|in))\b/i),
 ];
 
@@ -85,6 +87,11 @@ export function proofOverlap(text: string, proof: string): number {
   return n;
 }
 
+/** The distinctive words (5+ letters) a faithful copy of the proof line must keep. */
+export function proofWordCount(proof: string): number {
+  return new Set((proof.toLowerCase().match(/[a-z]{5,}/g) ?? []).filter((w) => !PROOF_STOP.has(w))).size;
+}
+
 export const wordCount = (t: string): number => (t.trim().match(/\S+/g) ?? []).length;
 
 const URL_RE = /\bhttps?:\/\/\S+|\bwww\.\S+|\b[a-z0-9-]+\.(?:com|net|org|io|ai|co|us|app|site|biz|info)\b(?:\/\S*)?/i;
@@ -95,6 +102,8 @@ const OFFER_RE = /\b(?:we set up|we build|i set up|i build|i built|i help|i can 
 const RATING_RE = /\b\d(?:\.\d)?\s*(?:stars?|\/\s*5|rating)\b|\b\d[\d,]*\s+(?:google\s+)?reviews?\b|★/i;
 const CRITICISM_RE = /\byour (?:web ?site|site|page|contact form|form|live chat|chat|online booking|booking (?:form|page))\b[^.?!]{0,60}\b(?:is|looks|seems|feels|has)\b[^.?!]{0,30}\b(?:outdated|old|dated|bad|poor|slow|ugly|broken|confusing|clunky|lacking|weak|missing|terrible)\b|\b(?:your (?:web ?site|site|contact form|form)) (?:doesn(?:'|’)?t|does not|fails to|lacks)\b|\b(?:wrong|bad|poor|broken) with your (?:web ?site|site)\b/i;
 // Figures that belong to a demo or to a chatbot's own statistics: never quoted as results unless a named source is saved in Settings.
+// What their website lacks ("offers a form but no live chat or online booking", "phone only", "only a contact form"): never said, only lost calls and customers.
+const SITE_LACKS_RE = /\b(?:your|their)\s+(?:web ?site|site|page|contact form|form|call-?back form)\b[^.?!]{0,90}\b(?:but|though|however|and|with)\s+(?:no|not|without|nothing|only)\b|\b(?:no|without|lacks?|missing|doesn(?:'|’)?t (?:have|offer|show|list)|does not (?:have|offer|show|list))\s+(?:a |an |any )?(?:live[- ]?chat|chat(?: ?bot| widget| box)?|online (?:booking|scheduling)|booking (?:tool|form|page|widget|system)|scheduling (?:tool|page)|contact form|web ?form|call-?back form)\b|\b(?:phone[- ]only|only (?:a |an )?(?:phone number|contact form|call-?back form))\b|\b(?:site|web ?site|page) (?:offers|has|shows|lists|only) [^.?!]{0,60}\bbut no\b/i;
 const UNSOURCED_RE = /\bapex cooling\b|\+\s?38\s?%|\b38\s?%|\$\s?30\s?k\b|\$\s?45\s?k\b|\b27\s?%\s+of (?:all )?(?:calls|phone calls)\b|\$\s?81\.9\s?k\b|\b81\.9\s?k\b/i;
 const ASSET_ASK_RE = /\b(?:want|would you (?:still |also )?(?:like|(?:be )?interested)|are you (?:still )?interested|shall i|should i|can i|may i|ok if i|okay if i|happy to|glad to|care to|like me to|up for)\b[^.?!]{0,60}\b(?:send|share|record|recording|number|hear|listen|try|demo|sample)\b/i;
 const REDIRECT_RE = /\b(?:right person|someone else|who (?:else )?(?:handles|looks after|manages|should)|point me to|pass (?:this|it) (?:on|along))\b/i;
@@ -136,16 +145,17 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
   // Pre-reply: no link, no address, no phone number in any message.
   if (URL_RE.test(t) || ADDRESS_RE.test(t) || PHONE_RE.test(t)) hits.push(H("link-before-reply", "hard", "Link, address or number before they replied", "Nothing to click or call goes in before a reply; send it by hand after a yes."));
   // Pre-reply: never a call, meeting or demo ask.
-  if (CALL_ASK_RE.test(t)) hits.push(H("call-ask", "hard", "A call, meeting or demo ask", "Before a reply the only ask is a yes or no to receive something free."));
+  const forCallAsk = /discussion call/i.test(ctx.proofLine ?? "") ? t.replace(/\bbooks? a discussion calls?\b/gi, "books a booking") : t; // the Settings proof line itself says "books a discussion call": that is the proof, not an ask
+  if (CALL_ASK_RE.test(forCallAsk)) hits.push(H("call-ask", "hard", "A call, meeting or demo ask", "Before a reply the only ask is a yes or no to receive something free."));
   if (UNSOURCED_RE.test(t) && !(ctx.namedSources ?? "").trim()) hits.push(H("unsourced-figure", "hard", "A demo or statistic figure with no named source", "Demo figures and chatbot statistics are not results. Add a named source in Settings or leave them out."));
-  if (CRITICISM_RE.test(t)) hits.push(H("site-criticism", "hard", "Criticises their website", "Describe the problem as lost calls or customers, not as something wrong with their site."));
+  if (CRITICISM_RE.test(t) || SITE_LACKS_RE.test(t)) hits.push(H("site-criticism", "hard", "Criticises their website", "Describe the problem as lost calls or customers, never as what their website, form, chat or booking lacks."));
   if ((t.match(/\?/g) ?? []).length > 1) hits.push(H("one-ask", "soft", "More than one question", "One ask only."));
-  if (RATING_RE.test(t) && ctx.ratingAlready) hits.push(H("rating-twice", "soft", "Rating or review count repeated", "State the rating at most once across all of a lead's messages."));
+  if (RATING_RE.test(t) && ctx.ratingAlready) hits.push(H("rating-twice", "hard", "Rating or review count repeated", "State the rating or review count at most once across all of a lead's messages (email and every social channel). Use a different true detail."));
 
   // A claim that the sender built or uses the assistant must stay close to the Settings proof line (their own website, never "my business").
   if (ctx.proofLine?.trim()) {
     const claims = /\bI(?:'ve| have)? (?:built|made|created|use|run|put together)\b/i.test(t);
-    if ((claims || kind === "email3") && proofOverlap(t, ctx.proofLine) < 2) hits.push(H("proof-drift", "soft", "The proof sentence strays from your Settings proof line", "Say the proof the way the Settings proof line says it; do not add or change what was built."));
+    if ((claims || kind === "email3") && (proofOverlap(t, ctx.proofLine) < proofWordCount(ctx.proofLine) || /\bmy own\b|\bown website\b/i.test(t))) hits.push(H("proof-drift", "soft", "The proof sentence strays from your Settings proof line", "Say the proof the way the Settings proof line says it; do not add or change what was built."));
   }
   const earlierMin = (ctx.earlierChars ?? []).length ? Math.min(...(ctx.earlierChars ?? [])) : null;
 
@@ -158,11 +168,11 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
     if (i > you) hits.push(H("more-i-than-you", "soft", "More \"I\" than \"you\"", "Talk about them more than about you."));
   } else if (kind === "email2") {
     if (chars > 350) hits.push(H("too-long", "soft", `Email 2 is ${chars} characters`, "About 350 characters at most."));
-    if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than email 1", "Each follow-up is shorter than the one before."));
+    if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than email 1", "Each follow-up should be shorter than the one before."));
     if (!ctx.freeAsset?.trim()) hits.push(H("no-asset", "soft", "No second free asset in Settings", "Check this: add a free asset in Settings."));
   } else if (kind === "email3") {
     if (chars > 300) hits.push(H("too-long", "soft", `Email 3 is ${chars} characters`, "About 300 characters at most."));
-    if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the earlier emails", "Each email is shorter than the one before."));
+    if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the earlier emails", "Each email should be shorter than the one before."));
     if (!ctx.freeAsset?.trim()) hits.push(H("no-asset", "soft", "No free asset in Settings", "Check this: add a free asset in Settings."));
     else if (!ASSET_ASK_RE.test(t)) hits.push(H("no-asset-ask", "soft", "No yes/no offer to send something", "Close with one yes/no offer to send the free asset."));
     const seen = new Set((ctx.earlierTexts ?? []).flatMap(sentencesOf));
@@ -170,7 +180,7 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
     if (rep) hits.push(H("repeats-earlier", "soft", "Repeats a sentence from an earlier email", "Email 3 must not repeat any sentence of email 1: re-offer the free asset in new, shorter words.", ), );
   } else if (kind === "email4") {
     if (chars > 240) hits.push(H("too-long", "soft", `Email 4 is ${chars} characters`, "About 240 characters at most."));
-    if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the earlier emails", "The last email is the shortest."));
+    if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the earlier emails", "The last email should be the shortest."));
     if (!REDIRECT_RE.test(t)) hits.push(H("no-redirect", "soft", "No \"who is the right person\" question", "Ask who else is the right person, and say declining is fine."));
     if (!LAST_RE.test(t)) hits.push(H("not-last", "soft", "Does not say it is the last email", "Say plainly that this is the last email."));
     if (ASSET_ASK_RE.test(t)) hits.push(H("new-offer", "soft", "A new offer in the last email", "No new offer or argument in the last email."));
@@ -192,7 +202,7 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
       if (OFFER_RE.test(t) || ASSET_ASK_RE.test(t)) hits.push(H("pitch-in-first", "hard", "An offer or service description in the first message", "Observation, one problem and an easy question only."));
       if (!/\?/.test(t)) hits.push(H("no-question", "soft", "No closing question", "Close on one easy question."));
     } else if (kind === "social_follow_up") {
-      if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the first message", "The follow-up is shorter than the first message."));
+      if (earlierMin !== null && chars >= earlierMin) hits.push(H("not-shorter", "soft", "Not shorter than the first message", "A follow-up should be shorter than the first message."));
       if (!ctx.freeAsset?.trim()) hits.push(H("no-asset", "soft", "No free asset in Settings", "Check this: add a free asset in Settings."));
       else if (!ASSET_ASK_RE.test(t)) hits.push(H("no-asset-ask", "soft", "No yes/no offer to send something", "Offer to send the free asset so that \"yes\" is the whole reply."));
     } else {
@@ -222,11 +232,32 @@ export type StepStatus = "ready" | "check" | "blocked";
 
 /** Hard hits block the draft; soft hits make it "check". */
 export function statusOf(hits: Hit[]): { status: StepStatus; reasons: string[] } {
-  const hard = hits.filter((h) => h.level === "hard"), soft = hits.filter((h) => h.level === "soft");
-  const line = (h: Hit) => `${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}. ${h.because}`.slice(0, 220);
-  if (hard.length) return { status: "blocked", reasons: [...hard, ...soft].slice(0, 5).map(line) };
-  if (soft.length) return { status: "check", reasons: soft.slice(0, 5).map(line) };
+  // Every reason is kept (the screens show them all), but the same rule is never listed twice and a reason never repeats itself.
+  const seen = new Set<string>();
+  const uniq = hits.filter((h) => { const k = `${h.id ?? h.label}|${h.excerpt ?? ""}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  const hard = uniq.filter((h) => h.level === "hard"), soft = uniq.filter((h) => h.level === "soft");
+  const line = (h: Hit) => {
+    const lead = `${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}`;
+    const because = h.because.trim();
+    return (because && because.toLowerCase() !== h.label.toLowerCase() ? `${lead}. ${because}` : lead).slice(0, 240);
+  };
+  if (hard.length) return { status: "blocked", reasons: [...hard, ...soft].map(line) };
+  if (soft.length) return { status: "check", reasons: soft.map(line) };
   return { status: "ready", reasons: [] };
+}
+
+/** Reasons without repeats: the same text, or one that only restates another (shared first words), is listed once. Nothing is cut off. */
+export function dedupeReasons(list: string[]): string[] {
+  const norm = (r: string) => r.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  const out: string[] = [];
+  const keys: string[] = [];
+  for (const r of list) {
+    const k = norm(r);
+    if (!k) continue;
+    if (keys.some((x) => x === k || x.startsWith(k.slice(0, 40)) && k.length > 20 || k.includes(x) && x.length > 25 || x.includes(k) && k.length > 25)) continue;
+    keys.push(k); out.push(r);
+  }
+  return out;
 }
 
 /** Does this text state the rating or the review count? (for the once-per-lead rule) */

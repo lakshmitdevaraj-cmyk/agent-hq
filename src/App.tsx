@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Sidebar from "@/components/Sidebar";
 import Office from "@/pages/Office";
 import Tasks from "@/pages/Tasks";
@@ -38,12 +39,14 @@ export default function App() {
 }
 
 function Shell() {
+  const loc = useLocation();
   return (
     <div className="flex min-h-screen">
       <Sidebar />
       <VoiceInvitationBanner />
       <LiveAgentFeed />
       <main className="flex-1 min-w-0 px-4 sm:px-10 py-8 max-w-[1600px] mx-auto w-full">
+        <ErrorBoundary label="This page" resetKey={loc.pathname}>
         <Routes>
           <Route path="/" element={<Office />} />
           <Route path="/tasks" element={<Tasks />} />
@@ -64,6 +67,7 @@ function Shell() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   );

@@ -9,11 +9,11 @@
  *   email 4 (day 15): the last email: who is the right person, says it is the last, a no is fine
  * Each email is shorter than the one before. The days come from Settings.
  */
-import { checkStep, checkSubject, statusOf, mentionsRating, tidySubject, type Hit, type StepStatus } from "./messagerules";
+import { checkStep, checkSubject, statusOf, mentionsRating, dedupeReasons, tidySubject, type Hit, type StepStatus } from "./messagerules";
 
 export const DEFAULT_ASSET_1 = "a 2-minute recording of an AI receptionist answering a call for [business name]: taking the job details and booking it";
 export const DEFAULT_ASSET_2 = "a phone number you can call to hear the assistant yourself";
-export const DEFAULT_PROOF = "I use the same assistant on my own home-services website, where it answers business owners' questions about missed calls.";
+export const DEFAULT_PROOF = "I built an assistant for my agency's website that answers home-service owners' questions about missed calls and books a discussion call.";
 export const DEFAULT_GAPS = [3, 8, 15];
 
 export type StepInputs = { freeAsset1: string; freeAsset2: string; proofLine: string; namedSources: string };
@@ -62,7 +62,7 @@ EMAIL 2 (sent on day 3; shorter than email 1, aim for about 280 characters and n
 - Close with one yes/no question offering FREE THING 2, which is different from FREE THING 1.
 
 EMAIL 3 (sent on day 8; shorter than email 2, aim for about 220 characters and never above 290)
-- Greeting, then ONE short proof sentence taken from the PROOF LINE in words very close to it (never "my business"; if the PROOF LINE is empty, skip the proof and say one plain true thing about calls instead).
+- Greeting, then the PROOF LINE copied WORD FOR WORD as one sentence, with no word added, dropped or swapped (so "agency's website" stays "agency's website", never "my own website"; never "my business", never "the same assistant", never claim you own or run a home-service business; the proof line's "books a discussion call" is part of the proof, not an ask; if the PROOF LINE is empty, skip the proof and say one plain true thing about calls instead).
 - Close with a short yes/no re-offer of FREE THING 1 in NEW words, for example "Do you still want the recording?" or "Should I still send that recording?". Do NOT copy any sentence from email 1: not the proof, not the offer. Never describe the recording again in the same words.
 - No new argument.
 
@@ -75,7 +75,9 @@ SUBJECT: one or two lowercase words, plain, never a question, never starting wit
 
 WRITING RULES FOR ALL FOUR
 - No dashes as punctuation (use commas, full stops or colons), no exclamation marks, no emoji, no brackets, no placeholders.
-- No flattery and no compliments on their logo, branding or website. You may state a plain fact about their contact form, chat or booking only if it is in TRUE DETAILS, and never judge or criticise it; prefer describing the problem as calls or customers lost.
+- No flattery and no compliments on their logo, branding or website. NEVER write about their website: not what their contact form, live chat, online booking or phone number offers or lacks, not "no chat", "only a form" or "phone only". Describe the problem only as calls or customers they lose when nobody picks up.
+- This is a first contact: never say or imply you already spoke. No "we discussed", "our chat", "our conversation", "as we talked", "when we spoke".
+- State their rating or review count in at most ONE of the four emails (and in none if RATING ALREADY USED says so); use a different true detail otherwise.
 - Never say "following up", "checking in", "circling back", "touching base", "quick question", "quick chat", "hope you are well", "caught my eye", "came across", "let's connect" or "discovery call".
 - Never mention that you are not selling or not pitching. Never apologise for writing.
 - Never quote any figure that is not in TRUE DETAILS or FACTS. Do not mention demo businesses or industry statistics.
@@ -90,11 +92,11 @@ For each email answer with a verdict:
 - "check": a person should look (thin evidence, awkward wording).
 - "blocked": a claim about the business that SAVED_EVIDENCE does not support, a result or client that is invented, a claim that the sender runs a business of their own (the assistant was built on the sender's own website), or a wrong owner name in the greeting.
 
-SENDER_SETTINGS holds the sender's own proof line and two free things. The proof line is TRUE and allowed to be quoted or closely paraphrased, even though it says the assistant was built on the sender's own website (that is not a claim that the sender runs a business) and even if it mentions a call. The proof line belongs in email 3 only; email 1 must not carry it. A free thing that is a recording or a number to ring to hear the assistant is the free offer itself, not a request for a call or meeting with the sender.
+SENDER_SETTINGS holds the sender's own proof line and two free things. The proof line is TRUE and allowed to be quoted or closely paraphrased, even though it says the assistant was built for the sender's agency's website (that is not a claim that the sender runs a home-service business) and even if it mentions a call. The proof line belongs in email 3 only; email 1 must not carry it. A free thing that is a recording or a number to ring to hear the assistant is the free offer itself, not a request for a call or meeting with the sender.
 
 Email 4 is meant to ask who the right person is for new customer calls; that is not a request for a call or meeting and is no reason for "check".
 
-Do NOT judge these: the program checks them. Whether an email ends with a yes/no offer, its length, the balance of I and you, its style words, whether it says it is the last email, and whether the proof matches the Settings proof line. Never mention them in a reason. A plain factual mention of their contact form, chat or booking that SAVED_EVIDENCE supports is allowed and is no reason for "check"; only criticism of it is.
+Do NOT judge these: the program checks them. Whether an email ends with a yes/no offer, its length, the balance of I and you, its style words, whether it says it is the last email, and whether the proof matches the Settings proof line. Never mention them in a reason. Any statement about what their website, contact form, chat or booking offers or lacks is "blocked" (messages may only describe lost calls and customers). Claims of a past talk ("we discussed", "our chat"), "the same assistant", and claims that the sender owns a home-service business are "blocked".
 
 Look only for: unsupported claims about the business, invented facts, numbers, clients or results, a wrong greeting, a claim that someone said something they did not, pushy or odd wording, a call, meeting or demo ask, and the rating or review count repeated across emails.
 
@@ -106,7 +108,7 @@ export type SequenceLead = {
 };
 
 /** The user message for the writer. */
-export function sequenceUserPrompt(l: SequenceLead, inp: StepInputs, offerBackground: string, hint?: string): string {
+export function sequenceUserPrompt(l: SequenceLead, inp: StepInputs, offerBackground: string, hint?: string, ratingElsewhere = false): string {
   return [
     `BUSINESS: ${l.name ?? "the business"}`,
     `GREETING: ${l.greeting}`,
@@ -118,6 +120,7 @@ export function sequenceUserPrompt(l: SequenceLead, inp: StepInputs, offerBackgr
     `FREE THING 1 (offer it in email 1; email 3 re-offers it in new words): ${inp.freeAsset1 || "(empty)"}`,
     `FREE THING 2 (offer it in email 2): ${inp.freeAsset2 || "(empty)"}`,
     `PROOF LINE: ${inp.proofLine || "(empty)"}`,
+    ratingElsewhere ? "RATING ALREADY USED: another message to this business already states their rating or review count. Do NOT state any rating, star count or review count in these emails." : "",
     hint ? `\nYOUR LAST ANSWER FAILED THESE CHECKS: ${hint}\nWrite all four again and fix them. JSON only.` : "",
   ].filter(Boolean).join("\n");
 }
@@ -128,7 +131,8 @@ export type SeqStep = { step: 1 | 2 | 3 | 4; subject: string; body: string };
 export function parseSequence(json: unknown): { steps: SeqStep[]; fact_used: number | null } | null {
   if (!json || typeof json !== "object") return null;
   const o = json as Record<string, unknown>;
-  const s = (k: string) => String(o[k] ?? "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
+  // A greeting line is always followed by one blank line, whatever the writer returned.
+  const s = (k: string) => String(o[k] ?? "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim().replace(/^((?:hi|hello|hey|dear)\b[^\n]{0,40},)\n(?!\n)/i, "$1\n\n");
   const subject = tidySubject(s("subject"));
   const e1 = s("email_1") || s("email1"), e2 = s("email_2") || s("email2"), e3 = s("email_3") || s("email3"), e4 = s("email_4") || s("email4");
   if (!e1 || !e2 || !e3 || !e4) return null;
@@ -139,10 +143,10 @@ export function parseSequence(json: unknown): { steps: SeqStep[]; fact_used: num
 export type StepCheck = { step: 1 | 2 | 3 | 4; status: StepStatus; reasons: string[]; hits: Hit[] };
 
 /** The free code checks for all four emails together (length order, one rating, subject, Settings inputs). */
-export function checkSequence(steps: SeqStep[], inp: StepInputs): StepCheck[] {
+export function checkSequence(steps: SeqStep[], inp: StepInputs, opts: { ratingElsewhere?: boolean } = {}): StepCheck[] {
   const kinds = ["email1", "email2", "email3", "email4"] as const;
   const lens: number[] = [];
-  let ratingSeen = false;
+  let ratingSeen = !!opts.ratingElsewhere; // another message of this lead (any channel) already stated the rating
   return steps.map((s, i) => {
     const hits = checkStep(kinds[i], s.body, { channel: "email", earlierChars: lens.slice(), ratingAlready: ratingSeen, freeAsset: i === 1 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, earlierTexts: steps.slice(0, i).map((x) => x.body), namedSources: inp.namedSources });
     if (i === 0) hits.push(...checkSubject(s.subject));
@@ -180,6 +184,6 @@ export function mergeStatus(code: StepCheck, ai: AiStepVerdict | undefined): { s
   const kept = offerOk ? a0.reasons.filter((r) => !OFFER_TALK.test(r)) : a0.reasons;
   const a = a0.verdict === "check" && offerOk && a0.reasons.length > 0 && kept.length === 0 ? { ...a0, verdict: "ready" as StepStatus, reasons: [] } : { ...a0, reasons: kept };
   const status = RANK[a.verdict] > RANK[code.status] ? a.verdict : code.status;
-  const reasons = status === "ready" ? [] : [...code.reasons, ...(a.verdict === "ready" ? [] : a.reasons)].slice(0, 5);
+  const reasons = status === "ready" ? [] : dedupeReasons([...code.reasons, ...(a.verdict === "ready" ? [] : a.reasons)]);
   return { status, reasons };
 }

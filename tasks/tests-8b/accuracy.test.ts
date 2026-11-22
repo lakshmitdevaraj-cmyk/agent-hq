@@ -33,7 +33,7 @@ t("mobile: a JavaScript-built site seen only by a plain download is 'unknown', n
 });
 
 const lead = (facts: unknown[]) => ({ name: "Tri City Air", rating: 4.8, reviews_count: 60, site_check: { checked_at: "2026-11-20", via: "browser", chat_widget: true, facts } }) as never;
-t("phone_not_tappable is information only: not offered to the writer unless the page switches off number links", () => {
+t("phone_not_tappable is information only: never offered to the writer (messages describe lost calls, not their website)", () => {
   const plain = websiteFacts(page("<title>x</title>"), { via: "raw", jsBuilt: false }).find((f) => f.key === "phone_not_tappable")!;
   assert.equal(plain.value, true);
   assert.notEqual((plain as { no_autolink?: boolean }).no_autolink, true);
@@ -42,7 +42,7 @@ t("phone_not_tappable is information only: not offered to the writer unless the 
   const off = websiteFacts(page('<meta name="format-detection" content="telephone=no">'), { via: "raw", jsBuilt: false }).find((f) => f.key === "phone_not_tappable")!;
   assert.equal((off as { no_autolink?: boolean }).no_autolink, true);
   const withMeta = pickAngle(lead([off]));
-  assert.ok(withMeta.facts.some((f) => /tap-to-call/i.test(f.text)), "offered when the page switches off number links");
+  assert.ok(!withMeta.facts.some((f) => /tap-to-call/i.test(f.text)), "batch 8c: statements about what their website lacks are never offered to a writer, even then");
 });
 
 const body = (extra: string) => `Hi Mike,\n\n${extra}\n\nIf calls get missed while the crew is on a job, an assistant can answer them, take the details and pass them to you. Open to a 30-minute free call?`;

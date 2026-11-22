@@ -1,7 +1,7 @@
 import { usePolling } from "@/lib/usePolling";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Inbox as InboxIcon, Loader2, MessageSquare, KanbanSquare, AlertCircle, Trash2, RefreshCw } from "lucide-react";
+import { Inbox as InboxIcon, Loader2, MessageSquare, KanbanSquare, AlertCircle, Trash2, RefreshCw, Send } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import { call } from "@/lib/api";
@@ -23,6 +23,7 @@ type Reply = {
   flag?: "unauthenticated" | "spam" | "blocked" | null; // how AgentMail filed it (usually still a real person)
   is_test?: boolean; // sent from Lakshmi's own address
   system?: boolean; // our own webhook health check or a delivery failure report: not a person answering
+  our_reply?: { sent_at: string; to: string; subject: string } | null; // set once a reply was sent from the Inbox
 };
 
 const FLAG_TEXT = { unauthenticated: "Unauthenticated", spam: "Spam", blocked: "Blocked" } as const;
@@ -74,6 +75,27 @@ export default function Inbox() {
       setDraftErr(e instanceof Error ? e.message : "Could not draft a reply");
     } finally {
       setDrafting(false);
+    }
+  }
+
+  // "Send reply": goes out through AgentMail as a reply in the same thread, from the inbox the original email used. Always asks first.
+  const [sending, setSending] = useState(false);
+  const [sentNote, setSentNote] = useState<string | null>(null);
+  async function sendReply(replyId: string, text: string, again: boolean) {
+    setSending(true);
+    setDraftErr(null);
+    setSentNote(null);
+    try {
+      const pv = await call<{ to: string; subject: string; text: string; inbox_id: string; postal_address_set: boolean }>("outreach.reply.send", { id: replyId, text, preview: true, resend: again });
+      const warn = pv.postal_address_set ? "" : "\n\nNo postal address in the footer. US law (CAN-SPAM) requires one for commercial email.";
+      if (!confirm(`Send this reply via AgentMail, in the same thread? This will hit the real recipient's inbox.\n\nTo: ${pv.to}\nFrom inbox: ${pv.inbox_id}\nSubject: ${pv.subject}\n\n${pv.text}${warn}`)) return;
+      const r = await call<{ to: string; message_id: string | null }>("outreach.reply.send", { id: replyId, text, resend: again });
+      setSentNote(`Sent to ${r.to} in the same thread.`);
+      await refresh();
+    } catch (e) {
+      setDraftErr(e instanceof Error ? e.message : "Could not send the reply");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -194,7 +216,7 @@ export default function Inbox() {
               <span className="font-display text-xs text-fg2 font-medium">Inbound</span>
               <span className="text-xs font-mono text-muted ml-1">({people.length})</span>
               <div className="flex-1" />
-              {sysCount > 0 && (
+              {(
                 <button onClick={() => setShowSystem(!showSystem)} className={`px-2 py-0.5 rounded-md border text-label ${showSystem ? "bg-primary/20 border-primary/50 text-primary" : "border-line text-fg2"}`} title="Our own health checks and delivery failure reports">System messages ({sysCount})</button>
               )}
             </div>
@@ -275,19 +297,32 @@ export default function Inbox() {
               {draftErr && <div className="mt-4 text-sm text-red-300">{draftErr}</div>}
               {draft && draft.id === selected.id && (
                 <div className="mt-5 pt-4 border-t border-line">
-                  <div className="text-xs text-fg2 mb-2">Draft reply (edit it, then copy it into your email app). {draft.note}</div>
+                  <div className="text-xs text-fg2 mb-2">Draft reply: edit it, then press Send reply (it asks first and goes out in the same thread) or copy it. {draft.note}</div>
                   <textarea
                     value={draft.text}
                     onChange={(e) => setDraft({ ...draft, text: e.target.value })}
                     rows={12}
                     className="w-full rounded-lg border border-line bg-fg/[0.03] p-3 text-sm text-fg leading-relaxed"
                   />
-                  <button
-                    onClick={() => { try { void navigator.clipboard.writeText(draft.text); } catch { /* the text stays selectable */ } }}
-                    className="mt-2 px-3 py-1.5 rounded-lg bg-fg/[0.04] hover:bg-fg/[0.08] border border-line text-fg2 text-xs font-semibold"
-                  >
-                    Copy
-                  </button>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => void sendReply(selected.id, draft.text, !!selected.our_reply)}
+                      disabled={sending || !!selected.opt_out}
+                      title="Sends this text through AgentMail as a reply in the same thread, from the inbox the original email used. Asks first; never automatic."
+                      data-testid="send-reply"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/50 text-primary text-xs font-bold tracking-wide disabled:opacity-50"
+                    >
+                      {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Send reply
+                    </button>
+                    <button
+                      onClick={() => { try { void navigator.clipboard.writeText(draft.text); } catch { /* the text stays selectable */ } }}
+                      className="px-3 py-1.5 rounded-lg bg-fg/[0.04] hover:bg-fg/[0.08] border border-line text-fg2 text-xs font-semibold"
+                    >
+                      Copy
+                    </button>
+                    {sentNote && <span className="text-xs text-green-300">{sentNote}</span>}
+                    {selected.our_reply && !sentNote && <span className="text-xs text-fg2">You already replied on {new Date(selected.our_reply.sent_at).toLocaleString()}.</span>}
+                  </div>
                 </div>
               )}
               {selected.campaign_id && (

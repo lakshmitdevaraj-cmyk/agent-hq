@@ -1,9 +1,9 @@
-import { scanBanned } from "./lib/messagerules";
+import { scanBanned, checkStep, checkSubject, statusOf, mentionsRating, dedupeReasons, type Hit } from "./lib/messagerules";
 import { countSentToday, limitOrDefault, DEFAULT_COUNT_TZ, type SentRow } from "./lib/sendcount";
 import { nextFollowUp, countDue, gapsOrDefault, type FollowRow, type FollowState, type FollowStepIn, type StoppedReason } from "./lib/followups";
 import { SOCIAL_SEQ_SYSTEM_PROMPT, SOCIAL_SEQ_REVIEW_PROMPT, socialSeqUserPrompt, parseSocialSeq, checkSocialSeq, socialFailureLines, parseSocialReview, mergeSocial, type SeqLeadInfo, type SocialStepCheck } from "./lib/socialseq";
 import type { Handler } from "@netlify/functions";
-import { STATE_TZ, stateFromAddress, validTimeZone, proposeSlots, REPLY_SYSTEM_PROMPT, replyUserPrompt, assembleReply } from "./lib/replydraft";
+import { STATE_TZ, stateFromAddress, validTimeZone, proposeSlots, REPLY_SYSTEM_PROMPT, replyUserPrompt, assembleReply, sentenceCount, firstSentences, firstNameFromSender } from "./lib/replydraft";
 import { connectLambda } from "@netlify/blobs";
 import https from "node:https";
 import { nanoid } from "nanoid";
@@ -11,6 +11,7 @@ import { store, readJson, writeJson, listJson, listJsonFast } from "./lib/blobs"
 import { getOrCreateApiKey, identifyApiKey, createAgentKey, hasApiKey, rotateApiKey } from "./lib/auth";
 import {
   appendFooter,
+  extractEmailAddress,
   textToHtml,
   normalizeDraft,
   greetingFor,
@@ -927,7 +928,7 @@ async function prepareReview(item: ReviewItem): Promise<{ outcome?: ReviewOutcom
       }
     }
     if (found.length > 0) {
-      const outcome: ReviewOutcome = { status: "check", reasons: [...found.map((f) => `Code check: ${f}`), ...cr.check].slice(0, 6), reviewed_by: "code checks", rewrites_used: rewritesUsed };
+      const outcome: ReviewOutcome = { status: "check", reasons: dedupeReasons([...found.map((f) => `Code check: ${f}`), ...cr.check]), reviewed_by: "code checks", rewrites_used: rewritesUsed };
       if (redrafted) outcome.rewritten = { subject, body_text: body, body_html: textToHtml(body), original: { subject: email.subject, body_text: email.body_text, body_html: email.body_html } };
       return { outcome };
     }
@@ -1006,30 +1007,30 @@ async function reviewMany(items: ReviewItem[], ai: GeminiAiOpts, onOutcome: (id:
       answers = await askBatch(entries1, ai);
     } catch (e) {
       if (e instanceof GeminiError && e.kind === "daily_quota") throw e;
-      for (const p of chunk) await finish(p, { status: "check", reasons: [`Not reviewed yet: ${notYet(e)}`.slice(0, 200), ...p.crCheck].slice(0, 6), reviewed_by: null });
+      for (const p of chunk) await finish(p, { status: "check", reasons: dedupeReasons([`Not reviewed yet: ${notYet(e)}`.slice(0, 200), ...p.crCheck]), reviewed_by: null });
       continue;
     }
     const second: Entry[] = [];
     const rewriteOf = new Map<string, { v: VerdictAnswer; rw: { subject: string; body: string } }>();
     for (const p of chunk) {
       const a = answers.get(p.item.id);
-      if (!a) { await finish(p, { status: "check", reasons: ["The reviewer's answer for this draft was missing or unreadable.", ...p.crCheck].slice(0, 6), reviewed_by: null }); continue; }
+      if (!a) { await finish(p, { status: "check", reasons: dedupeReasons(["The reviewer's answer for this draft was missing or unreadable.", ...p.crCheck]), reviewed_by: null }); continue; }
       const v = a.verdict;
       const extra = [...p.crCheck, ...p.found.map((f) => `Check: ${f}`)];
-      if (v.status === "blocked") { await finish(p, { status: "blocked", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: a.model }); continue; }
+      if (v.status === "blocked") { await finish(p, { status: "blocked", reasons: dedupeReasons([...v.reasons, ...extra]), reviewed_by: a.model }); continue; }
       if (v.status === "ready" && extra.length === 0) { await finish(p, { status: "ready", reasons: v.reasons, reviewed_by: a.model }); continue; }
-      if (v.status === "ready") { await finish(p, { status: "check", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: a.model }); continue; }
+      if (v.status === "ready") { await finish(p, { status: "check", reasons: dedupeReasons([...v.reasons, ...extra]), reviewed_by: a.model }); continue; }
       if (v.problem === "wording" && v.rewrite) {
-        if (p.rewritesUsed >= 1) { await finish(p, { status: "check", reasons: [...v.reasons, "It was already rewritten once, so a person should look at it.", ...extra].slice(0, 6), reviewed_by: a.model }); continue; }
+        if (p.rewritesUsed >= 1) { await finish(p, { status: "check", reasons: dedupeReasons([...v.reasons, "It was already rewritten once, so a person should look at it.", ...extra]), reviewed_by: a.model }); continue; }
         // The ONE rewrite: checked by code now, by a second review next.
         const body_text = normalizeDraft({ subject: v.rewrite.subject, body_text: v.rewrite.body, body_html: "" }, p.greeting, { firstEmail: p.firstEmail }).body_text;
         const codeFails = p.codeChecks(v.rewrite.subject, body_text);
-        if (codeFails.length > 0) { await finish(p, { status: "check", reasons: [...v.reasons, ...codeFails.map((f) => `The rewrite still failed: ${f}`), ...p.crCheck].slice(0, 6), reviewed_by: a.model, rewrites_used: 1 }); continue; }
+        if (codeFails.length > 0) { await finish(p, { status: "check", reasons: dedupeReasons([...v.reasons, ...codeFails.map((f) => `The rewrite still failed: ${f}`), ...p.crCheck]), reviewed_by: a.model, rewrites_used: 1 }); continue; }
         rewriteOf.set(p.item.id, { v: a, rw: { subject: v.rewrite.subject, body: body_text } });
         second.push({ prep: p, subject: v.rewrite.subject, body: body_text, findings: [] });
         continue;
       }
-      await finish(p, { status: "check", reasons: [...v.reasons, ...extra].slice(0, 6), reviewed_by: a.model });
+      await finish(p, { status: "check", reasons: dedupeReasons([...v.reasons, ...extra]), reviewed_by: a.model });
     }
     if (second.length === 0) continue;
     let answers2: Map<string, VerdictAnswer | null>;
@@ -1037,7 +1038,7 @@ async function reviewMany(items: ReviewItem[], ai: GeminiAiOpts, onOutcome: (id:
       answers2 = await askBatch(second, ai);
     } catch (e) {
       if (e instanceof GeminiError && e.kind === "daily_quota") throw e;
-      for (const en of second) await finish(en.prep, { status: "check", reasons: [`Not reviewed after the rewrite: ${notYet(e)}`.slice(0, 200), ...en.prep.crCheck].slice(0, 6), reviewed_by: null });
+      for (const en of second) await finish(en.prep, { status: "check", reasons: dedupeReasons([`Not reviewed after the rewrite: ${notYet(e)}`.slice(0, 200), ...en.prep.crCheck]), reviewed_by: null });
       continue;
     }
     for (const en of second) {
@@ -1113,6 +1114,7 @@ async function generateFourStep(lead: Record<string, unknown>, settings: Outreac
     return { refused: `Not enough facts about this lead: no ${missing.join(", no ") || "saved details"}. Run the website check or add a rating or website, then try again.` };
   }
   const sl = { name: typeof lead.name === "string" ? lead.name : undefined, greeting: c.greeting, city: c.city, trade: c.trade, details: c.details.map((d) => d.text), facts: c.plan.facts.map((f) => ({ n: f.n, text: f.text })) };
+  const ratingElsewhere = await leadRatingUsed(String(lead.campaign_id ?? ""), String(lead.id ?? ""), { emails: true }); // a social message already states it
   let hint = "";
   let problem = "";
   let model = "";
@@ -1122,7 +1124,7 @@ async function generateFourStep(lead: Record<string, unknown>, settings: Outreac
   let factUsed: number | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     calls++;
-    const ans = await aiJson("draft", { system: SEQUENCE_SYSTEM_PROMPT, user: sequenceUserPrompt(sl, inp, offer, hint || undefined), temperature: 0.4 }, ai);
+    const ans = await aiJson("draft", { system: SEQUENCE_SYSTEM_PROMPT, user: sequenceUserPrompt(sl, inp, offer, hint || undefined, ratingElsewhere), temperature: 0.4 }, ai);
     model = ans.model;
     const parsed = parseSequence(ans.json);
     if (!parsed) {
@@ -1132,7 +1134,7 @@ async function generateFourStep(lead: Record<string, unknown>, settings: Outreac
       hint = `${problem} (JSON with subject, email_1, email_2, email_3, email_4)`; debugLog("four-step", { lead: lead.name, attempt: attempt + 1, failures: [hint] }); continue; }
     steps = parsed.steps.map((s) => ({ ...s, body: withGreeting(s.body, c.greeting) }));
     factUsed = parsed.fact_used;
-    checks = checkSequence(steps, inp);
+    checks = checkSequence(steps, inp, { ratingElsewhere });
     const fails = failureLines(checks);
     debugLog("four-step", { lead: lead.name, attempt: attempt + 1, model, subject: steps[0].subject, code_failures: fails });
     if (fails.length === 0) break;
@@ -1206,7 +1208,7 @@ async function reviewFourStepRows(campaign_id: string, todo: Array<{ key: string
     if (!found || rows.length === 0) { done += mine.length; await onDone(done); continue; }
     const steps = rows.map((r) => ({ step: (r.sequence_position ?? 1) as 1 | 2 | 3 | 4, subject: String(r.subject ?? ""), body: String(r.body_text ?? "") }));
     const inp = resolveInputs(await readOutreachSettings(), String(found.lead.name ?? ""));
-    const checks = checkSequence(steps, inp);
+    const checks = checkSequence(steps, inp, { ratingElsewhere: await leadRatingUsed(campaign_id, leadId, { emails: true }) });
     const rv = await reviewFourStepLead(found.lead, steps, checks, ai);
     for (const t of mine) {
       const pos = (t.row.sequence_position ?? 1) as number;
@@ -1221,6 +1223,50 @@ async function reviewFourStepRows(campaign_id: string, todo: Array<{ key: string
       await onDone(done);
     }
   }
+}
+
+
+// ── Code checks on every saved email (generated, agent-written, edited, marked ready) ──
+
+/** Has another message to this lead (any channel) already stated the rating or review count? `skip` leaves out the messages being written/checked. */
+async function leadRatingUsed(campaign_id: string, lead_id: string, skip: { emails?: boolean; channel?: string } = {}): Promise<boolean> {
+  try {
+    if (!skip.emails) {
+      const rows = await listJson<{ lead_id?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
+      if (rows.some((e) => e.lead_id === lead_id && mentionsRating(String(e.body_text ?? "")))) return true;
+    }
+    for (const ch of ["facebook", "instagram", "linkedin"]) {
+      if (ch === skip.channel) continue;
+      const rec = await readJson<{ parts?: Array<{ text?: string }> }>(store(OUTREACH_SOCIAL), `${campaign_id}/${lead_id}/${ch}`);
+      if ((rec?.parts ?? []).some((x) => mentionsRating(String(x.text ?? "")))) return true;
+    }
+  } catch { /* a read failure never blocks a check */ }
+  return false;
+}
+
+const hitLine = (h: Hit): string => `${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}. ${h.because}`.slice(0, 240);
+
+/**
+ * The free code checks for ONE saved email, with the same rules as generation (position decides the rules; later steps are measured
+ * against the lead's earlier emails; the rating is stated at most once across email and social). Hard hits mean "blocked".
+ */
+async function codeCheckSavedEmail(row: Record<string, unknown>, campaign_id: string): Promise<{ status: "ready" | "check" | "blocked"; reasons: string[]; hard: string[]; hits: Hit[] }> {
+  const inp = resolveInputs(await readOutreachSettings(), String(row.to_name ?? ""));
+  const all = await listJson<Record<string, unknown> & { id: string; lead_id: string; sequence_position?: number; framework?: string; body_text?: string }>(store(OUTREACH_EMAILS), `${campaign_id}/`);
+  const four = row.framework === "four-step";
+  const pos = Math.min(4, Math.max(1, Number(row.sequence_position ?? 1)));
+  const earlier = four ? all.filter((e) => e.lead_id === row.lead_id && e.id !== row.id && e.framework === "four-step" && (e.sequence_position ?? 1) < pos).sort((a, b) => (a.sequence_position ?? 1) - (b.sequence_position ?? 1)) : [];
+  const body = String(row.body_text ?? "");
+  const subject = String(row.subject ?? "");
+  const ratingAlready = (await leadRatingUsed(campaign_id, String(row.lead_id), { emails: true })) || earlier.some((e) => mentionsRating(String(e.body_text ?? "")));
+  const kinds = ["email1", "email2", "email3", "email4"] as const;
+  let hits = checkStep(four ? kinds[pos - 1] : "email1", body, { channel: "email", earlierChars: earlier.map((e) => String(e.body_text ?? "").length), ratingAlready, freeAsset: pos === 2 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, earlierTexts: earlier.map((e) => String(e.body_text ?? "")), namedSources: inp.namedSources });
+  // Older frameworks have no length or structure rules: only hard hits count for them.
+  if (!four) hits = hits.filter((h) => h.level === "hard");
+  const subjectHits = four && pos === 1 ? checkSubject(subject) : [...scanBanned(subject).filter((h) => h.level === "hard" && h.id !== "dash"), ...checkSubject(subject).filter((h) => h.id === "fake-re" || h.id === "empty-subject")];
+  hits = [...hits, ...subjectHits.filter((h) => !hits.some((x) => x.id === h.id))];
+  const st = statusOf(hits);
+  return { status: st.status, reasons: st.reasons, hard: hits.filter((h) => h.level === "hard").map(hitLine), hits };
 }
 
 // ── Apify helpers ─────────────────────────────────────────────────────
@@ -2492,16 +2538,17 @@ async function writeSocialSequence(campaign_id: string, item: SocialPlanItem, ct
   let factUsed: number | null = null;
   let model = "";
   let calls = 0;
+  const ratingElsewhere = await leadRatingUsed(String(lead.campaign_id ?? ""), String(lead.id ?? ""), { channel: item.channel }); // an email or another channel already states it
   for (let attempt = 0; attempt < 2; attempt++) {
     calls++;
-    const ans = await aiJson("draft", { system: SOCIAL_SEQ_SYSTEM_PROMPT, user: socialSeqUserPrompt(item.channel, li, inp, ctx.offer, hint || undefined), temperature: 0.5 }, ai);
+    const ans = await aiJson("draft", { system: SOCIAL_SEQ_SYSTEM_PROMPT, user: socialSeqUserPrompt(item.channel, li, inp, ctx.offer, hint || undefined, ratingElsewhere), temperature: 0.5 }, ai);
     model = ans.model;
     const parsed = parseSocialSeq(item.channel, ans.json);
     if (!parsed) { hint = "the answer did not contain every message in the JSON shape"; debugLog("social", { lead: lead.name, channel: item.channel, attempt: attempt + 1, code_failures: [hint] }); continue; }
     texts = parsed.texts;
     for (const k of Object.keys(texts)) if (k !== "note" && (k === "message" || k === "dm") && !texts[k].toLowerCase().startsWith(li.greeting.toLowerCase())) texts[k] = `${li.greeting},\n\n${texts[k].replace(/^hi[^,\n]*,\s*/i, "")}`;
     factUsed = parsed.fact_used;
-    checks = checkSocialSeq(item.channel, texts, inp);
+    checks = checkSocialSeq(item.channel, texts, inp, { ratingElsewhere });
     const fails = socialFailureLines(checks);
     debugLog("social", { lead: lead.name, channel: item.channel, attempt: attempt + 1, parts: texts, code_failures: fails });
     if (fails.length === 0) break;
@@ -2665,7 +2712,7 @@ async function reviewSocialRecords(campaign_id: string, recs: SocialRecord[], ai
         const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
         const found = precheckSocial(rec.channel, a.rewrite, { type: rec.type ?? "first", phoneOnlyOk: plan.angle.code === "phone_only", callsOnly: plan.calls_only ?? callsOnly(plan.angle.code), noHours: plan.no_hours === true, trade: ((lead.site_check as { real_trade?: string | null } | null | undefined)?.real_trade) ?? null, copySources: [DEFAULT_OFFER, ...EXAMPLE_BODIES], factCount: rec.draft_facts.length, factUsed: rec.fact_used });
         if (found.length > 0) {
-          await save(rec, { review_status: "check", review_reasons: [...a.reasons, ...found.map((f) => `Rewrite failed code check: ${f}`)].slice(0, 6), reviewed_by: a.model, rewrites_used: 1 }, { status: "check", reasons: a.reasons });
+          await save(rec, { review_status: "check", review_reasons: dedupeReasons([...a.reasons, ...found.map((f) => `Rewrite failed code check: ${f}`)]), reviewed_by: a.model, rewrites_used: 1 }, { status: "check", reasons: a.reasons });
           continue;
         }
         second.push({ rec: { ...rec, parts: partsToList(rec.channel, a.rewrite, rec.type ?? "first"), rewrites_used: 1 }, lead, prior: a });
@@ -3548,26 +3595,26 @@ export const handler: Handler = async (event) => {
           // Each step is edited on its own: saved as written, code-checked, never re-reviewed by the AI automatically.
           const inp = resolveInputs(await readOutreachSettings(), "");
           const texts = { ...partsMap(rec.parts), ...Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, String(v ?? "")])) };
-          const checks = checkSocialSeq(rec.channel, texts, inp);
+          const checks = checkSocialSeq(rec.channel, texts, inp, { ratingElsewhere: await leadRatingUsed(campaign_id, lead_id, { channel: rec.channel }) });
           const nowS = new Date().toISOString();
           const nextParts: SocialPart[] = rec.parts.map((p0) => {
             if (!(p0.key in parts)) return p0;
             if (p0.sent_at) return p0; // a step already sent by hand is history and is not rewritten
             const ck = checks.find((x) => x.key === p0.key)!;
             const st = ck.status === "ready" ? "check" : ck.status;
-            return { ...p0, text: String(parts[p0.key] ?? "").trim(), review_status: st, review_reasons: ["Edited by you: not reviewed by the AI.", ...ck.reasons].slice(0, 5) };
+            return { ...p0, text: String(parts[p0.key] ?? "").trim(), review_status: st, review_reasons: dedupeReasons(["Edited by you: not reviewed by the AI.", ...ck.reasons]) };
           });
           const RK = { ready: 0, check: 1, blocked: 2 } as const;
           const openParts = nextParts.filter((x) => !x.sent_at);
           const worstS = openParts.reduce((w, x) => (x.review_status && RK[x.review_status] > RK[w] ? x.review_status : w), "ready" as "ready" | "check" | "blocked");
-          const savedSeq: SocialRecord = { ...rec, parts: nextParts, review_status: worstS, review_reasons: nextParts.filter((x) => x.review_reasons?.length && !x.sent_at).flatMap((x) => x.review_reasons!.map((r) => `${x.key === "message" ? "first" : x.key}: ${r}`)).slice(0, 6), reviewed_by: "you", updated_at: nowS };
+          const savedSeq: SocialRecord = { ...rec, parts: nextParts, review_status: worstS, review_reasons: nextParts.filter((x) => x.review_reasons?.length && !x.sent_at).flatMap((x) => x.review_reasons!.map((r) => `${x.key === "message" ? "first" : x.key}: ${r}`)), reviewed_by: "you", updated_at: nowS };
           await writeJson(ss, socialKey(campaign_id, lead_id, channel), savedSeq);
           return ok(savedSeq);
         }
         const next = partsToList(rec.channel, { ...partsMap(rec.parts), ...Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, String(v ?? "")])) }, rec.type ?? "first");
         const found = precheckSocial(rec.channel, partsMap(next), { type: rec.type ?? "first", factCount: rec.draft_facts?.length ?? 0, factUsed: rec.fact_used });
         const now = new Date().toISOString();
-        const saved: SocialRecord = { ...rec, parts: next, review_status: "check", review_reasons: ["Edited by you: not reviewed by the AI.", ...found.map((f) => `Code check: ${f}`)].slice(0, 6), reviewed_by: "you", updated_at: now };
+        const saved: SocialRecord = { ...rec, parts: next, review_status: "check", review_reasons: dedupeReasons(["Edited by you: not reviewed by the AI.", ...found.map((f) => `Code check: ${f}`)]), reviewed_by: "you", updated_at: now };
         await writeJson(ss, socialKey(campaign_id, lead_id, channel), saved);
         return ok(saved);
       }
@@ -4588,6 +4635,9 @@ export const handler: Handler = async (event) => {
           created_at: createdAt,
           updated_at: createdAt,
         };
+        // The same free code checks as a generated draft run at once: a hard hit is Blocked without anyone pressing Review.
+        const createCheck = await codeCheckSavedEmail(record, campaign_id);
+        if (createCheck.status === "blocked") Object.assign(record, { review_status: "blocked", review_reasons: createCheck.reasons, reviewed_by: "code checks", reviewed_at: createdAt });
         await writeJson(es, `${campaign_id}/${createdAt}-${emailId}`, record);
         await patchState(campaign_id, {
           default_sender_name: (typeof sender_name === "string" && sender_name) || (campaign.default_sender_name as string | undefined) || null,
@@ -4764,9 +4814,21 @@ export const handler: Handler = async (event) => {
               updated_at: new Date().toISOString(),
             };
             const changed = !!(subject || body_text || body_html || (newTo && newTo !== row.to_email));
-            if (changed) Object.assign(updated, { review_status: "check", review_reasons: ["You edited this draft. Review it again, or mark it ready yourself."], reviewed_by: null, reviewed_at: null });
+            if (changed) {
+              // Every edit is code-checked at once: a hard hit is Blocked; otherwise it is "check" until reviewed or marked ready.
+              const ck = await codeCheckSavedEmail(updated, campaign_id);
+              Object.assign(updated, ck.status === "blocked"
+                ? { review_status: "blocked", review_reasons: ck.reasons, reviewed_by: "code checks", reviewed_at: new Date().toISOString() }
+                : { review_status: "check", review_reasons: dedupeReasons(["You edited this draft. Review it again, or mark it ready yourself.", ...ck.reasons]), reviewed_by: null, reviewed_at: null });
+            }
             if (review_status === "ready") {
-              if (!changed && row.review_status === "blocked") return fail(400, "This draft is blocked. Fix it or use Review again first.");
+              // Mark ready is refused while any hard code hit remains (a stored status can be older than the rules).
+              const ck = await codeCheckSavedEmail(updated, campaign_id);
+              if (ck.hard.length) {
+                await writeJson(es, b.key, { ...updated, review_status: "blocked", review_reasons: ck.reasons, reviewed_by: "code checks", reviewed_at: new Date().toISOString() });
+                return fail(400, `Cannot mark this ready: ${ck.hard.join(" | ")}`);
+              }
+              if (!changed && row.review_status === "blocked") return fail(400, `Cannot mark this ready: it is Blocked${Array.isArray(row.review_reasons) && row.review_reasons.length ? ` (${(row.review_reasons as string[]).join(" | ")})` : ""}. Edit it to fix the problem, or run Review again.`);
               Object.assign(updated, { review_status: "ready", review_reasons: [], reviewed_by: "you", reviewed_at: new Date().toISOString() });
             }
             await writeJson(es, b.key, updated);
@@ -4894,7 +4956,8 @@ export const handler: Handler = async (event) => {
           if (p[k] === undefined) continue;
           const g = parseGaps(p[k]);
           const raw = Array.isArray(p[k]) ? (p[k] as unknown[]).map(Number) : String(p[k]).split(/[,\s]+/).filter(Boolean).map(Number);
-          if (raw.length === 0 || raw.some((x) => !Number.isInteger(x) || x < 1 || x > 120)) return fail(400, `${k}: use whole days, like 3, 8, 15`);
+          if (raw.length === 0 || raw.some((x) => !Number.isInteger(x) || x < 1 || x > 120)) return fail(400, `${k === "follow_up_gaps_email" ? "Email" : "Social"} follow-up days: use whole days from 1 to 120, like 3, 8, 15.`);
+          if (raw.some((x, i) => i > 0 && x <= raw[i - 1])) return fail(400, `${k === "follow_up_gaps_email" ? "Email" : "Social"} follow-up days must go up, each later than the one before (for example 3, 8, 15), not "${raw.join(", ")}".`);
           next[k] = g;
         }
         const alertEmail = text("reply_alert_email", 200);
@@ -5187,6 +5250,8 @@ export const handler: Handler = async (event) => {
         const s = store(OUTREACH_REPLIES);
         const prefix = typeof campaign_id === "string" && campaign_id ? `${campaign_id}/` : undefined;
         const rows = await listJson<{ received_at?: string; text?: string | null; html?: string | null; is_test?: boolean; from?: string | null; subject?: string | null }>(s, prefix);
+        // A broken record (no sender, no date and no text: nothing a person could read or answer) is left out on read, never shown as "Unknown".
+        for (let i = rows.length - 1; i >= 0; i--) if (!rows[i].from && !rows[i].received_at && !(rows[i].text ?? "").trim() && !(rows[i].html ?? "").trim()) rows.splice(i, 1);
         rows.sort((a, b) => ((a.received_at ?? "") < (b.received_at ?? "") ? 1 : -1));
         // Replies stored before the HTML fallback have an empty text: fill it from the html when read (no data rewrite).
         return ok(rows.slice(0, typeof limit === "number" ? limit : 200).map((r0) => { const r = { ...r0, is_test: isTestReply(r0), system: isSystemReply(r0 as { from?: string | null; subject?: string | null; to?: string[] | null }) }; return r.text && r.text.trim() ? r : { ...r, text: replyBodyText(r) || r.text || null }; }));
@@ -5268,13 +5333,18 @@ export const handler: Handler = async (event) => {
           if (!lead || lead.excluded) continue;
           const steps: FollowStepIn[] = rec.parts.map((p) => ({ key: p.key, label: p.label, text: p.text, sent_at: p.sent_at ?? null, status: p.review_status ?? null }));
           const r = nextFollowUp({ lead_id: lead.id, campaign_id: String(lead.campaign_id), name: String(lead.name ?? lead.id), channel: rec.channel, steps, state: stateOf.get(`${lead.id}/${rec.channel}`), gaps: gS, stopped: stoppedFor(lead, lead.id), today });
-          if (r) { rows.push(r); extra.set(`${r.lead_id}/${r.channel}`, { url: rec.url }); }
+          if (r) {
+            rows.push(r);
+            // The page link is the lead's own saved page for this channel, never one built from an id; hidden when there is none.
+            const own = channelsFor(lead as Parameters<typeof channelsFor>[0]).find((c) => c.channel === rec.channel)?.url ?? "";
+            extra.set(`${r.lead_id}/${r.channel}`, { url: /^https?:\/\//i.test(own.trim()) ? own.trim() : "" });
+          }
         }
         const live = rows.filter((r) => r.bucket !== "stopped");
         live.sort((a, b) => (a.bucket === "waiting" ? 1 : 0) - (b.bucket === "waiting" ? 1 : 0) || String(a.due_date ?? "9999").localeCompare(String(b.due_date ?? "9999")));
         const campNames = new Map((await listJson<{ id: string; name?: string }>(store(OUTREACH_CAMPAIGNS))).map((c) => [c.id, c.name ?? c.id]));
         const handIds = new Set(states.filter((x) => x.channel === "all" && x.replied_by_hand).map((x) => x.lead_id));
-        const out = [...live, ...rows.filter((r) => r.bucket === "stopped")].map((r) => ({ ...r, by_hand: handIds.has(r.lead_id), campaign_name: campNames.get(r.campaign_id) ?? r.campaign_id, page_url: extra.get(`${r.lead_id}/${r.channel}`)?.url ?? null }));
+        const out = [...live, ...rows.filter((r) => r.bucket === "stopped")].map((r) => ({ ...r, by_hand: handIds.has(r.lead_id), campaign_name: campNames.get(r.campaign_id) ?? r.campaign_id, page_url: extra.get(`${r.lead_id}/${r.channel}`)?.url || null }));
         return ok({ today, rows: out, counts: countDue(rows), postal_address_set: !!(await readOutreachSettings()).postal_address?.trim(), ms: Date.now() - t0 });
       }
 
@@ -5350,17 +5420,68 @@ export const handler: Handler = async (event) => {
         const c = a3Context(lead);
         let answer = "", whyCall = "", hint = "";
         for (let attempt = 0; attempt < 2; attempt++) {
-          const ans = await aiJson("draft", { system: REPLY_SYSTEM_PROMPT, user: replyUserPrompt({ from: reply.from, subject: reply.subject, text }, { name: typeof lead.name === "string" ? lead.name : undefined, city: c.city, owner: typeof lead.owner_name === "string" ? lead.owner_name : undefined }, first?.body_text) + hint, temperature: 0.4 }, {});
+          const ans = await aiJson("draft", { system: REPLY_SYSTEM_PROMPT, user: replyUserPrompt({ from: reply.from, subject: reply.subject, text }, { name: typeof lead.name === "string" ? lead.name : undefined, city: c.city, owner: typeof lead.owner_name === "string" ? lead.owner_name : undefined }, first?.body_text) + `\nTIMES LISTED BELOW YOUR TEXT (prospect's time): ${slots.map((x) => x.text.replace(/ \(.*$/, "")).join("; ")}\nTODAY: ${new Date().toISOString().slice(0, 10)}` + hint, temperature: 0.4 }, {});
           const j = ans.json as { answer?: unknown; why_call?: unknown };
           answer = typeof j?.answer === "string" ? j.answer : "";
           whyCall = typeof j?.why_call === "string" ? j.why_call : "";
           const hits = scanBanned(`${answer} ${whyCall}`).filter((h) => h.level === "hard");
-          if (answer && whyCall && hits.length === 0) { hint = ""; break; }
-          hint = `\nFix these problems and answer again: ${!answer || !whyCall ? "both parts are needed; " : ""}${hits.map((h) => h.label).join("; ")}`;
+          const long = sentenceCount(answer) > 2 || sentenceCount(whyCall) > 1;
+          if (answer && whyCall && hits.length === 0 && !long) { hint = ""; break; }
+          hint = `\nFix these problems and answer again: ${!answer || !whyCall ? "both parts are needed; " : ""}${long ? "answer is one or two sentences and why_call is exactly one sentence; " : ""}${hits.map((h) => h.label).join("; ")}`;
+          if (attempt === 1 && answer && whyCall && long) { answer = firstSentences(answer, 2); whyCall = firstSentences(whyCall, 1); } // the second try ran long again: keep the allowed length
         }
         if (!answer || !whyCall) return fail(502, "The writer did not return a usable draft. Try again.");
-        const draft = assembleReply({ greeting: c.greeting + ",", answer, whyCall, slots, bookingLink, senderName });
-        return ok({ draft, slots, prospect_time_zone: prospectTz, assumed_zone: !st, note: "These times are proposals from your Settings time zone: check them against your real calendar before sending. Nothing was sent." });
+        // Greet by name when it is known: the saved owner, else the first name on the sender line of their reply.
+        const fromName = /^hi there$/i.test(c.greeting) ? firstNameFromSender(reply.from) : null;
+        const draft = assembleReply({ greeting: `${fromName ? `Hi ${fromName}` : c.greeting},`, answer, whyCall, slots, bookingLink, senderName });
+        return ok({ draft, slots, sender_time_zone: tz, prospect_time_zone: prospectTz, assumed_zone: !st, note: "These times are proposals from your Settings time zone: check them against your real calendar before sending. Nothing was sent." });
+      }
+
+      case "outreach.reply.send": {
+        // Sends the edited reply draft through AgentMail as a reply in the SAME thread, from the inbox the original email went out from.
+        // Never automatic: the Inbox asks first (recipient, subject and the full text). `preview: true` returns exactly what would go out and sends nothing.
+        const { id, text: rawText, preview, resend } = params as { id?: string; text?: string; preview?: boolean; resend?: boolean };
+        if (!id) return fail(400, "id required");
+        const body = String(rawText ?? "").replace(/\r/g, "").trim();
+        if (!body) return fail(400, "The reply is empty.");
+        const rs = store(OUTREACH_REPLIES);
+        const { blobs: rblobs } = await rs.list();
+        let replyKey = "";
+        type ReplyRow = Record<string, unknown> & { id: string; campaign_id?: string | null; lead_id?: string | null; original_email_id?: string | null; agentmail_message_id?: string | null; agentmail_thread_id?: string | null; from?: string | null; subject?: string | null; opt_out?: boolean; our_reply?: unknown };
+        let reply = null as ReplyRow | null;
+        for (const b of rblobs) { const r = await readJson<ReplyRow>(rs, b.key); if (r?.id === id) { reply = r; replyKey = b.key; break; } }
+        if (!reply) return fail(404, "reply not found");
+        if (reply.opt_out) return fail(400, "This person asked us to stop. Nothing is sent.");
+        const to = extractEmailAddress(reply.from ?? "");
+        if (!to) return fail(400, "This reply has no sender address to answer.");
+        if (!reply.agentmail_message_id) return fail(400, "This reply has no AgentMail message id, so it cannot be answered in its thread. Copy the text and send it by hand.");
+        // The lead must not be do-not-contact, and the original email gives the inbox it went out from.
+        const leadRows = reply.campaign_id ? await listJson<{ id?: string; do_not_contact?: boolean }>(store(OUTREACH_LEADS), `${reply.campaign_id}/`) : [];
+        if (leadRows.find((l) => l.id === reply!.lead_id)?.do_not_contact) return fail(400, "This lead is marked do-not-contact. Nothing is sent.");
+        const emailRows = reply.campaign_id ? await listJson<{ id: string; lead_id: string; agentmail_inbox_id?: string | null; sender_name?: string | null; subject?: string; sequence_position?: number }>(store(OUTREACH_EMAILS), `${reply.campaign_id}/`) : [];
+        const original = emailRows.find((e) => e.id === reply!.original_email_id) ?? emailRows.filter((e) => e.lead_id === reply!.lead_id && e.agentmail_inbox_id).sort((a, b) => (a.sequence_position ?? 1) - (b.sequence_position ?? 1))[0];
+        const inboxId = (original?.agentmail_inbox_id ?? "").trim();
+        if (!inboxId) return fail(400, "Could not find the inbox the original email was sent from, so the reply cannot be sent in the same thread.");
+        if (reply.our_reply && !resend) return fail(400, "You already sent a reply to this message. Send again only if you mean to.");
+        const hard = scanBanned(body).filter((h) => h.level === "hard" && h.id !== "dash");
+        if (hard.length) return fail(400, `Fix this before sending: ${hard.map((h) => `${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}`).join("; ")}`);
+        const settings = await readOutreachSettings();
+        const camp = reply.campaign_id ? await readJson<{ default_sender_name?: string }>(store(OUTREACH_CAMPAIGNS), reply.campaign_id) : null;
+        const senderName = (original?.sender_name || camp?.default_sender_name || "Lakshmi Devaraj").trim();
+        // The footer rules apply to a reply too: signature, opt-out line and the postal address when one is saved.
+        const withFooter = appendFooter(body, textToHtml(body), settings.postal_address ?? "", senderName);
+        const subject = /^re:/i.test(reply.subject ?? "") ? String(reply.subject) : `Re: ${reply.subject ?? original?.subject ?? ""}`.trim();
+        const view = { to, subject, text: withFooter.text, inbox_id: inboxId, thread_id: reply.agentmail_thread_id ?? null, postal_address_set: !!(settings.postal_address ?? "").trim() };
+        if (preview) return ok({ preview: true, ...view });
+        const key = await readServiceKey("agentmail");
+        if (!key) return fail(400, "AgentMail key not configured");
+        const r = await agentmailFetch(key, `/inboxes/${encodeURIComponent(inboxId)}/messages/${encodeURIComponent(String(reply.agentmail_message_id))}/reply`, { method: "POST", body: JSON.stringify({ text: withFooter.text, html: withFooter.html }) });
+        if (!r.ok) return fail(502, `AgentMail reply ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        const resp = (await r.json()) as { message_id?: string; thread_id?: string };
+        const sentAt = new Date().toISOString();
+        await writeJson(rs, replyKey, { ...reply, handled: true, our_reply: { sent_at: sentAt, message_id: resp.message_id ?? null, thread_id: resp.thread_id ?? reply.agentmail_thread_id ?? null, inbox_id: inboxId, to, subject, text: withFooter.text } });
+        await logActivity({ agent_id: identity?.kind === "agent" ? identity.agent_id : null, category: "email", summary: `Replied to ${to} in the same thread (${subject.slice(0, 60)})`, details: { reply_id: id, campaign_id: reply.campaign_id ?? null, message_id: resp.message_id ?? null } });
+        return ok({ sent: true, message_id: resp.message_id ?? null, ...view, thread_id: resp.thread_id ?? view.thread_id });
       }
 
       case "outreach.replies.convert_to_task": {

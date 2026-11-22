@@ -382,12 +382,11 @@ export default function Prospects() {
                   <th className="py-2 pr-3 font-bold">Niche</th>
                   <th className="py-2 pr-3 font-bold">Area</th>
                   <th className="py-2 pr-3 font-bold"><button onClick={() => setAsc(!asc)} className="font-medium" title="Sort by gap score">Gap {asc ? "▲" : "▼"}</button></th>
-                  <th className="py-2 pr-3 font-bold">Email</th>
-                  <th className="py-2 pr-3 font-bold">Contacted</th>
+                  <th className="py-2 pr-3 font-bold">Links</th>
                   <th className="py-2 pr-3 font-bold">Not a fit</th>
                   <th className="py-2 pr-3 font-bold">Reason</th>
-                  <th className="py-2 pr-3 font-bold">Draft</th>
-                  <th className="py-2 font-bold">Links</th>
+                  <th className="py-2 pr-3 font-bold" title="Status of the unsent email draft: Ready, Check this, Blocked, or - for none.">Email draft</th>
+                  <th className="py-2 font-bold">Contacted</th>
                 </tr>
               </thead>
               <tbody>
@@ -406,10 +405,9 @@ export default function Prospects() {
                     <td className="py-2 pr-3 text-fg2 max-w-[160px] truncate">{r.category ?? "-"}</td>
                     <td className="py-2 pr-3 text-fg2">{areaOf(r.address) || "-"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap"><GapBadge score={r.gap_score} reasons={r.gap_reasons} />{lowGap(r) && <span title={`Gap score is under ${LOW_GAP}: probably little to improve. A hint only.`} className="ml-1 text-label px-1 py-0.5 rounded bg-fg/5 border border-line text-muted">Low gap</span>}</td>
-                    <td className="py-2 pr-3">
-                      <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${STATUS_TONE[r.email_status]}`}>{STATUS_LABEL[r.email_status]}</span>
+                    <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1"><LinkIcons items={leadLinks(r)} size={11} /></div>
                     </td>
-                    <td className="py-2 pr-3"><ContactedCell r={r} /></td>
                     <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" className="accent-primary" aria-label={`Not a fit: ${r.name}`} checked={isNotFit(r)} disabled={!r.campaign_id} onChange={(e) => void setNotFit(r, e.target.checked)} />
                     </td>
@@ -427,9 +425,7 @@ export default function Prospects() {
                     <td className="py-2 pr-3">
                       {r.review_status ? <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${r.review_status === "ready" ? "border-green-500/40 text-green-300 bg-green-500/10" : r.review_status === "blocked" ? "border-red-500/40 text-red-300 bg-red-500/10" : "border-amber-500/40 text-amber-300 bg-amber-500/10"}`}>{REVIEW_LABEL[r.review_status]}</span> : <span className="text-muted">-</span>}
                     </td>
-                    <td className="py-2" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1"><LinkIcons items={leadLinks(r)} size={11} /></div>
-                    </td>
+                    <td className="py-2"><ContactedCell r={r} /></td>
                   </tr>
                 ))}
               </tbody>

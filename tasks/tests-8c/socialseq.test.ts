@@ -23,8 +23,8 @@ t("first message with an offer or an asset is blocked; a call ask is blocked", (
   assert.equal(checkSocialSeq("facebook", { ...FB, message: FB.message + " I help plumbers with an AI receptionist." }, inp)[0].status, "blocked");
   assert.equal(checkSocialSeq("facebook", { ...FB, follow_up: FB.follow_up + " Can we book a call?" }, inp)[1].status, "blocked");
 });
-t("follow-up repeating the rating is Check; last without 'last message' is Check", () => {
-  assert.equal(checkSocialSeq("facebook", { ...FB, follow_up: "Katy Air has 4.8 stars. Want me to send a short recording?" }, inp)[1].status, "check");
+t("follow-up repeating the rating is BLOCKED (once per lead); last without 'last message' is Check", () => {
+  assert.equal(checkSocialSeq("facebook", { ...FB, follow_up: "Katy Air has 4.8 stars. Want me to send a short recording?" }, inp)[1].status, "blocked");
   assert.equal(checkSocialSeq("facebook", { ...FB, last: "Is someone else the right person? A plain no is fine." }, inp)[2].status, "check");
 });
 t("empty free asset: the follow-up is Check with the Settings reason", () => { const c = checkSocialSeq("facebook", FB, { ...inp, freeAsset1: "" }); assert.equal(c[1].status, "check"); assert.match(c[1].reasons.join(" "), /Settings/); });

@@ -27,3 +27,4 @@
 - A fact about the sender must stay inside the Settings proof line ("built on my own website"). The writer drifted to "my own home-services business", which is false. Facts about the sender get a code check (false-business-claim, proof-drift), not only a prompt line.
 - Anything that can be decided by looking at the text (does it end with a yes/no offer, is it the last email, length) is a code check; the AI reviewer is told not to judge it and its remarks about it are dropped when the code already found the answer.
 - When a re-count differs from an earlier number (19 vs 18 newly hidden), say so and say why, do not quietly replace it.
+- tsc: the root tsconfig has "files": [] so `tsc --noEmit` checks NOTHING. Typecheck with `npx tsc -b` (what `npm run build` runs). 22 Nov: earlier "tsc exit 0" claims for batch 8c used the empty one.

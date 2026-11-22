@@ -1,3 +1,4 @@
+import { SafeItem } from "@/components/ErrorBoundary";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -266,7 +267,8 @@ export default function CampaignDetail() {
       ]);
       setCampaign(withPending(c));
       setLeads(applyExcluded(mergeRecent("lead", ls, (l) => l.campaign_id === id)));
-      setEmails(mergeRecent("email", es, (e) => e.campaign_id === id));
+      // A stray entry (a plain string, a row without an id) is dropped here so it can never crash the page.
+      setEmails(mergeRecent("email", es.filter((x) => x && typeof x === "object" && typeof (x as EmailRow).id === "string"), (e) => e.campaign_id === id));
       setReplies(rs);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
@@ -526,6 +528,7 @@ export default function CampaignDetail() {
       await refresh();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Could not mark it ready");
+      await refresh();
     }
   }
 
@@ -953,11 +956,11 @@ export default function CampaignDetail() {
             className="w-20 px-2 py-1.5 rounded-lg bg-inset border border-line text-fg text-sm font-mono focus:outline-none focus:border-accent/60"
           />
           <span className="text-sm text-fg2 font-mono" data-testid="send-summary">
-            {counters?.sent ?? 0} sent, {counters?.drafts ?? 0} still queued
+            {counters?.sent ?? 0} sent, {readyDrafts} ready to send
           </span>
           {(counters?.drafts ?? 0) > 0 && (
             <span className="text-xs font-mono text-muted">
-              <span className="text-green-300">{readyDrafts} ready</span> · <span className="text-amber-300">{checkDrafts} check this</span> · <span className="text-red-300">{blockedDrafts} blocked</span>
+              <span className="text-amber-300">{checkDrafts} check this</span> · <span className="text-red-300">{blockedDrafts} blocked</span> (not counted as ready)
             </span>
           )}
           {lastSend && (
@@ -1441,7 +1444,10 @@ export default function CampaignDetail() {
                       <div className="ml-auto flex flex-wrap items-center justify-end gap-1" onClick={(ev) => ev.stopPropagation()}>
                         {e.status === "drafted" && (
                           <>
-                            {(e.review_status ?? "check") !== "ready" && (
+                            {(e.review_status ?? "check") === "blocked" && (
+                              <span className="px-2 py-1 rounded-md border border-red-500/30 text-red-300 text-label font-semibold" title="A free check found a problem that must be fixed. Edit the email, then it can be marked ready.">Blocked: edit it to fix</span>
+                            )}
+                            {(e.review_status ?? "check") === "check" && (
                               <button
                                 onClick={() => void markReady(e)}
                                 className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-300 text-label font-semibold transition"
@@ -1478,7 +1484,7 @@ export default function CampaignDetail() {
                       </div>
                     </div>
                     <p className="text-sm font-semibold text-fg mb-0.5">{e.subject}</p>
-                    <p className="text-xs text-muted line-clamp-2 whitespace-pre-wrap">{e.body_text.replace(/^\s*(?:hi|hello|hey|dear)\b[^\n]{0,40}\n+/i, "").replace(/\n{2,}/g, "\n")}</p>
+                    <p className="text-xs text-muted line-clamp-2 whitespace-pre-wrap">{(e.body_text ?? "").replace(/^\s*(?:hi|hello|hey|dear)\b[^\n]{0,40}\n+/i, "").replace(/\n{2,}/g, "\n")}</p>
                     {e.status === "drafted" && (e.review_reasons?.length ?? 0) > 0 && (e.review_status ?? "check") !== "ready" && (
                       <ul className={`mt-1.5 text-label list-disc pl-5 ${(e.review_status ?? "check") === "blocked" ? "text-red-300" : "text-amber-300"}`}>
                         {e.review_reasons!.map((r, i) => <li key={i}>{r}</li>)}
@@ -1493,7 +1499,7 @@ export default function CampaignDetail() {
                   </div>
                 );
                 };
-                if (!isFour) return emails.filter((e) => matchReview(e) && matchStep(e)).map((e) => card(e, false));
+                if (!isFour) return emails.filter((e) => matchReview(e) && matchStep(e)).map((e) => <SafeItem key={e.id} id={e.id} label="This email" render={() => card(e, false)} />);
                 // Alcance 4-step: one collapsed row per business.
                 const stateOf = (e: EmailRow | undefined): { text: string; cls: string } => {
                   if (!e) return { text: "-", cls: "text-muted" };
@@ -1537,7 +1543,7 @@ export default function CampaignDetail() {
                       </button>
                       {open && (
                         <div className="px-3 pb-3 space-y-2">
-                          {shown.map((e) => card(e, true))}
+                          {shown.map((e) => <SafeItem key={e.id} id={e.id} label="This email" render={() => card(e, true)} />)}
                         </div>
                       )}
                     </div>
@@ -2114,7 +2120,7 @@ function LeadDetailModal({ lead, emailedOn, socialBusy, socialJobSeq, onWriteSoc
           <SiteDetails lead={lead} />
         </div>
 
-        <SocialMessages lead={lead} emailedOn={emailedOn} busy={socialBusy} jobSeq={socialJobSeq} onWrite={onWriteSocial} order="oldest" />
+        <SocialMessages lead={lead} emailedOn={emailedOn} busy={socialBusy} jobSeq={socialJobSeq} onWrite={onWriteSocial} order="newest" />
 
         {/* Metadata block */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
