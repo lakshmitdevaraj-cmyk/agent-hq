@@ -222,6 +222,9 @@ function classifyGeminiError(status: number, text: string, model: string): Gemin
  */
 type GeminiAiOpts = { budgetMs?: number; timeoutMs?: number; retryOnTimeout?: boolean; stats?: CallStats };
 
+// Tests only: point Gemini calls at a local mock (tasks/tests-8b/mock-gemini.mjs). Unset in production.
+const GEMINI_BASE = process.env.GEMINI_TEST_BASE_URL || "https://generativelanguage.googleapis.com";
+
 async function geminiGenerate(
   body: unknown,
   opts: { key: string; model?: string } & GeminiAiOpts,
@@ -236,7 +239,7 @@ async function geminiGenerate(
     const reqMs = Math.max(3000, Math.min(opts.timeoutMs ?? Infinity, deadline - Date.now()));
     try {
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(opts.key)}`,
+        `${GEMINI_BASE}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(opts.key)}`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(reqMs) },
       );
       if (r.ok) return (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
@@ -2199,7 +2202,7 @@ async function storedTouchesByLead(leadIds?: Set<string>): Promise<Map<string, T
  * With no lead ids (the bulk run) every lead with a saved page qualifies, emailed or not; a lead on its own may start by hand
  * without a finished website check (manualStart), which the bulk run never does.
  */
-async function planSocial(campaign_id: string, leadIds?: string[], channels?: string[], opts: { regenerate?: boolean; type?: string; manualStart?: boolean } = {}): Promise<{ items: SocialPlanItem[]; skipped: SocialSkip[] }> {
+async function planSocial(campaign_id: string, leadIds?: string[], channels?: string[], opts: { regenerate?: boolean; type?: string; manualStart?: boolean; since?: string } = {}): Promise<{ items: SocialPlanItem[]; skipped: SocialSkip[] }> {
   const campaign = await readCampaign<CampaignRecord>(campaign_id);
   if (!campaign) throw new Error("campaign not found");
   const ctx = campaignSkipCtx(campaign);
@@ -2233,6 +2236,8 @@ async function planSocial(campaign_id: string, leadIds?: string[], channels?: st
     for (const c of chans) {
       const have = existing.get(`${lead.id}/${c.channel}`);
       if (have && have.status !== "sent" && !opts.regenerate) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "Already has a message ready" }); continue; }
+      // A continued "Rewrite existing" run leaves out the messages it already rewrote before it paused.
+      if (have && have.status !== "sent" && opts.since && have.created_at >= opts.since) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "Already rewritten in this run" }); continue; }
       const sentOnChannel = touches.some((t) => t.channel === c.channel) || have?.status === "sent";
       const type = socialTypeFor(opts.type, sentOnChannel);
       if (type === "follow_up_email" && !hasEmailSent) { skipped.push({ lead_id: lead.id, name, channel: c.channel, reason: "No email has been sent to this lead yet" }); continue; }
@@ -2407,7 +2412,7 @@ async function reviewSocialRecords(campaign_id: string, recs: SocialRecord[], ai
   }
 }
 
-export type SocialJobParams = { until?: number; campaign_id: string; lead_ids?: string[]; channels?: string[]; regenerate?: boolean; resume?: boolean; type?: string; manual_start?: boolean };
+export type SocialJobParams = { until?: number; campaign_id: string; lead_ids?: string[]; channels?: string[]; regenerate?: boolean; resume?: boolean; type?: string; manual_start?: boolean; since?: string };
 
 /** The social job: one message at a time with a pause (free Gemini tier), reviewed in groups of up to 5, pausing on Gemini's daily limit. */
 export async function runSocialJob(p: SocialJobParams): Promise<void> {
@@ -2425,7 +2430,7 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
   const failures: Array<{ name: string; error: string }> = [];
   const pending: SocialRecord[] = [];
   let offerText = DEFAULT_OFFER; // set from the campaign/settings below; the reviewer gets the same offer text as the email reviewer
-  const resumeParams = { campaign_id, lead_ids: p.lead_ids, channels: p.channels, regenerate: false, resume: true, type: p.type, manual_start: p.manual_start };
+  const resumeParams = { campaign_id, lead_ids: p.lead_ids, channels: p.channels, regenerate: false, resume: true, type: p.type, manual_start: p.manual_start, since: p.since };
   const flush = async () => {
     if (pending.length === 0) return;
     const batch = pending.splice(0, pending.length);
@@ -2441,7 +2446,7 @@ export async function runSocialJob(p: SocialJobParams): Promise<void> {
     const cctx = campaignSkipCtx(campaign);
     // A resumed run first reviews the messages written before the pause but never reviewed.
     if (p.resume) pending.push(...(await listJson<SocialRecord>(ss, `${campaign_id}/`)).filter((r) => r.status === "drafted" && r.review_status === null));
-    const { items } = await planSocial(campaign_id, p.lead_ids, p.channels, { regenerate: p.regenerate, type: p.type, manualStart: p.manual_start });
+    const { items } = await planSocial(campaign_id, p.lead_ids, p.channels, { regenerate: p.regenerate, type: p.type, manualStart: p.manual_start, since: p.since });
     const others = (await listJson<SocialRecord>(ss, `${campaign_id}/`)).flatMap((r) => r.parts.map((x) => x.text)).filter(Boolean);
     for (let i = 0; i < items.length && !stopped && !paused; i++) {
       if (Date.now() - t0 > JOB_MAX_MS || (p.until && Date.now() > p.until)) { stopped = `Time limit reached after ${made} message${made === 1 ? "" : "s"}. Click Write social messages again to continue.`; break; }
@@ -2516,7 +2521,7 @@ async function planSocialGroups(groups: Map<string, string[]>, channels: string[
 /** The cross-campaign run: leads grouped by campaign, each group run by the ordinary social job. Pauses on Gemini's daily limit. */
 export async function runSocialBatchJob(): Promise<void> {
   const bs = store(OUTREACH_STATE);
-  const rec0 = await readJson<Record<string, unknown> & { groups?: Array<{ campaign_id: string; lead_ids: string[] }>; params?: { channels?: string[] | null; regenerate?: boolean; type?: string | null }; status?: string }>(bs, SOCIAL_BATCH_KEY);
+  const rec0 = await readJson<Record<string, unknown> & { groups?: Array<{ campaign_id: string; lead_ids: string[] }>; params?: { channels?: string[] | null; regenerate?: boolean; type?: string | null; since?: string }; status?: string }>(bs, SOCIAL_BATCH_KEY);
   if (!rec0 || rec0.status !== "running") return;
   const until = Date.now() + JOB_MAX_MS;
   let done = Number(rec0.done ?? 0);
@@ -2530,11 +2535,11 @@ export async function runSocialBatchJob(): Promise<void> {
     for (const g of rec0.groups ?? []) {
       if (Date.now() > until) { status = "stopped"; message = `Time limit reached after ${made} message${made === 1 ? "" : "s"}. Select the leads and write again to continue.`; break; }
       const now = new Date().toISOString();
-      const plan = await planSocial(g.campaign_id, g.lead_ids, rec0.params?.channels ?? undefined, { regenerate: rec0.params?.regenerate === true, type: rec0.params?.type ?? undefined });
+      const plan = await planSocial(g.campaign_id, g.lead_ids, rec0.params?.channels ?? undefined, { regenerate: rec0.params?.regenerate === true, type: rec0.params?.type ?? undefined, since: rec0.params?.since });
       if (plan.items.length === 0) continue;
       jobMemo.delete(g.campaign_id);
       await patchState(g.campaign_id, { job: { kind: "social", status: "running", total: plan.items.length, done: 0, made: 0, started_at: now, progress_at: now } });
-      await runSocialJob({ campaign_id: g.campaign_id, lead_ids: g.lead_ids, channels: rec0.params?.channels ?? undefined, regenerate: rec0.params?.regenerate === true, type: rec0.params?.type ?? undefined, until });
+      await runSocialJob({ campaign_id: g.campaign_id, lead_ids: g.lead_ids, channels: rec0.params?.channels ?? undefined, regenerate: rec0.params?.regenerate === true, type: rec0.params?.type ?? undefined, since: rec0.params?.since, until });
       const job = ((await readState(g.campaign_id)).job ?? {}) as { status?: string; done?: number; made?: number; message?: string; failures?: Array<{ name: string; error: string }>; resume_at?: string };
       done += Number(job.done ?? 0);
       made += Number(job.made ?? 0);
@@ -3381,7 +3386,7 @@ export const handler: Handler = async (event) => {
         const now = new Date().toISOString();
         const doing = new Map<string, string[]>();
         for (const it of out.items) doing.set(String(it.lead.campaign_id), [...new Set([...(doing.get(String(it.lead.campaign_id)) ?? []), it.lead.id])]);
-        const rec = { kind: "social_batch", status: "running", total: out.items.length, done: 0, made: 0, started_at: now, progress_at: now, skipped: out.skipped.length, groups: [...doing].map(([campaign_id, lead_ids]) => ({ campaign_id, lead_ids })), params: { channels: channels ?? null, regenerate: regenerate === true, type: type ?? null } };
+        const rec = { kind: "social_batch", status: "running", total: out.items.length, done: 0, made: 0, started_at: now, progress_at: now, skipped: out.skipped.length, groups: [...doing].map(([campaign_id, lead_ids]) => ({ campaign_id, lead_ids })), params: { channels: channels ?? null, regenerate: regenerate === true, type: type ?? null, since: now } };
         await writeJson(store(OUTREACH_STATE), SOCIAL_BATCH_KEY, rec);
         return ok({ total: rec.total, skipped: out.skipped, started_at: now });
       }
@@ -3398,7 +3403,7 @@ export const handler: Handler = async (event) => {
         const rec = await readJson<Record<string, unknown> & { groups?: Array<{ campaign_id: string; lead_ids: string[] }>; params?: Record<string, unknown> }>(store(OUTREACH_STATE), SOCIAL_BATCH_KEY);
         if (!rec || !["paused", "stopped"].includes(String(rec.status))) return failCode(409, "There is no paused run to continue.", "not_paused");
         const now = new Date().toISOString();
-        await writeJson(store(OUTREACH_STATE), SOCIAL_BATCH_KEY, { ...rec, status: "running", progress_at: now, message: undefined, resume_at: undefined, params: { ...(rec.params ?? {}), regenerate: false } });
+        await writeJson(store(OUTREACH_STATE), SOCIAL_BATCH_KEY, { ...rec, status: "running", progress_at: now, message: undefined, resume_at: undefined, params: rec.params ?? {} });
         return ok({ resumed: true });
       }
 

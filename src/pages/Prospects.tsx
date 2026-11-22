@@ -104,7 +104,7 @@ function FacebookChecked({ lead, onSaved }: { lead: Prospect; onSaved: (patch: R
   );
 }
 
-type BatchStatus = { status: string; total?: number; done?: number; made?: number; skipped?: number; message?: string; resume_at?: string; failures?: Array<{ name: string; error: string }> };
+type BatchStatus = { status: string; finished_at?: string; total?: number; done?: number; made?: number; skipped?: number; message?: string; resume_at?: string; failures?: Array<{ name: string; error: string }> };
 type SocialPlan = { total: number; by_channel: Record<string, number>; leads: number; skipped: number; skip_reasons: Record<string, number>; gemini_calls: { writing: number; reviewing: number; rough_total: number } };
 
 export default function Prospects() {
@@ -334,7 +334,7 @@ export default function Prospects() {
       {rowErr && <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm px-4 py-3">{rowErr}</div>}
       {err && <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm px-4 py-3">{err}</div>}
 
-      {batch && batch.status !== "none" && (batch.status === "running" || batch.status === "paused" || batch.status === "stopped" || (batch.status === "done" && batch.made !== undefined)) && (
+      {batch && batch.status !== "none" && (batch.status === "running" || batch.status === "paused" || batch.status === "stopped" || (batch.status === "done" && batch.made !== undefined && !!batch.finished_at && Date.now() - Date.parse(batch.finished_at) < 3_600_000)) && (
         <div className={`mb-4 rounded-lg border text-sm px-4 py-3 flex items-center gap-3 flex-wrap ${batch.status === "paused" || batch.status === "stopped" ? "bg-amber-500/10 border-amber-500/30 text-amber-200" : batch.status === "done" ? "bg-green-500/10 border-green-500/30 text-green-300" : "bg-purple/10 border-purple/30 text-purple"}`} data-testid="batch-banner">
           {batch.status === "running" && <Loader2 size={15} className="animate-spin" />}
           <span className="font-semibold">
