@@ -149,11 +149,11 @@ for (const [th, width] of WIDTHS.flatMap((w) => THEMES.map((t) => [t, w]))) {
   const clickText = async (sel, re) => { const loc = page.locator(sel).filter({ hasText: re }).first(); if (await loc.count()) { await loc.click({ timeout: 3000 }).catch(() => {}); await page.waitForTimeout(500); return true; } return false; };
   const closePanel = async () => { await page.keyboard.press("Escape"); await page.waitForTimeout(250); };
 
-  for (const [route, name] of [["/", "Office"], ["/tasks", "Tasks"], ["/activity", "Activity"], ["/agents", "Agents"], ["/voice", "Voice"], ["/forms", "Forms"], ["/pages", "Pages"], ["/outreach", "Outreach"], ["/prospects", "Prospects"], ["/inbox", "Inbox"], ["/analytics", "Analytics"], ["/webhooks", "Webhooks"], ["/integrations", "Integrations"], ["/settings", "Settings"]]) {
+  for (const [route, name] of [["/", "Office"], ["/tasks", "Tasks"], ["/activity", "Activity"], ["/agents", "Agents"], ["/voice", "Voice"], ["/forms", "Forms"], ["/pages", "Pages"], ["/outreach", "Outreach"], ["/prospects", "Prospects"], ["/inbox", "Inbox"], ["/followups", "Follow-ups"], ["/analytics", "Analytics"], ["/webhooks", "Webhooks"], ["/integrations", "Integrations"], ["/settings", "Settings"]]) {
     if (ONLY && !ONLY.test(name)) continue;
     await go(route);
     await run(name);
-    if (["Outreach", "Inbox", "Prospects", "Office", "Webhooks", "Agents", "Integrations"].includes(name)) await shot(name.toLowerCase());
+    if (["Outreach", "Inbox", "Follow-ups", "Prospects", "Office", "Webhooks", "Agents", "Integrations"].includes(name)) await shot(name.toLowerCase());
   }
 
   if (ONLY) { /* limited run: panels below only for Prospects */ }
