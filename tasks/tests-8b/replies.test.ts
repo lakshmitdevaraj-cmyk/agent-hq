@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   isInboundEvent, flagFor, isOwnAddress, isHealthCheckMessage, isBounceReport, replySubject, buildReplyRecord,
-  ownReplyEmailIds, repliedEmailCount, listedToMessage, isListedInbound, webhookEventsToSend, dryRunWebhookPatch, REQUIRED_WEBHOOK_EVENTS,
+  ownReplyEmailIds, repliedEmailCount, listedToMessage, isListedInbound, webhookEventsToSend, dryRunWebhookPatch, REQUIRED_WEBHOOK_EVENTS, listMessagesQuery,
 } from "../../netlify/functions/lib/replies";
 
 let n = 0;
@@ -109,6 +110,17 @@ t("webhook: required event list includes the unauthenticated type; dry run shows
   assert.equal(d.needs_change, true);
   assert.deepEqual(d.added, ["message.received.unauthenticated"]);
   assert.equal(dryRunWebhookPatch({ webhook_id: "w1", event_types: send }).needs_change, false);
+});
+
+t("List Messages asks for spam, blocked and unauthenticated messages, on every page", () => {
+  for (const tok of [undefined, "page2"]) {
+    const q = new URLSearchParams(listMessagesQuery(tok));
+    for (const k of ["include_unauthenticated", "include_spam", "include_blocked"]) assert.equal(q.get(k), "true", k);
+    assert.equal(q.get("page_token"), tok ?? null);
+  }
+  const src = fs.readFileSync("netlify/functions/command.ts", "utf8");
+  assert.ok(!/\/messages\?limit=/.test(src), "no AgentMail message list may be built without the include_* flags");
+  assert.match(src, /\/messages\?\$\{listMessagesQuery\(/);
 });
 
 console.log(`\n${n} passed, ${failed} failed`);

@@ -157,3 +157,13 @@ export function dryRunWebhookPatch(w: { webhook_id: string; event_types: string[
   const added = after.filter((e) => !w.event_types.includes(e));
   return { webhook_id: w.webhook_id, before: w.event_types, after, added, needs_change: added.length > 0, body: { event_types: after } };
 }
+
+/**
+ * Query string for AgentMail's List Messages. AgentMail HIDES spam, blocked and unauthenticated messages from this list unless they are
+ * asked for, and those are exactly the replies the webhook may have missed, so every list call must carry all three flags.
+ */
+export function listMessagesQuery(pageToken?: string | null, limit = 100): string {
+  const q = new URLSearchParams({ limit: String(limit), include_unauthenticated: "true", include_spam: "true", include_blocked: "true" });
+  if (pageToken) q.set("page_token", pageToken);
+  return q.toString();
+}

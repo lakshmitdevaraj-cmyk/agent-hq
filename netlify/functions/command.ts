@@ -31,7 +31,7 @@ import { nextPacificMidnight, resumeAtFor, fakeQuotaHit, istText, newStats, type
 import { evidenceFor, codeReview, unbackedFactClaims, factsForReviewer, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
 import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, screenshotErrorsByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
-import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, type ListedMessage } from "./lib/replies";
+import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
@@ -4975,7 +4975,7 @@ export const handler: Handler = async (event) => {
         for (const inbox of inboxes) {
           let pt: string | undefined;
           for (let page = 0; page < 10; page++) {
-            const r = await agentmailFetch(agentmailKey, `/inboxes/${encodeURIComponent(inbox.inbox_id)}/messages?limit=100${pt ? `&page_token=${encodeURIComponent(pt)}` : ""}`);
+            const r = await agentmailFetch(agentmailKey, `/inboxes/${encodeURIComponent(inbox.inbox_id)}/messages?${listMessagesQuery(pt)}`);
             if (!r.ok) return fail(502, `AgentMail message list failed for ${inbox.inbox_id} (${r.status})`);
             const body = (await r.json()) as { messages?: ListedMessage[]; next_page_token?: string };
             for (const m of body.messages ?? []) {
