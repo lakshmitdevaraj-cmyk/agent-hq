@@ -7,7 +7,7 @@
 
 export const FOOTER_OPT_OUT_LINE = `If you would rather not hear from me, just reply "no thanks" and I won't email you again.`;
 export const FOOTER_SIGNATURE = "ShiftForge AI";
-export const FOOTER_URL = "https://shiftforge.ai";
+// The footer carries no website link (batch 8c): a link in a first email costs deliverability.
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -16,9 +16,7 @@ function escapeHtml(s: string): string {
 /**
  * Build the sign-off block + opt-out line. Order (top to bottom):
  *   Best,
- *   <sender name>
- *   ShiftForge AI
- *   https://shiftforge.ai
+ *   <sender name>, ShiftForge AI
  *   (blank)
  *   If you would rather not hear from me, ...
  *   <postal address, only if set>
@@ -33,11 +31,11 @@ export function buildFooter(
   const postal = (postalAddress ?? "").trim();
   const name = (senderName ?? "").trim();
   const sigLines = signedOff
-    ? [...(signedOff.hasCompany ? [] : [FOOTER_SIGNATURE]), FOOTER_URL]
-    : ["Best,", ...(name ? [name] : []), FOOTER_SIGNATURE, FOOTER_URL];
+    ? signedOff.hasCompany ? [] : [FOOTER_SIGNATURE]
+    : ["Best,", name ? `${name}, ${FOOTER_SIGNATURE}` : FOOTER_SIGNATURE];
   const text = [...sigLines, "", FOOTER_OPT_OUT_LINE, ...(postal ? [postal] : [])].join("\n");
   const html =
-    `<p>${sigLines.slice(0, -1).map(escapeHtml).join("<br>")}<br><a href="${FOOTER_URL}">${FOOTER_URL}</a></p>` +
+    (sigLines.length ? `<p>${sigLines.map(escapeHtml).join("<br>")}</p>` : "") +
     `<p style="margin-top:24px">${escapeHtml(FOOTER_OPT_OUT_LINE)}` +
     (postal ? `<br>${escapeHtml(postal).replace(/\r?\n/g, "<br>")}` : "") +
     `</p>`;
