@@ -3,7 +3,7 @@
  * Pure helpers only (channels, limits, checks). The app never opens or posts on these sites.
  */
 import { checkSocialBody, wordCount } from "./angle";
-import { leadSkipReason } from "./outreach";
+import { leadSkipReason, isGovEduEmail } from "./outreach";
 
 export type SocialChannel = "facebook" | "instagram" | "linkedin";
 export type SocialPartKey = "message" | "note" | "dm";
@@ -23,9 +23,29 @@ export const SOCIAL_SPECS: Record<SocialChannel, { label: string; parts: PartSpe
 };
 export const SOCIAL_CHANNELS: SocialChannel[] = ["facebook", "instagram", "linkedin"];
 
+/**
+ * first            = a standalone first message on this channel (never mentions an email: the owner may never have seen it)
+ * follow_up_email  = the user picked "Follow-up (mention my email)": refers to the email naturally
+ * follow_up_channel = a second message on a channel where one was already sent
+ */
+export type SocialType = "first" | "follow_up_email" | "follow_up_channel";
+export const SOCIAL_TYPES: SocialType[] = ["first", "follow_up_email", "follow_up_channel"];
+
+/** The type of a new message: first by default; a follow-up only when a message was already sent on that channel or the user picked it. */
+export function socialTypeFor(requested: string | null | undefined, sentOnChannel: boolean): SocialType {
+  if (requested === "follow_up_email") return "follow_up_email";
+  return sentOnChannel ? "follow_up_channel" : "first";
+}
+
+/** The texts a message has: LinkedIn's connection note belongs to a first message only; a follow-up is the message alone. */
+export function partsFor(channel: SocialChannel, type: SocialType = "first"): PartSpec[] {
+  const all = SOCIAL_SPECS[channel].parts;
+  return type === "first" ? all : all.filter((p) => p.key !== "note");
+}
+
 /** "Facebook: 40-80 words" etc., sent to the writer and the reviewer. */
-export function limitsText(channel: SocialChannel): string {
-  return SOCIAL_SPECS[channel].parts.map((p) => `${p.label}: ${p.maxChars ? `at most ${p.maxChars} characters` : `${p.minWords}-${p.maxWords} words`}`).join("; ");
+export function limitsText(channel: SocialChannel, type: SocialType = "first"): string {
+  return partsFor(channel, type).map((p) => `${p.label}: ${p.maxChars ? `at most ${p.maxChars} characters` : `${p.minWords}-${p.maxWords} words`}`).join("; ");
 }
 
 type LeadLinks = { social?: { facebook?: string | null; instagram?: string | null; linkedin_company?: string | null; linkedin_person?: string | null } | null };
@@ -49,30 +69,37 @@ type SkipLead = Parameters<typeof leadSkipReason>[0] & {
 };
 
 /**
- * Why no social message is written for this lead, or null. Same rules as emails: skipped / excluded, do not contact,
- * chain or franchise, lead-gen flagged, not a home-service business, bounced. A social message also needs a finished
- * website check (and a browser check when the site needs one), so it never states a guess.
+ * Why no social message is written for this lead, or null. A sent email, an email on file or a bounced address is NEVER a
+ * reason (they say nothing about a Facebook page). Still skipped: replied (on any channel), do not contact, excluded, chain or
+ * franchise, lead-gen flagged, not a home-service business. A bulk run also needs a finished website check (and a browser check when
+ * the site needs one), so it never states a guess; `manualStart` (the user starts one Facebook first message by hand) skips only that.
  */
-export function socialSkipReason(lead: SkipLead, ctx: { location: string | null; query: string; anyTrade: boolean }, o: { bounced: boolean; contactBlocked: boolean }): string | null {
+export function socialSkipReason(lead: SkipLead, ctx: { location: string | null; query: string; anyTrade: boolean }, o: { replied: boolean; manualStart?: boolean }): string | null {
   if (lead.do_not_contact) return "Do not contact";
-  const skip = leadSkipReason(lead, ctx);
+  if (o.replied) return "Already replied";
+  if (isGovEduEmail(lead.email)) return ".gov/.edu address";
+  // The lead's email is left out of the shared rules: a placeholder address must not block a Facebook message.
+  const skip = leadSkipReason({ ...lead, email: null }, ctx);
   if (skip) return skip.message.replace(/^Skipped: /, "");
-  if (o.contactBlocked) return "Already contacted or blocked";
-  if (o.bounced) return "Email bounced";
   const sc = lead.site_check;
   if (!lead.not_fit_kept && sc?.lead_gen_listing) return `Flagged as a lead-gen listing (${sc.lead_gen_listing})`;
   if (!lead.not_fit_kept && sc?.not_home_service) return `May not be a home-service business (${sc.not_home_service})`;
+  if (o.manualStart) return null;
   if (!sc?.checked_at || sc.error) return "Website not checked yet";
   if (sc.needs_browser && sc.via !== "browser") return "Needs a browser check first";
   return null;
 }
 
-export type SocialCheckCtx = { phoneOnlyOk?: boolean; callsOnly?: boolean; noHours?: boolean; trade?: string | null; copySources?: string[]; factCount: number; factUsed: number | null };
+export type SocialCheckCtx = { type?: SocialType; phoneOnlyOk?: boolean; callsOnly?: boolean; noHours?: boolean; trade?: string | null; copySources?: string[]; factCount: number; factUsed: number | null };
+
+const EMAIL_MENTION = /\b(?:my|our|the|an?|your) (?:short |quick |earlier |recent )?e-?mail\b|\be-?mail(?:ed)? (?:you|me|last|earlier|yesterday)|\bsent (?:you )?(?:an? |a short |a quick )?e-?mail\b|\bemailed (?:you|your|the)\b/i;
+const FOLLOW_UP_WORDS = /\b(?:following up|follow(?:ing)?[- ]up|just checking in|checking in|circling back|touching base|bumping this|bump)\b/i;
 
 /** Free code checks for one channel's texts. Empty list = passed. */
 export function precheckSocial(channel: SocialChannel, parts: Record<string, string>, ctx: SocialCheckCtx): string[] {
   const fails: string[] = [];
-  for (const spec of SOCIAL_SPECS[channel].parts) {
+  const type: SocialType = ctx.type ?? "first";
+  for (const spec of partsFor(channel, type)) {
     const text = (parts[spec.key] ?? "").trim();
     const tag = `${SOCIAL_SPECS[channel].label} ${spec.label.toLowerCase()}`;
     if (!text) { fails.push(`${tag} is empty`); continue; }
@@ -87,6 +114,12 @@ export function precheckSocial(channel: SocialChannel, parts: Record<string, str
     // The last line must not be a signature ("Best," / "Thanks," / "Lakshmi").
     const last = text.split(/\n/).map((l) => l.trim()).filter(Boolean).pop() ?? "";
     if (/^(?:best|regards|kind regards|thanks|thank you|cheers|sincerely|warmly)\b[,!.]?\s*(?:lakshmi.*)?$/i.test(last) || /^[-–—~]?\s*lakshmi(?: devaraj)?[,.]?$/i.test(last)) fails.push(`${tag} ends with a signature`);
+    if (spec.needsCall) {
+      // A standalone first message must not mention an email (the owner may never have seen it); "Follow-up (mention my email)" must.
+      if (type === "first" && EMAIL_MENTION.test(text)) fails.push(`${tag} mentions an email, but this is a standalone first message and the owner may never have seen it: leave the email out`);
+      if (type === "follow_up_email" && !/e-?mail/i.test(text)) fails.push(`${tag} must refer to the email you sent, naturally (for example "I sent a short email to your office last week")`);
+      if (type !== "first" && FOLLOW_UP_WORDS.test(text)) fails.push(`${tag} sounds like a nudge ("${(FOLLOW_UP_WORDS.exec(text) ?? [""])[0]}"): say something new instead of following up`);
+    }
     for (const f of checkSocialBody(text, { phoneOnlyOk: ctx.phoneOnlyOk, callsOnly: ctx.callsOnly, noHours: ctx.noHours, trade: ctx.trade, copySources: ctx.copySources })) fails.push(`${tag}: ${f}`);
   }
   // fact_used is bookkeeping only: never a failure.
@@ -94,11 +127,11 @@ export function precheckSocial(channel: SocialChannel, parts: Record<string, str
 }
 
 /** The writer's JSON -> parts (a missing key stays empty and fails the check). */
-export function partsFromAnswer(channel: SocialChannel, o: Record<string, unknown>): Record<string, string> {
+export function partsFromAnswer(channel: SocialChannel, o: Record<string, unknown>, type: SocialType = "first"): Record<string, string> {
   const clean = (v: unknown) => String(v ?? "").replace(/\r/g, "").trim();
   const out: Record<string, string> = {};
-  for (const spec of SOCIAL_SPECS[channel].parts) out[spec.key] = clean(o[spec.key]);
+  for (const spec of partsFor(channel, type)) out[spec.key] = clean(o[spec.key]);
   return out;
 }
 
-export const partsToList = (channel: SocialChannel, parts: Record<string, string>): SocialPart[] => SOCIAL_SPECS[channel].parts.map((s) => ({ key: s.key, label: s.label, text: parts[s.key] ?? "" }));
+export const partsToList = (channel: SocialChannel, parts: Record<string, string>, type: SocialType = "first"): SocialPart[] => partsFor(channel, type).map((s) => ({ key: s.key, label: s.label, text: parts[s.key] ?? "" }));
