@@ -41,7 +41,9 @@ export function flagFor(type: string | null | undefined, labels: string[] | null
 export function isOwnAddress(from: string | null | undefined, extra: string[] = []): boolean {
   const a = extractEmailAddress(from ?? "");
   if (!a) return false;
-  return [...OWN_ADDRESSES, ...extra].some((x) => x.trim().toLowerCase() === a.toLowerCase());
+  // name+tag@gmail.com is the same mailbox as name@gmail.com (Lakshmi's test leads use plus-addresses).
+  const base = (x: string) => x.trim().toLowerCase().replace(/^([^@+]+)\+[^@]*@(gmail\.com|googlemail\.com|yahoo\.com)$/, "$1@$2");
+  return [...OWN_ADDRESSES, ...extra].some((x) => base(x) === base(a));
 }
 
 export const HEALTH_CHECK_SUBJECT = "ShiftForge HQ webhook health check";

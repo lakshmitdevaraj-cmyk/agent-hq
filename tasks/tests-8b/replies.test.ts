@@ -27,6 +27,8 @@ t("own addresses (Lakshmi's) are recognised, prospects are not", () => {
   assert.equal(isOwnAddress("Lakshmi <shiftforge.ai@gmail.com>", own), true);
   assert.equal(isOwnAddress("lakshmi_devaraj@yahoo.com", own), true);
   assert.equal(isOwnAddress("LAKSHMI@team.shiftforge.ai", own), true);
+  assert.equal(isOwnAddress("shiftforge.ai+santhana@gmail.com", own), true, "plus-address of her gmail");
+  assert.equal(isOwnAddress("someone+x@gmail.com", own), false);
   assert.equal(isOwnAddress("santhana@regalelectrolysis.com", own), false);
   assert.equal(isOwnAddress(null, own), false);
 });
