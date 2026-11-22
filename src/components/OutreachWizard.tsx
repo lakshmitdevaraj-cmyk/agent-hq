@@ -168,7 +168,7 @@ export default function OutreachWizard({ open, onClose, onCreated }: Props) {
             </PrimaryButton>
             <button
               onClick={close}
-              className="px-4 py-3 text-sm text-white/60 hover:text-white transition font-medium"
+              className="px-4 py-3 text-sm text-muted hover:text-fg transition font-medium"
             >
               Cancel
             </button>
@@ -178,24 +178,24 @@ export default function OutreachWizard({ open, onClose, onCreated }: Props) {
 
       {step === "preview" && preview && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+          <div className="rounded-xl border border-line bg-inset p-4">
             <div className="flex items-center gap-2 mb-2">
               <MapPin size={14} className="text-primary" />
-              <span className="text-xs font-display tracking-widest uppercase text-white/60 font-bold">Location</span>
+              <span className="text-xs font-display text-muted font-medium">Location</span>
             </div>
-            <p className="text-lg font-medium text-white">{preview.location}</p>
+            <p className="text-lg font-medium text-fg">{preview.location}</p>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+          <div className="rounded-xl border border-line bg-inset p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Search size={14} className="text-purple" />
-              <span className="text-xs font-display tracking-widest uppercase text-white/60 font-bold">
+              <Search size={14} className="text-primary" />
+              <span className="text-xs font-display text-muted font-medium">
                 Search queries ({preview.searchTerms.length})
               </span>
             </div>
             <ul className="space-y-2">
               {preview.searchTerms.map((term, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-white/85">
+                <li key={i} className="flex items-start gap-2 text-sm text-fg2">
                   <ChevronRight size={14} className="text-primary shrink-0 mt-0.5" />
                   <span className="font-mono">{term}</span>
                 </li>
@@ -203,10 +203,10 @@ export default function OutreachWizard({ open, onClose, onCreated }: Props) {
             </ul>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/30 p-4 flex items-center gap-3">
+          <div className="rounded-xl border border-line bg-inset p-4 flex items-center gap-3">
             <Target size={14} className="text-accent" />
-            <span className="text-xs text-white/70">
-              Up to <span className="text-white font-bold">{preview.maxResults}</span> leads · Apify Google Maps scraper runs in Phase 3
+            <span className="text-xs text-fg2">
+              Up to <span className="text-fg font-bold">{preview.maxResults}</span> leads · Apify Google Maps scraper runs in Phase 3
             </span>
           </div>
 
@@ -222,7 +222,7 @@ export default function OutreachWizard({ open, onClose, onCreated }: Props) {
                 setStep("input");
                 setError(null);
               }}
-              className="flex items-center gap-2 px-4 py-3 text-sm rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/85 font-semibold transition"
+              className="flex items-center gap-2 px-4 py-3 text-sm rounded-lg bg-fg/5 hover:bg-fg/10 border border-line text-fg2 font-semibold transition"
             >
               <ArrowLeft size={14} /> Edit query
             </button>

@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { Task, TaskStatus } from "@/lib/types";
 
 const COLUMNS: { status: TaskStatus; label: string; accent: string }[] = [
-  { status: "todo", label: "To Do", accent: "from-white/10 to-white/0" },
+  { status: "todo", label: "To Do", accent: "from-fg/10 to-fg/0" },
   { status: "doing", label: "Doing", accent: "from-primary/25 to-primary/0" },
   { status: "needs_input", label: "Needs Input", accent: "from-amber/25 to-amber/0" },
   { status: "canceled", label: "Canceled", accent: "from-danger/20 to-danger/0" },
@@ -147,10 +147,10 @@ function KanbanColumn({
     <div className="flex flex-col gap-3">
       <div className={cn("glass p-3 bg-gradient-to-b", accent)}>
         <div className="flex items-center justify-between">
-          <span className="font-display text-xs tracking-widest uppercase text-white font-bold">
+          <span className="font-display text-xs text-fg font-medium">
             {label}
           </span>
-          <span className="text-xs text-white/70 font-mono font-bold">{count}</span>
+          <span className="text-xs text-fg2 font-mono font-bold">{count}</span>
         </div>
       </div>
       <div
@@ -182,20 +182,20 @@ function DraggableTaskCard({ task }: { task: Task }) {
 
 function TaskCard({ task, dragging }: { task: Task; dragging?: boolean }) {
   const priorityColor =
-    task.priority === "high" ? "bg-danger" : task.priority === "medium" ? "bg-primary" : "bg-white/50";
+    task.priority === "high" ? "bg-danger" : task.priority === "medium" ? "bg-primary" : "bg-fg/50";
   return (
     <GlassCard
       hover
       className={cn(
         "p-4 cursor-grab active:cursor-grabbing",
-        dragging && "ring-2 ring-primary shadow-glow rotate-1",
+        dragging && "ring-2 ring-primary rotate-1",
       )}
     >
       <div className="flex items-start gap-3">
         <span className={cn("w-1.5 h-1.5 rounded-full mt-2 shrink-0", priorityColor)} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-white font-medium leading-snug">{task.title}</p>
-          <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/65 font-bold">
+          <p className="text-sm text-fg font-medium leading-snug">{task.title}</p>
+          <div className="mt-2 flex items-center gap-2 text-label text-fg2 font-medium">
             <span>{task.priority}</span>
           </div>
         </div>

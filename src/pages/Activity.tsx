@@ -8,12 +8,12 @@ import type { Activity as Entry } from "@/lib/types";
 
 const CATEGORY_STYLE: Record<string, string> = {
   task: "text-primary border-primary/40",
-  research: "text-purple border-purple/40",
+  research: "text-primary border-primary/40",
   email: "text-accent border-accent/40",
   content: "text-amber border-amber/40",
   decision: "text-success border-success/40",
   error: "text-danger border-danger/40",
-  system: "text-white/70 border-white/20",
+  system: "text-fg2 border-line",
 };
 
 const SEED: Entry[] = [
@@ -49,21 +49,21 @@ export default function Activity() {
       />
 
       <GlassCard className="p-0">
-        <div className="divide-y divide-white/[0.06]">
+        <div className="divide-y divide-line">
           {display.map((e) => (
             <div key={e.id} className="flex items-start gap-4 px-6 py-4">
               <span
                 className={cn(
-                  "px-2.5 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-display shrink-0 mt-0.5",
+                  "px-2.5 py-0.5 rounded-full border text-label font-display shrink-0 mt-0.5",
                   CATEGORY_STYLE[e.category] ?? CATEGORY_STYLE.system,
                 )}
               >
                 {e.category}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white/90">{e.summary}</p>
+                <p className="text-sm text-fg break-words">{e.summary}</p>
               </div>
-              <span className="text-xs text-white/40 font-mono shrink-0">{timeAgo(e.created_at)}</span>
+              <span className="text-xs text-muted font-mono shrink-0">{timeAgo(e.created_at)}</span>
             </div>
           ))}
         </div>

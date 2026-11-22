@@ -83,7 +83,7 @@ export default function NewWebhookModal({ open, onClose, onCreated }: Props) {
               reset();
               onClose();
             }}
-            className="px-4 py-3 text-sm text-white/70 hover:text-white font-display font-bold uppercase tracking-widest"
+            className="px-4 py-3 text-sm text-fg2 hover:text-fg font-display font-medium"
           >
             Cancel
           </button>

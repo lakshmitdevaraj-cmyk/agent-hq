@@ -31,12 +31,12 @@ export default function VoiceOnboarding({ onSaved }: Props) {
   return (
     <GlassCard className="max-w-2xl mx-auto p-8">
       <div className="flex items-center gap-4 mb-6">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/30 to-purple/30 border border-primary/40 flex items-center justify-center shadow-glow">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/30 border border-primary/40 flex items-center justify-center">
           <Mic size={28} className="text-primary" strokeWidth={2} />
         </div>
         <div>
-          <h2 className="font-display text-2xl text-white font-bold tracking-wide">Talk to your agent</h2>
-          <p className="text-sm text-white/75 font-medium">Real voice, in your browser, free with Gemini.</p>
+          <h2 className="font-display text-2xl text-fg font-bold tracking-wide">Talk to your agent</h2>
+          <p className="text-sm text-fg2 font-medium">Real voice, in your browser, free with Gemini.</p>
         </div>
       </div>
 
@@ -50,10 +50,10 @@ export default function VoiceOnboarding({ onSaved }: Props) {
         <div className="flex items-start gap-3">
           <KeyRound size={18} className="text-primary shrink-0 mt-0.5" strokeWidth={2.3} />
           <div className="flex-1 min-w-0">
-            <div className="font-display text-sm text-white font-bold tracking-wide mb-1">
+            <div className="font-display text-sm text-fg font-bold tracking-wide mb-1">
               Getting your Gemini key
             </div>
-            <p className="text-sm text-white/80 font-medium mb-2">
+            <p className="text-sm text-fg2 font-medium mb-2">
               Open Google AI Studio → click <span className="text-primary font-bold">Get API Key</span> → Create.
               Free tier has generous limits and works for voice.
             </p>
@@ -61,7 +61,7 @@ export default function VoiceOnboarding({ onSaved }: Props) {
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-bold uppercase tracking-widest"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary font-medium"
             >
               <ExternalLink size={12} strokeWidth={2.5} />
               aistudio.google.com/apikey
@@ -74,7 +74,7 @@ export default function VoiceOnboarding({ onSaved }: Props) {
         <FormField
           label="Gemini API Key"
           required
-          hint="Starts with 'AIza'. Stored server-side in your ShiftForge HQ Blobs — never committed anywhere."
+          hint="Starts with 'AIza'. Stored server-side in your Alcance Blobs — never committed anywhere."
         >
           <TextInput
             autoFocus
@@ -103,9 +103,9 @@ function Step({ n, title, note }: { n: number; title: string; note: string }) {
         <div className="w-6 h-6 rounded-full bg-primary/25 border border-primary/50 flex items-center justify-center text-xs font-display font-black text-primary">
           {n}
         </div>
-        <span className="text-sm text-white font-bold">{title}</span>
+        <span className="text-sm text-fg font-bold">{title}</span>
       </div>
-      <p className="text-xs text-white/65 font-medium">{note}</p>
+      <p className="text-xs text-fg2 font-medium">{note}</p>
     </div>
   );
 }

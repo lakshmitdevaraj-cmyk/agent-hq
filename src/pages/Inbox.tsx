@@ -35,12 +35,12 @@ function ReplyBadges({ r }: { r: Reply }) {
   return (
     <>
       {r.flag && (
-        <span title={FLAG_TIP[r.flag]} className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-200 shrink-0">
+        <span title={FLAG_TIP[r.flag]} className="tag tag-flag shrink-0">
           {FLAG_TEXT[r.flag]}
         </span>
       )}
       {r.is_test && (
-        <span title="Sent from one of your own addresses. Not counted as a campaign reply." className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 border border-white/25 text-white/70 shrink-0">
+        <span title="Sent from one of your own addresses. Not counted as a campaign reply." className="tag tag-neutral shrink-0">
           Test
         </span>
       )}
@@ -124,18 +124,18 @@ export default function Inbox() {
       />
 
       <div className="flex justify-end items-center gap-2 flex-wrap -mt-2 mb-3">
-        {syncMsg && <span className="text-xs text-white/70 mr-1">{syncMsg}</span>}
+        {syncMsg && <span className="text-xs text-fg2 mr-1">{syncMsg}</span>}
         <button
           onClick={() => void syncMissed()}
           disabled={busy}
-          title="Reads the last 14 days from AgentMail (read-only) and adds any reply HQ does not have yet"
+          title="Reads the last 14 days from AgentMail (read-only) and adds any reply Alcance does not have yet"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-semibold transition disabled:opacity-50"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : <InboxIcon size={12} />} Check AgentMail for missed replies
         </button>
         <button
           onClick={() => void refresh()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-white/70 text-xs font-semibold transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fg/[0.04] hover:bg-fg/[0.08] border border-line text-fg2 text-xs font-semibold transition"
         >
           <RefreshCw size={12} /> Refresh
         </button>
@@ -151,12 +151,12 @@ export default function Inbox() {
       )}
 
       {loaded && replies.length === 0 && (
-        <GlassCard className="text-center py-16 bg-gradient-to-br from-primary/[0.04] to-purple/[0.04]">
-          <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5 shadow-glow">
+        <GlassCard className="text-center py-16 bg-gradient-to-br from-primary/[0.04] to-primary/[0.04]">
+          <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
             <InboxIcon size={28} className="text-primary" />
           </div>
-          <h3 className="font-display text-2xl font-bold text-white mb-2">No replies yet.</h3>
-          <p className="text-sm text-white/65 max-w-md mx-auto">
+          <h3 className="font-display text-2xl font-bold text-fg mb-2">No replies yet.</h3>
+          <p className="text-sm text-fg2 max-w-md mx-auto">
             Once you send a campaign and a prospect replies, it will show up here within seconds.
             The fastest way to see it working: add a test lead with your own email, send a campaign, reply to yourself.
           </p>
@@ -167,32 +167,32 @@ export default function Inbox() {
         <div className="grid grid-cols-1 md:grid-cols-[380px_1fr] gap-4">
           {/* Thread list */}
           <GlassCard className="!p-0 overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <div className="px-4 py-3 border-b border-line flex items-center gap-2">
               <InboxIcon size={14} className="text-primary" />
-              <span className="font-display text-xs tracking-widest uppercase text-white/75 font-bold">Inbound</span>
-              <span className="text-xs font-mono text-white/45 ml-1">({replies.length})</span>
+              <span className="font-display text-xs text-fg2 font-medium">Inbound</span>
+              <span className="text-xs font-mono text-muted ml-1">({replies.length})</span>
             </div>
             <div className="max-h-[70vh] overflow-y-auto">
               {replies.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => setSelectedId(r.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-white/[0.04] transition hover:bg-white/[0.03] ${
+                  className={`w-full text-left px-4 py-3 border-b border-line transition hover:bg-fg/[0.03] ${
                     selectedId === r.id ? "bg-primary/[0.06]" : ""
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-semibold text-white truncate flex-1">{r.from ?? "Unknown"}</span>
+                    <span className="text-sm font-semibold text-fg truncate flex-1">{r.from ?? "Unknown"}</span>
                     <ReplyBadges r={r} />
                     {r.opt_out && (
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 shrink-0">
+                      <span className="tag tag-bad shrink-0">
                         Do not contact
                       </span>
                     )}
-                    <span className="text-[10px] text-white/40 font-mono shrink-0">{timeAgo(r.received_at)}</span>
+                    <span className="text-label text-muted font-mono shrink-0">{timeAgo(r.received_at)}</span>
                   </div>
-                  <div className="text-xs text-white/65 mb-1 truncate">{r.subject ?? "(no subject)"}</div>
-                  <div className="text-xs text-white/45 line-clamp-2">{r.text ?? ""}</div>
+                  <div className="text-xs text-fg2 mb-1 truncate">{r.subject ?? "(no subject)"}</div>
+                  <div className="text-xs text-muted line-clamp-2">{r.text ?? ""}</div>
                 </button>
               ))}
             </div>
@@ -206,12 +206,12 @@ export default function Inbox() {
                   <MessageSquare size={16} className="text-green-300" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-white truncate">{selected.from ?? "Unknown"}</div>
+                  <div className="font-semibold text-fg truncate">{selected.from ?? "Unknown"}</div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-white/50 font-mono">{new Date(selected.received_at).toLocaleString()}</span>
+                    <span className="text-xs text-muted font-mono">{new Date(selected.received_at).toLocaleString()}</span>
                     <ReplyBadges r={selected} />
                   </div>
-                  {selected.flag && <div className="text-xs text-amber-200/90 mt-1">{FLAG_TIP[selected.flag]}</div>}
+                  {selected.flag && <div className="text-xs text-amber-200 mt-1">{FLAG_TIP[selected.flag]}</div>}
                   {selected.opt_out && (
                     <div className="text-xs text-red-300 mt-1">This reply asked us to stop — the lead is marked do-not-contact and won't be emailed again.</div>
                   )}
@@ -233,22 +233,17 @@ export default function Inbox() {
                   Delete
                 </button>
               </div>
-              <h2 className="font-display text-xl font-bold text-white mb-4">{selected.subject ?? "(no subject)"}</h2>
-              <div className="prose prose-invert prose-sm max-w-none">
-                {selected.html ? (
-                  <div className="text-sm text-white/85 leading-relaxed" dangerouslySetInnerHTML={{ __html: selected.html }} />
-                ) : (
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-white/85 leading-relaxed">{selected.text ?? ""}</pre>
-                )}
-              </div>
+              <h2 className="font-display text-xl font-bold text-fg mb-4">{selected.subject ?? "(no subject)"}</h2>
+              {/* Plain text only: an inbound email's own HTML is never rendered (its colours, links and scripts are not ours to run). */}
+              <pre className="whitespace-pre-wrap break-words font-sans text-sm text-fg2 leading-relaxed">{selected.text || "(no text)"}</pre>
               {selected.campaign_id && (
-                <div className="mt-5 pt-4 border-t border-white/[0.06] text-xs text-white/55">
+                <div className="mt-5 pt-4 border-t border-line text-xs text-muted">
                   From campaign <Link to={`/outreach/${selected.campaign_id}`} className="text-primary hover:underline">view campaign →</Link>
                 </div>
               )}
             </GlassCard>
           ) : (
-            <GlassCard className="flex items-center justify-center text-white/50 text-sm">
+            <GlassCard className="flex items-center justify-center text-muted text-sm">
               Select a reply on the left to read it.
             </GlassCard>
           )}

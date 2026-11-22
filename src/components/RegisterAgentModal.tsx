@@ -4,7 +4,7 @@ import { call } from "@/lib/api";
 import type { Agent } from "@/lib/types";
 
 const EMOJI_SUGGESTIONS = ["🤖", "🧭", "🚀", "🎙️", "🔍", "✍️", "🧠", "⚡", "🦾", "🔮", "📡", "🛰️"];
-const COLOR_SWATCHES = ["#00BFFF", "#FF6B35", "#A855F7", "#00E676", "#F59E0B", "#FF4D6D"];
+const COLOR_SWATCHES = ["#4C6FD6", "#B8741A", "#7A67D6", "#2F9460", "#C08A2B", "#C94B4B"];
 
 type Props = {
   open: boolean;
@@ -16,7 +16,7 @@ export default function RegisterAgentModal({ open, onClose, onCreated }: Props) 
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [emoji, setEmoji] = useState("🤖");
-  const [color, setColor] = useState("#00BFFF");
+  const [color, setColor] = useState("#4C6FD6");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export default function RegisterAgentModal({ open, onClose, onCreated }: Props) 
     setName("");
     setRole("");
     setEmoji("🤖");
-    setColor("#00BFFF");
+    setColor("#4C6FD6");
     setError(null);
   }
 
@@ -89,8 +89,8 @@ export default function RegisterAgentModal({ open, onClose, onCreated }: Props) 
                 onClick={() => setEmoji(e)}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition ${
                   emoji === e
-                    ? "bg-primary/25 border-2 border-primary shadow-glow"
-                    : "bg-white/5 border border-white/10 hover:border-white/30"
+                    ? "bg-primary/25 border-2 border-primary"
+                    : "bg-fg/5 border border-line hover:border-line"
                 }`}
               >
                 {e}
@@ -107,7 +107,7 @@ export default function RegisterAgentModal({ open, onClose, onCreated }: Props) 
                 type="button"
                 onClick={() => setColor(c)}
                 className={`w-10 h-10 rounded-lg transition border-2 ${
-                  color === c ? "border-white shadow-lg" : "border-transparent hover:border-white/40"
+                  color === c ? "border-line shadow-lg" : "border-transparent hover:border-line"
                 }`}
                 style={{ backgroundColor: c }}
               />
@@ -127,7 +127,7 @@ export default function RegisterAgentModal({ open, onClose, onCreated }: Props) 
               reset();
               onClose();
             }}
-            className="px-4 py-3 text-sm text-white/70 hover:text-white font-display font-bold uppercase tracking-widest"
+            className="px-4 py-3 text-sm text-fg2 hover:text-fg font-display font-medium"
           >
             Cancel
           </button>

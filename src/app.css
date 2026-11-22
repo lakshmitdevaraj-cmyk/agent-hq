@@ -2,6 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens ───────────────────────────────────────
+   Every colour in the app comes from these variables ("R G B" so opacity classes work).
+   They follow the Mac's light/dark setting automatically; there is no switch.
+   green = ready / success, amber = emailed / in progress / warning, red = error / bounced / do not contact,
+   violet = flagged (unauthenticated, spam, blocked), blue = main buttons and links, grey = neutral. */
+:root {
+  color-scheme: light;
+  --page: 247 248 250;     /* #F7F8FA */
+  --card: 255 255 255;     /* #FFFFFF */
+  --inset: 241 243 247;    /* fields and code blocks */
+  --line: 226 229 235;     /* #E2E5EB */
+  --fg: 28 32 48;          /* #1C2030 */
+  --fg2: 85 92 108;        /* #555C6C (darker than #5D6475, which missed 4.5:1 on tinted fills) */
+  --muted: 96 103 117;     /* #606775 (darker than #6B7280, which missed 4.5:1 on tinted rows) */
+  --primary: 47 91 211;    /* #2F5BD3 */
+  --on-solid: 255 255 255; /* text on a solid colour */
+  /* Text colours for use on tinted backgrounds: a little darker than the solid colours so they pass 4.5:1 */
+  --primary-ink: 36 70 168;
+  --ok-ink: 23 99 59;
+  --warn-ink: 137 80 10;
+  --bad-ink: 155 28 18;
+  --flag-ink: 75 56 168;
+  --ok: 30 122 74;         /* #1E7A4A */
+  --warn: 168 98 15;       /* #A8620F */
+  --bad: 180 35 24;        /* #B42318 */
+  --flag: 90 69 194;       /* #5A45C2 */
+  --fs-min: 12px;          /* nothing is smaller than this */
+  --fs-label: 13px;        /* badges, labels, table headers, dates, helper notes */
+  --fs-body: 14.5px;       /* normal text, messages, table cells */
+  --tint: 0.10;            /* strength of tinted badge backgrounds */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: 15 17 23;      /* #0F1117 */
+    --card: 22 25 34;      /* #161922 */
+    --inset: 11 13 18;
+    --line: 38 42 53;      /* #262A35 */
+    --fg: 236 237 241;     /* #ECEDF1 */
+    --fg2: 163 168 182;    /* #A3A8B6 */
+    --muted: 138 144 160;  /* #8A90A0 */
+    --primary: 157 184 245; /* #9DB8F5 */
+    --on-solid: 15 17 23;  /* #0F1117 */
+    --primary-ink: 157 184 245;
+    --ok-ink: 143 216 174;
+    --warn-ink: 242 195 139;
+    --bad-ink: 241 154 154;
+    --flag-ink: 194 181 247;
+    --ok: 143 216 174;     /* #8FD8AE */
+    --warn: 242 195 139;   /* #F2C38B */
+    --bad: 241 154 154;    /* #F19A9A */
+    --flag: 194 181 247;   /* #C2B5F7 */
+    --tint: 0.13;
+  }
+}
+
 :where(*, *::before, *::after) {
   box-sizing: border-box;
 }
@@ -23,8 +79,8 @@ html {
 body {
   font-family: "Rajdhani", system-ui, sans-serif;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.96);
-  background: #0a0a0f;
+  color: rgb(var(--fg));
+  background: rgb(var(--page));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -44,44 +100,23 @@ pre {
   font-family: "JetBrains Mono", monospace;
 }
 
-/* ── Ambient background ─────────────────────────────── */
-.app-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(1200px 800px at 15% 10%, rgba(0, 191, 255, 0.12), transparent 60%),
-    radial-gradient(1000px 700px at 85% 90%, rgba(168, 85, 247, 0.12), transparent 60%),
-    #0a0a0f;
-}
+/* ── Background: flat page colour (no glow, no grid) ── */
+.app-bg { position: fixed; inset: 0; z-index: -2; background: rgb(var(--page)); }
+.grid-bg { display: none; }
 
-.grid-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-}
-
-/* ── Glass card ─────────────────────────────── */
+/* ── Glass card (now a plain card) */ ─────────────────────────────── */
 .glass {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--line));
   border-radius: 16px;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
 .glass-hover {
   transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
 }
 .glass-hover:hover {
-  border-color: rgba(0, 191, 255, 0.4);
-  box-shadow: 0 0 24px rgba(0, 191, 255, 0.18), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  border-color: rgb(var(--primary) / 0.5);
 }
 
 /* ── Stat number ─────────────────────────────── */
@@ -90,11 +125,7 @@ pre {
   font-weight: 700;
   font-size: 64px;
   line-height: 1;
-  background: linear-gradient(135deg, #00bfff 0%, #a855f7 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 32px rgba(0, 191, 255, 0.35);
+  color: rgb(var(--fg));
 }
 
 /* ── Page header ─────────────────────────────── */
@@ -103,7 +134,7 @@ pre {
   display: inline-block;
   font-family: "Orbitron", sans-serif;
   font-weight: 700;
-  font-size: 3rem;
+  font-size: clamp(2rem, 7vw, 3rem);
   letter-spacing: 0.01em;
   padding-bottom: 10px;
 }
@@ -114,7 +145,7 @@ pre {
   bottom: 0;
   height: 2px;
   width: 72%;
-  background: linear-gradient(90deg, #00bfff, #a855f7 60%, transparent);
+  background: linear-gradient(90deg, rgb(var(--primary)), transparent);
   border-radius: 2px;
 }
 
@@ -126,19 +157,19 @@ pre {
   height: 52px;
   padding: 0 16px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgb(var(--fg2));
   font-weight: 700;
   letter-spacing: 0.03em;
   transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 .nav-pill:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.04);
+  color: rgb(var(--fg));
+  background: rgb(var(--fg) / 0.06);
 }
 .nav-pill.active {
-  color: #fff;
-  background: linear-gradient(135deg, rgba(0, 191, 255, 0.18), rgba(168, 85, 247, 0.18));
-  box-shadow: inset 0 0 0 1px rgba(0, 191, 255, 0.35), 0 8px 32px -10px rgba(0, 191, 255, 0.45);
+  color: rgb(var(--primary));
+  background: rgb(var(--primary) / 0.14);
+  box-shadow: inset 0 0 0 1px rgb(var(--primary) / 0.4);
 }
 
 /* ── Pulse dot ─────────────────────────────── */
@@ -162,10 +193,10 @@ pre {
   100% { transform: scale(1.6); opacity: 0; }
 }
 
-.dot-green { color: #00e676; background: #00e676; }
-.dot-amber { color: #f59e0b; background: #f59e0b; }
-.dot-red { color: #ff4d6d; background: #ff4d6d; }
-.dot-gray { color: #6b7280; background: #6b7280; }
+.dot-green { color: rgb(var(--ok)); background: rgb(var(--ok)); }
+.dot-amber { color: rgb(var(--warn)); background: rgb(var(--warn)); }
+.dot-red { color: rgb(var(--bad)); background: rgb(var(--bad)); }
+.dot-gray { color: rgb(var(--muted)); background: rgb(var(--muted)); }
 
 /* ── Floating agent sprite ─────────────────────────────── */
 @keyframes float-y {
@@ -183,21 +214,9 @@ pre {
 /* Live feed: a new entry at the top gets a soft cyan pulse + slide-in so the
    eye catches that something new arrived without a full re-render flicker. */
 @keyframes feed-flash {
-  0% {
-    background: rgba(0, 191, 255, 0.18);
-    transform: translateY(-4px);
-    opacity: 0.2;
-  }
-  40% {
-    background: rgba(0, 191, 255, 0.12);
-    transform: translateY(0);
-    opacity: 1;
-  }
-  100% {
-    background: transparent;
-    transform: translateY(0);
-    opacity: 1;
-  }
+  0% { background: rgb(var(--primary) / 0.16); transform: translateY(-4px); opacity: 0.2; }
+  40% { background: rgb(var(--primary) / 0.10); transform: translateY(0); opacity: 1; }
+  100% { background: transparent; transform: translateY(0); opacity: 1; }
 }
 .animate-feed-flash { animation: feed-flash 1800ms ease-out; }
 
@@ -205,9 +224,9 @@ pre {
    user's eye is pulled to the one that just moved. Pairs with the
    AnimatedNumber React component that toggles the class on value change. */
 @keyframes count-pulse {
-  0% { transform: scale(1); text-shadow: 0 0 0 rgba(0,191,255,0); }
-  30% { transform: scale(1.14); text-shadow: 0 0 22px rgba(0,191,255,0.7); }
-  100% { transform: scale(1); text-shadow: 0 0 0 rgba(0,191,255,0); }
+  0% { transform: scale(1); }
+  30% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 .animate-count-pulse { animation: count-pulse 900ms ease-out; }
 
@@ -215,7 +234,30 @@ pre {
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgb(var(--fg) / 0.18);
   border-radius: 8px;
 }
-*::-webkit-scrollbar-thumb:hover { background: rgba(0, 191, 255, 0.35); }
+*::-webkit-scrollbar-thumb:hover { background: rgb(var(--fg) / 0.32); }
+
+/* ── Status tags (small labels): dark = tinted background + light text; light = solid colour + white text ── */
+.tag { display: inline-block; font-weight: 600; border-radius: 4px; padding: 2px 7px; font-size: var(--fs-label); line-height: 1.35; white-space: nowrap; }
+.tag-ok { border-color: transparent; background: rgb(var(--ok)); color: rgb(var(--on-solid)); }
+.tag-warn { border-color: transparent; background: rgb(var(--warn)); color: rgb(var(--on-solid)); }
+.tag-bad { border-color: transparent; background: rgb(var(--bad)); color: rgb(var(--on-solid)); }
+.tag-flag { border-color: transparent; background: rgb(var(--flag)); color: rgb(var(--on-solid)); }
+.tag-info { border-color: transparent; background: rgb(var(--primary)); color: rgb(var(--on-solid)); }
+.tag-neutral { border-color: transparent; background: rgb(var(--fg2)); color: rgb(var(--page)); }
+@media (prefers-color-scheme: dark) {
+  .tag-ok { border-color: transparent; background: rgb(var(--ok) / var(--tint)); color: rgb(var(--ok)); }
+  .tag-warn { border-color: transparent; background: rgb(var(--warn) / var(--tint)); color: rgb(var(--warn)); }
+  .tag-bad { border-color: transparent; background: rgb(var(--bad) / var(--tint)); color: rgb(var(--bad)); }
+  .tag-flag { border-color: transparent; background: rgb(var(--flag) / var(--tint)); color: rgb(var(--flag)); }
+  .tag-info { border-color: transparent; background: rgb(var(--primary) / var(--tint)); color: rgb(var(--primary)); }
+  .tag-neutral { border-color: transparent; background: rgb(var(--fg) / 0.1); color: rgb(var(--fg2)); }
+}
+
+/* A one-column grid may shrink below its content (otherwise long text pushes the page sideways). */
+@layer base { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Placeholder text uses the muted token (the browser default is too faint). */
+input::placeholder, textarea::placeholder, ::placeholder { color: rgb(var(--muted)); opacity: 1; }

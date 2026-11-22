@@ -50,8 +50,8 @@ export default function FormSubmissions() {
       <>
         <BackLink />
         <GlassCard className="text-center py-16">
-          <div className="font-display text-xl text-white font-bold mb-2">Form not found</div>
-          <p className="text-sm text-white/70 font-medium">
+          <div className="font-display text-xl text-fg font-bold mb-2">Form not found</div>
+          <p className="text-sm text-fg2 font-medium">
             The form <code className="font-mono text-accent">{slug}</code> doesn't exist in your dashboard.
           </p>
         </GlassCard>
@@ -80,21 +80,21 @@ export default function FormSubmissions() {
 
       {/* Public URL bar */}
       <GlassCard className="mb-6 flex items-center gap-4 p-4">
-        <div className="text-[10px] uppercase tracking-widest text-white/70 font-display font-bold shrink-0">
+        <div className="text-label text-fg2 font-display font-medium shrink-0">
           Public URL
         </div>
-        <div className="flex items-center gap-2 font-mono text-xs text-white/95 bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 flex-1 min-w-0">
+        <div className="flex items-center gap-2 font-mono text-xs text-fg bg-inset border border-line rounded-lg px-3 py-2 flex-1 min-w-0">
           <span className="truncate flex-1 font-semibold">{publicUrl}</span>
           <button
             onClick={() => void copyToClipboard(publicUrl)}
-            className="text-primary hover:text-primary/80 shrink-0"
+            className="text-primary hover:text-primary shrink-0"
           >
             <Copy size={14} />
           </button>
         </div>
         <div className="shrink-0 flex flex-col items-end">
           <div className="stat-num text-3xl">{submissions.length}</div>
-          <div className="text-[10px] text-white/70 uppercase tracking-widest font-bold">
+          <div className="text-label text-fg2 font-medium">
             submission{submissions.length === 1 ? "" : "s"}
           </div>
         </div>
@@ -109,13 +109,13 @@ export default function FormSubmissions() {
 
       {loaded && submissions.length === 0 ? (
         <GlassCard className="text-center py-16">
-          <Inbox size={48} className="text-white/30 mx-auto mb-4" strokeWidth={1.5} />
-          <div className="font-display text-xl text-white font-bold mb-2">No submissions yet</div>
-          <p className="text-sm text-white/70 font-medium max-w-md mx-auto mb-5">
+          <Inbox size={48} className="text-muted mx-auto mb-4" strokeWidth={1.5} />
+          <div className="font-display text-xl text-fg font-bold mb-2">No submissions yet</div>
+          <p className="text-sm text-fg2 font-medium max-w-md mx-auto mb-5">
             Share the URL above. Every submission shows up here in real time and drops
             into the agent activity log.
           </p>
-          <div className="flex items-center justify-center gap-1.5 text-xs text-white/50 font-mono">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted font-mono">
             <RefreshCw size={11} className="animate-spin" /> Auto-refreshing every 5s
           </div>
         </GlassCard>
@@ -130,7 +130,7 @@ function BackLink() {
   return (
     <Link
       to="/forms"
-      className="inline-flex items-center gap-1.5 text-xs text-white/70 hover:text-primary mb-6 font-display font-bold uppercase tracking-widest transition"
+      className="inline-flex items-center gap-1.5 text-xs text-fg2 hover:text-primary mb-6 font-display font-medium transition"
     >
       <ArrowLeft size={14} strokeWidth={2.5} /> All Forms
     </Link>
@@ -149,19 +149,19 @@ function SubmissionsTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/[0.08] bg-white/[0.02]">
-              <th className="text-left px-5 py-3 font-display text-[10px] uppercase tracking-widest text-white/75 font-bold">
+            <tr className="border-b border-line bg-fg/[0.02]">
+              <th className="text-left px-5 py-3 font-display text-label text-fg2 font-medium">
                 Received
               </th>
               {form.fields.map((f) => (
                 <th
                   key={f.name}
-                  className="text-left px-5 py-3 font-display text-[10px] uppercase tracking-widest text-white/75 font-bold"
+                  className="text-left px-5 py-3 font-display text-label text-fg2 font-medium"
                 >
                   {f.label}
                 </th>
               ))}
-              <th className="text-left px-5 py-3 font-display text-[10px] uppercase tracking-widest text-white/75 font-bold">
+              <th className="text-left px-5 py-3 font-display text-label text-fg2 font-medium">
                 ID
               </th>
             </tr>
@@ -170,27 +170,27 @@ function SubmissionsTable({
             {submissions.map((s, i) => (
               <tr
                 key={s.id}
-                className={`border-b border-white/[0.04] hover:bg-primary/[0.04] transition ${
+                className={`border-b border-line hover:bg-primary/[0.04] transition ${
                   i === 0 ? "bg-primary/[0.03]" : ""
                 }`}
               >
-                <td className="px-5 py-3 font-mono text-xs text-white/80 font-semibold whitespace-nowrap">
+                <td className="px-5 py-3 font-mono text-xs text-fg2 font-semibold whitespace-nowrap">
                   {timeAgo(s.received_at)}
                 </td>
                 {form.fields.map((f) => (
                   <td
                     key={f.name}
-                    className="px-5 py-3 text-white/95 font-medium max-w-xs truncate"
+                    className="px-5 py-3 text-fg font-medium max-w-xs truncate"
                     title={String(s.data?.[f.name] ?? "")}
                   >
                     {s.data?.[f.name] ? (
                       <span>{String(s.data[f.name])}</span>
                     ) : (
-                      <span className="text-white/30">—</span>
+                      <span className="text-muted">—</span>
                     )}
                   </td>
                 ))}
-                <td className="px-5 py-3 font-mono text-[10px] text-white/40">{s.id}</td>
+                <td className="px-5 py-3 font-mono text-label text-muted">{s.id}</td>
               </tr>
             ))}
           </tbody>

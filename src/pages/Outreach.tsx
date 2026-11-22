@@ -47,12 +47,12 @@ type Campaign = {
 type ConfigStatus = Record<string, { configured: boolean }>;
 
 const STATUS_COLORS: Record<Campaign["status"], string> = {
-  draft: "bg-white/10 border-white/20 text-white/70",
-  searching: "bg-primary/15 border-primary/40 text-primary",
-  ready: "bg-accent/15 border-accent/40 text-accent",
-  sending: "bg-purple/15 border-purple/40 text-purple",
-  completed: "bg-green-500/15 border-green-500/40 text-green-300",
-  failed: "bg-red-500/15 border-red-500/40 text-red-300",
+  draft: "bg-fg/10 border-line text-fg2",
+  searching: "tag-warn",
+  ready: "tag-ok",
+  sending: "tag-warn",
+  completed: "tag-ok",
+  failed: "tag-bad",
 };
 
 export default function Outreach() {
@@ -141,7 +141,7 @@ export default function Outreach() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSkillOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent/25 to-purple/25 border border-accent/50 text-white hover:border-accent/80 transition font-bold tracking-wide shadow-glow-accent"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent/25 to-primary/25 border border-accent/50 text-fg hover:border-accent/80 transition font-bold tracking-wide"
             >
               <Sparkles size={16} strokeWidth={2.5} /> Teach Your Agent
             </button>
@@ -157,16 +157,16 @@ export default function Outreach() {
 
       {/* Missing-keys nudge */}
       {loaded && missingKeys.length > 0 && (
-        <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.08] to-purple/[0.08] border-accent/30">
+        <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.08] to-primary/[0.08] border-accent/30">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center shrink-0">
               <AlertCircle size={18} className="text-accent" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-white/90 font-semibold mb-0.5">
+              <p className="text-sm text-fg font-semibold mb-0.5">
                 Connect {missingKeys.join(" + ")} to unlock the full flywheel
               </p>
-              <p className="text-xs text-white/65">
+              <p className="text-xs text-fg2">
                 Gemini powers the preview. Apify scrapes leads. AgentMail sends &amp; tracks. All free tier.
               </p>
             </div>
@@ -204,18 +204,18 @@ export default function Outreach() {
 
       {/* Campaigns list */}
       {empty && (
-        <GlassCard className="text-center py-16 bg-gradient-to-br from-primary/[0.04] to-purple/[0.04] border-white/10">
-          <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5 shadow-glow">
+        <GlassCard className="text-center py-16 bg-gradient-to-br from-primary/[0.04] to-primary/[0.04] border-line">
+          <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto mb-5">
             <Target size={28} className="text-primary" />
           </div>
-          <h3 className="font-display text-2xl font-bold text-white mb-2">Your first campaign in one sentence.</h3>
-          <p className="text-sm text-white/65 max-w-md mx-auto mb-6">
+          <h3 className="font-display text-2xl font-bold text-fg mb-2">Your first campaign in one sentence.</h3>
+          <p className="text-sm text-fg2 max-w-md mx-auto mb-6">
             Type "dental clinics in Austin, 4-star+" and your agent turns it into a list of real prospects,
             personalised drafts, and a live send from its own inbox.
           </p>
           <button
             onClick={() => setWizardOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-black font-display font-black tracking-widest text-sm uppercase shadow-glow hover:bg-primary/90 transition"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-on-solid font-display font-black tracking-widest text-sm uppercase hover:bg-primary/90 transition"
           >
             <Sparkles size={14} /> Describe your ICP
           </button>
@@ -223,52 +223,52 @@ export default function Outreach() {
       )}
 
       {!empty && (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           {campaigns.map((c) => (
-            <GlassCard key={c.id} hover className="bg-gradient-to-br from-white/[0.02] to-white/[0.005] !p-0">
+            <GlassCard key={c.id} hover className="bg-gradient-to-br from-fg/[0.02] to-fg/[0.005] !p-0">
               <div className="flex items-start gap-5 p-6">
                 <Link to={`/outreach/${c.id}`} className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 hover:border-primary/60 transition">
                   <Target size={20} className="text-primary" />
                 </Link>
 
-                <Link to={`/outreach/${c.id}`} className="flex-1 min-w-0 space-y-2 hover:text-white">
+                <Link to={`/outreach/${c.id}`} className="flex-1 min-w-0 space-y-2 hover:text-fg">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-display text-base font-bold text-white truncate">{c.name}</h3>
+                    <h3 className="font-display text-base font-bold text-fg truncate">{c.name}</h3>
                     <span
-                      className={`px-2 py-0.5 rounded-full border text-[10px] font-mono font-bold uppercase tracking-wider ${STATUS_COLORS[c.status]}`}
+                      className={`px-2 py-0.5 rounded-full border text-label font-mono font-bold ${STATUS_COLORS[c.status]}`}
                     >
                       {c.status}
                     </span>
                   </div>
 
                   {c.description && (
-                    <p className="text-xs text-white/55">{c.description}</p>
+                    <p className="text-xs text-muted">{c.description}</p>
                   )}
 
-                  <p className="text-sm text-white/70 italic line-clamp-2">"{c.query}"</p>
+                  <p className="text-sm text-fg2 italic line-clamp-2">"{c.query}"</p>
 
                   {c.structured_query && (
                     <div className="flex flex-wrap gap-1.5 items-center">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/25 text-primary text-[11px] font-mono">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/25 text-primary text-label font-mono">
                         <MapPin size={10} /> {c.structured_query.location}
                       </span>
                       {c.structured_query.searchTerms.slice(0, 3).map((t, i) => (
                         <span
                           key={i}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/65 text-[11px] font-mono"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-fg/5 border border-line text-fg2 text-label font-mono"
                         >
                           <Search size={10} /> {t}
                         </span>
                       ))}
                       {c.structured_query.searchTerms.length > 3 && (
-                        <span className="text-[11px] text-white/40 font-mono">
+                        <span className="text-label text-muted font-mono">
                           +{c.structured_query.searchTerms.length - 3}
                         </span>
                       )}
                     </div>
                   )}
 
-                  <div className="flex items-center gap-4 text-[11px] text-white/55 font-mono pt-1">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-label text-muted font-mono pt-1">
                     <span>{c.leads_imported} leads</span>
                     <span>·</span>
                     <span>{c.emails_sent} sent</span>
@@ -336,17 +336,17 @@ function StatCard({
 }) {
   const tints: Record<typeof tint, string> = {
     primary: "from-primary/15 to-primary/5 border-primary/25 text-primary",
-    purple: "from-purple/15 to-purple/5 border-purple/25 text-purple",
+    purple: "from-primary/15 to-primary/5 border-primary/25 text-primary",
     accent: "from-accent/15 to-accent/5 border-accent/25 text-accent",
     green: "from-green-500/15 to-green-500/5 border-green-500/25 text-green-300",
   };
   return (
     <div className={`rounded-xl p-4 bg-gradient-to-br ${tints[tint]} border`}>
       <div className="flex items-center gap-2 mb-2 opacity-90">{icon}</div>
-      <div className="font-display text-2xl font-black text-white tracking-tight">
+      <div className="font-display text-2xl font-black text-fg tracking-tight">
         <AnimatedNumber value={value} />
       </div>
-      <div className="text-[10px] uppercase tracking-widest text-white/60 font-semibold mt-0.5">{label}</div>
+      <div className="text-label text-muted font-medium mt-0.5">{label}</div>
     </div>
   );
 }

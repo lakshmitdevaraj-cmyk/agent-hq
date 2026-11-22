@@ -655,7 +655,7 @@ export default function CampaignDetail() {
 
   if (!campaign) {
     return (
-      <div className="flex items-center gap-3 text-white/60">
+      <div className="flex items-center gap-3 text-muted">
         <Loader2 size={16} className="animate-spin" /> Loading campaign…
       </div>
     );
@@ -671,7 +671,7 @@ export default function CampaignDetail() {
         right={
           <Link
             to="/outreach"
-            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 font-semibold transition"
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-fg/5 hover:bg-fg/10 border border-line text-fg2 font-semibold transition"
           >
             <ArrowLeft size={14} /> All campaigns
           </Link>
@@ -693,7 +693,7 @@ export default function CampaignDetail() {
             <AlertCircle size={18} className="shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold mb-1">Last action failed</p>
-              <p className="text-xs text-red-300/80">{campaign.error_message}</p>
+              <p className="text-xs text-red-300">{campaign.error_message}</p>
             </div>
           </div>
         </GlassCard>
@@ -734,7 +734,7 @@ export default function CampaignDetail() {
                 {job.kind === "browsercheck" && (job.apify_status || job.log_tail) && (
                   <div className="mt-1 text-xs opacity-90">
                     {job.apify_status && <div>Apify run: {job.apify_status}{job.apify_message ? ` · ${job.apify_message}` : ""}</div>}
-                    {job.log_tail && <pre className="mt-1 whitespace-pre-wrap font-mono text-[10px] opacity-80 max-h-28 overflow-auto">{job.log_tail}</pre>}
+                    {job.log_tail && <pre className="mt-1 whitespace-pre-wrap font-mono text-label opacity-80 max-h-28 overflow-auto">{job.log_tail}</pre>}
                   </div>
                 )}
                 {job.failures && job.failures.length > 0 && (
@@ -754,7 +754,7 @@ export default function CampaignDetail() {
               )}
             </div>
             {running && (
-              <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="mt-2 h-1.5 rounded-full bg-fg/10 overflow-hidden">
                 <div className="h-full bg-primary transition-all duration-500" style={{ width: `${Math.round((done / Math.max(1, job.total)) * 100)}%` }} />
               </div>
             )}
@@ -764,14 +764,14 @@ export default function CampaignDetail() {
 
       {/* Scraping banner — Apify run in progress, UI polls every 4s */}
       {campaign.status === "searching" && (
-        <GlassCard className="mb-5 bg-gradient-to-br from-primary/[0.08] to-purple/[0.08] border-primary/40">
+        <GlassCard className="mb-5 bg-gradient-to-br from-primary/[0.08] to-primary/[0.08] border-primary/40">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
               <Loader2 size={18} className="text-primary animate-spin" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white mb-0.5">Apify scraping Google Maps…</p>
-              <p className="text-xs text-white/65">
+              <p className="text-sm font-semibold text-fg mb-0.5">Apify scraping Google Maps…</p>
+              <p className="text-xs text-fg2">
                 Typically 30 seconds to 2 minutes. Leads will appear here automatically when the run completes.
                 {campaign.apify_status && (
                   <span className="font-mono text-primary ml-1">· {campaign.apify_status}</span>
@@ -782,7 +782,7 @@ export default function CampaignDetail() {
               href={campaign.apify_run_id ? `https://console.apify.com/actors/runs/${campaign.apify_run_id}` : "#"}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-xs text-primary hover:text-white font-mono"
+              className="shrink-0 text-xs text-primary hover:text-fg font-mono"
             >
               View on Apify ↗
             </a>
@@ -791,7 +791,7 @@ export default function CampaignDetail() {
       )}
 
       {/* Strategy summary */}
-      <GlassCard className="mb-5 bg-gradient-to-br from-primary/[0.05] to-purple/[0.05]">
+      <GlassCard className="mb-5 bg-gradient-to-br from-primary/[0.05] to-primary/[0.05]">
         <div className="flex items-start gap-5">
           <div className="w-12 h-12 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
             <Target size={20} className="text-primary" />
@@ -801,15 +801,15 @@ export default function CampaignDetail() {
               <>
                 <div className="flex items-center gap-2 flex-wrap">
                   <MapPin size={14} className="text-primary" />
-                  <span className="text-sm font-medium text-white">{structured.location}</span>
-                  <span className="text-xs text-white/45">·</span>
-                  <span className="text-xs text-white/55 font-mono">up to {structured.maxResults} leads</span>
+                  <span className="text-sm font-medium text-fg">{structured.location}</span>
+                  <span className="text-xs text-muted">·</span>
+                  <span className="text-xs text-muted font-mono">up to {structured.maxResults} leads</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {structured.searchTerms.map((t, i) => (
                     <span
                       key={i}
-                      className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/65 text-[11px] font-mono"
+                      className="px-2 py-0.5 rounded-md bg-fg/5 border border-line text-fg2 text-label font-mono"
                     >
                       {t}
                     </span>
@@ -818,13 +818,13 @@ export default function CampaignDetail() {
               </>
             )}
             <div className="flex items-center gap-3 pt-1 flex-wrap">
-              <p className="text-xs text-white/50">
-                Status: <span className="text-white/80 font-semibold uppercase tracking-wider">{campaign.status}</span>
+              <p className="text-xs text-muted">
+                Status: <span className="text-fg2 font-medium">{campaign.status}</span>
               </p>
-              <span className="text-white/20">·</span>
+              <span className="text-muted">·</span>
               <SenderNameEditor campaign={campaign} onUpdate={() => void refresh()} />
-              <span className="text-white/20">·</span>
-              <label className="flex items-center gap-1.5 text-xs text-white/65 cursor-pointer" title="Turns off the 'different trade' skip and keeps the email wording trade-neutral">
+              <span className="text-muted">·</span>
+              <label className="flex items-center gap-1.5 text-xs text-fg2 cursor-pointer" title="Turns off the 'different trade' skip and keeps the email wording trade-neutral">
                 <input type="checkbox" className="accent-primary" checked={campaign.any_trade !== false} onChange={(e) => void setAnyTrade(e.target.checked)} />
                 Home services, any trade
               </label>
@@ -884,8 +884,8 @@ export default function CampaignDetail() {
 
       {/* Batch send control — applies to "Send campaign" and to each step button */}
       {((counters?.drafts ?? 0) > 0 || (counters?.sent ?? 0) > 0) && (
-        <div className="mb-5 flex items-center gap-3 flex-wrap rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3">
-          <label htmlFor="send-count" className="text-xs font-bold tracking-wider uppercase text-white/70">
+        <div className="mb-5 flex items-center gap-3 flex-wrap rounded-xl bg-fg/[0.03] border border-line px-4 py-3">
+          <label htmlFor="send-count" className="text-xs font-medium text-fg2">
             Send how many?
           </label>
           <input
@@ -896,18 +896,18 @@ export default function CampaignDetail() {
             value={sendCount}
             onChange={(e) => setSendCount(e.target.value)}
             disabled={busyAction !== null}
-            className="w-20 px-2 py-1.5 rounded-lg bg-black/30 border border-white/15 text-white text-sm font-mono focus:outline-none focus:border-accent/60"
+            className="w-20 px-2 py-1.5 rounded-lg bg-inset border border-line text-fg text-sm font-mono focus:outline-none focus:border-accent/60"
           />
-          <span className="text-sm text-white/80 font-mono" data-testid="send-summary">
+          <span className="text-sm text-fg2 font-mono" data-testid="send-summary">
             {counters?.sent ?? 0} sent, {counters?.drafts ?? 0} still queued
           </span>
           {(counters?.drafts ?? 0) > 0 && (
-            <span className="text-xs font-mono text-white/60">
+            <span className="text-xs font-mono text-muted">
               <span className="text-green-300">{readyDrafts} ready</span> · <span className="text-amber-300">{checkDrafts} check this</span> · <span className="text-red-300">{blockedDrafts} blocked</span>
             </span>
           )}
           {lastSend && (
-            <span className="text-xs text-white/50 font-mono">
+            <span className="text-xs text-muted font-mono">
               last send: {lastSend.sent} sent{lastSend.errors > 0 ? `, ${lastSend.errors} failed` : ""}{lastSend.skipped > 0 ? `, ${lastSend.skipped} skipped (already contacted or bounced)` : ""}{lastSend.notReady > 0 ? `, ${lastSend.notReady} not sent (not checked yet)` : ""}{lastSend.blocked > 0 ? `, ${lastSend.blocked} blocked` : ""}{lastSend.excluded > 0 ? `, ${lastSend.excluded} for skipped leads` : ""}
             </span>
           )}
@@ -919,24 +919,24 @@ export default function CampaignDetail() {
             Send selected ({selectedDrafts})
           </button>
           {selectedDrafts > 0 && (
-            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-white/50 hover:text-white underline">
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-muted hover:text-fg underline">
               Clear selection
             </button>
           )}
-          <span className="text-[11px] text-white/40 ml-auto">"Send" only sends drafts that passed the AI check. Tick drafts to send exact ones (a "check this" draft asks you to confirm first).</span>
+          <span className="text-label text-muted ml-auto">"Send" only sends drafts that passed the AI check. Tick drafts to send exact ones (a "check this" draft asks you to confirm first).</span>
         </div>
       )}
 
       {/* Per-step send bar — appears only for sequence campaigns. Each step
           is a separate send button so the user controls cadence manually. */}
       {sequenceInfo.isSequence && (
-        <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.06] to-purple/[0.06]">
+        <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.06] to-primary/[0.06]">
           <div className="flex items-center gap-2 mb-3">
             <Send size={14} className="text-accent" />
-            <h3 className="font-display text-xs tracking-widest uppercase text-white/75 font-bold">
+            <h3 className="font-display text-xs text-fg2 font-medium">
               Sequence · {sequenceInfo.framework?.toUpperCase()}
             </h3>
-            <span className="text-[11px] text-white/45 font-mono">
+            <span className="text-label text-muted font-mono">
               {sequenceInfo.maxStep} steps · send each on your own cadence
             </span>
           </div>
@@ -948,20 +948,20 @@ export default function CampaignDetail() {
               return (
                 <div
                   key={step.step}
-                  className="rounded-xl border border-white/10 bg-black/30 p-3 flex flex-col gap-2"
+                  className="rounded-xl border border-line bg-inset p-3 flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-accent/15 border border-accent/40 flex items-center justify-center text-accent font-bold text-xs">
                       {step.step}
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-white">Step {step.step}</div>
-                      <div className="text-[11px] font-mono text-white/50">
+                      <div className="text-sm font-semibold text-fg">Step {step.step}</div>
+                      <div className="text-label font-mono text-muted">
                         {step.sent}/{step.sent + step.drafted} sent
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-white/55 font-mono">
+                  <div className="flex items-center gap-3 text-label text-muted font-mono">
                     <span>{step.drafted} drafts</span>
                     {step.replied > 0 && <span className="text-green-300">{step.replied} replied</span>}
                     {step.clicked > 0 && <span className="text-accent">{step.clicked} clicks</span>}
@@ -972,7 +972,7 @@ export default function CampaignDetail() {
                     title={!prevSent && step.step > 1 ? `Send step ${step.step - 1} first` : undefined}
                     className={`mt-1 px-3 py-2 rounded-lg text-xs font-bold tracking-wide transition ${
                       disabled
-                        ? "bg-white/5 border border-white/10 text-white/40 cursor-not-allowed"
+                        ? "bg-fg/5 border border-line text-muted cursor-not-allowed"
                         : "bg-accent/20 hover:bg-accent/30 border border-accent/50 text-accent"
                     }`}
                   >
@@ -987,7 +987,7 @@ export default function CampaignDetail() {
               );
             })}
           </div>
-          <p className="text-[10px] text-white/40 mt-3 font-mono">
+          <p className="text-label text-muted mt-3 font-mono">
             Leads who reply to an earlier step are auto-skipped on later sends.
           </p>
         </GlassCard>
@@ -998,7 +998,7 @@ export default function CampaignDetail() {
         <button
           onClick={() => void refreshNow()}
           disabled={refreshing}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-white/70 text-[11px] font-semibold transition disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-fg/[0.04] hover:bg-fg/[0.08] border border-line text-fg2 text-label font-semibold transition disabled:opacity-50"
           title="Reload this campaign and refresh email statuses from AgentMail"
         >
           {refreshing ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Refresh now
@@ -1018,26 +1018,26 @@ export default function CampaignDetail() {
         <GlassCard className="mb-6 bg-gradient-to-br from-green-500/[0.06] to-transparent border-green-500/30">
           <div className="flex items-center gap-2 mb-4">
             <MessageSquare size={16} className="text-green-400" />
-            <h3 className="font-display text-sm tracking-widest uppercase text-green-300 font-bold">Recent replies</h3>
-            <span className="text-xs font-mono text-white/50">({replies.length})</span>
+            <h3 className="font-display text-sm text-green-300 font-medium">Recent replies</h3>
+            <span className="text-xs font-mono text-muted">({replies.length})</span>
           </div>
           <div className="space-y-2">
             {replies.slice(0, 5).map((r) => (
-              <div key={r.id} className="rounded-lg bg-black/30 border border-white/10 p-3 flex items-start gap-3">
+              <div key={r.id} className="rounded-lg bg-inset border border-line p-3 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center shrink-0">
                   <MessageSquare size={13} className="text-green-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-white truncate">{r.from ?? "Unknown"}</span>
-                    <span className="text-xs text-white/40 font-mono">{timeAgo(r.received_at)}</span>
+                    <span className="text-sm font-semibold text-fg truncate">{r.from ?? "Unknown"}</span>
+                    <span className="text-xs text-muted font-mono">{timeAgo(r.received_at)}</span>
                   </div>
-                  <p className="text-xs text-white/65 mb-1 truncate">{r.subject ?? "(no subject)"}</p>
-                  <p className="text-xs text-white/55 line-clamp-2">{r.text ?? ""}</p>
+                  <p className="text-xs text-fg2 mb-1 truncate">{r.subject ?? "(no subject)"}</p>
+                  <p className="text-xs text-muted line-clamp-2">{r.text ?? ""}</p>
                 </div>
                 <Link
                   to="/inbox"
-                  className="shrink-0 px-2.5 py-1 rounded-md bg-green-500/15 hover:bg-green-500/25 border border-green-500/40 text-green-300 text-[10px] font-bold tracking-wider uppercase transition"
+                  className="shrink-0 px-2.5 py-1 rounded-md bg-green-500/15 hover:bg-green-500/25 border border-green-500/40 text-green-300 text-label font-bold transition"
                 >
                   Open
                 </Link>
@@ -1052,8 +1052,8 @@ export default function CampaignDetail() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-primary" />
-            <h3 className="font-display text-sm tracking-widest uppercase text-white/75 font-bold">Leads</h3>
-            <span className="text-xs font-mono text-white/50">({leads.length})</span>
+            <h3 className="font-display text-sm text-fg2 font-medium">Leads</h3>
+            <span className="text-xs font-mono text-muted">({leads.length})</span>
           </div>
           <div className="flex items-center gap-2">
             {leads.some((l) => !l.is_test) && (() => {
@@ -1064,7 +1064,7 @@ export default function CampaignDetail() {
                   onClick={recheckSites}
                   disabled={checking || localJob !== null}
                   title="Looks at every lead's website for chat, online booking, social links and the owner's name. Information only: nothing is drafted or sent."
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-xs font-bold tracking-wide transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
                 >
                   {checking ? <Loader2 size={13} className="animate-spin" /> : <Radar size={13} />}
                   {checking ? `Checking ${jobView?.done ?? 0} of ${jobView?.job.total ?? ""}` : stopped ? "Continue website check" : "Check websites"}
@@ -1097,7 +1097,7 @@ export default function CampaignDetail() {
                   onClick={() => void startSocial()}
                   disabled={running}
                   title="Writes a short message for each lead with a Facebook, Instagram or LinkedIn page, whether or not you have emailed them (leads that replied are left out). You copy and send them yourself; the app never posts anything."
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-xs font-bold tracking-wide transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-50"
                 >
                   {running ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
                   {running ? "Writing social messages…" : `Write social messages (${reach})`}
@@ -1114,90 +1114,90 @@ export default function CampaignDetail() {
         </div>
 
         {leads.length === 0 ? (
-          <div className="text-center py-10 text-white/50 text-sm">
-            No leads yet. Click <span className="text-white font-semibold">Run Apify scrape</span> above, or add a test lead with your own email.
+          <div className="text-center py-10 text-muted text-sm">
+            No leads yet. Click <span className="text-fg font-semibold">Run Apify scrape</span> above, or add a test lead with your own email.
           </div>
         ) : (
           <>
-            <p className="text-[11px] text-white/45 mb-2 font-mono">
+            <p className="text-label text-muted mb-2 font-mono">
               {counters.leadsWithEmail} of {counters.leads} leads have email addresses.
               {counters.leads - counters.leadsWithEmail > 0 && ` ${counters.leads - counters.leadsWithEmail} will be skipped at generate time.`}
             </p>
             {(campaign.total_leads_found ?? 0) > 0 && campaign.leads_skipped_duplicate !== undefined && (
-              <p className="text-[11px] text-white/60 mb-2 font-mono" data-testid="dedupe-summary">
+              <p className="text-label text-muted mb-2 font-mono" data-testid="dedupe-summary">
                 {campaign.total_leads_found} found, {campaign.leads_skipped_duplicate} skipped as already contacted
               </p>
             )}
             <div className="space-y-1">
               {leads.map((l) => (
-                <div key={l.id} className="group flex items-center gap-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 transition cursor-pointer"
+                <div key={l.id} className="group flex items-center gap-3 rounded-lg bg-fg/[0.02] hover:bg-fg/[0.05] border border-line hover:border-line px-3 py-2 transition cursor-pointer"
                      onClick={() => setLeadDetail(l)}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-white truncate">{l.name}</span>
+                      <span className="text-sm font-medium text-fg truncate">{l.name}</span>
                       {l.is_test && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/20 border border-accent/40 text-accent text-[9px] font-bold tracking-wider uppercase">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/20 border border-accent/40 text-accent text-label font-bold">
                           <Beaker size={9} /> Test
                         </span>
                       )}
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/45">
+                      <span className="text-label font-mono px-1.5 py-0.5 rounded bg-fg/5 text-muted">
                         {l.status}
                       </span>
                       {l.do_not_contact && (
-                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 uppercase tracking-wider">
+                        <span className="text-label font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-300">
                           do not contact
                         </span>
                       )}
                       {l.excluded && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white/70">
+                        <span className="text-label font-mono px-1.5 py-0.5 rounded bg-fg/10 border border-line text-fg2">
                           excluded
                         </span>
                       )}
                       {l.contacted_at && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-300">
+                        <span className="text-label font-mono px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-300">
                           contacted
                         </span>
                       )}
                       {l.skip_reason && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                        <span className="text-label font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
                           {l.skip_reason.replace(/^Skipped: /, "skip: ")}
                         </span>
                       )}
                       {l.trade_override && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary">
+                        <span className="text-label font-mono px-1.5 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary">
                           included anyway
                         </span>
                       )}
                       {!l.email && !l.is_test && (reachAnotherWay(l).length > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple/15 border border-purple/40 text-purple">
+                        <span className="inline-flex items-center gap-1 text-label font-mono px-1.5 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary">
                           Reach another way
                           <span className="inline-flex gap-1" onClick={(ev) => ev.stopPropagation()}>
                             <LinkIcons items={reachAnotherWay(l)} size={10} />
                           </span>
                         </span>
                       ) : (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                        <span className="text-label font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
                           no email
                         </span>
                       ))}
                       <GapBadge score={l.gap_score} reasons={l.gap_reasons} />
                       <FitLabels lead={l} />
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-white/50 font-mono mt-0.5 flex-wrap">
-                      {l.email && <span className="text-white/70">{l.email}</span>}
+                    <div className="flex items-center gap-3 text-label text-muted font-mono mt-0.5 flex-wrap">
+                      {l.email && <span className="text-fg2">{l.email}</span>}
                       {l.category && <span>· {l.category}</span>}
                       {l.rating !== null && <span>· <Star size={9} className="inline -mt-0.5" /> {l.rating}{l.reviews_count ? ` (${l.reviews_count})` : ""}</span>}
                       {l.address && <span className="truncate max-w-[220px]">· {l.address}</span>}
-                      {ownerText(l) && <span className={l.owner_confidence === "low" ? "text-white/45" : "text-white/70"}>· Owner: {ownerText(l)}</span>}
+                      {ownerText(l) && <span className={l.owner_confidence === "low" ? "text-muted" : "text-fg2"}>· Owner: {ownerText(l)}</span>}
                     </div>
                     {(l.gap_reasons?.length ?? 0) > 0 && (
-                      <div className="text-[11px] text-white/50 mt-0.5">{l.gap_reasons!.join(" · ")}</div>
+                      <div className="text-label text-muted mt-0.5">{l.gap_reasons!.join(" · ")}</div>
                     )}
                     {(() => {
                       const sentAt = emailedAt.get(l.id) ?? l.contacted_at;
                       if (!sentAt) return null;
                       const found = foundSocialText(l);
-                      return <div className="text-[11px] text-green-300/80 mt-0.5">Emailed {shortDate(sentAt)}{found ? ` · ${found}` : ""}</div>;
+                      return <div className="text-label text-green-300 mt-0.5">Emailed {shortDate(sentAt)}{found ? ` · ${found}` : ""}</div>;
                     })()}
                   </div>
                   <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1205,7 +1205,7 @@ export default function CampaignDetail() {
                     {l.phone && (
                       <a
                         href={`tel:${l.phone}`}
-                        className="w-8 h-8 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white flex items-center justify-center transition"
+                        className="w-8 h-8 rounded-md bg-fg/5 hover:bg-fg/10 border border-line text-fg2 hover:text-fg flex items-center justify-center transition"
                         title={l.phone}
                       >
                         <Phone size={12} />
@@ -1221,34 +1221,34 @@ export default function CampaignDetail() {
                     <div className="relative">
                       <button
                         onClick={() => setLeadMenu(leadMenu === l.id ? null : l.id)}
-                        className="w-8 h-8 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white flex items-center justify-center transition"
+                        className="w-8 h-8 rounded-md bg-fg/5 hover:bg-fg/10 border border-line text-fg2 hover:text-fg flex items-center justify-center transition"
                         title="More"
                         aria-label={`More actions for ${l.name}`}
                       >
                         <MoreHorizontal size={14} />
                       </button>
                       {leadMenu === l.id && (
-                        <div className="absolute right-0 top-9 z-20 min-w-[210px] rounded-lg bg-[#14161f] border border-white/15 shadow-xl py-1 text-xs">
+                        <div className="absolute right-0 top-9 z-20 min-w-[210px] rounded-lg bg-card border border-line shadow-xl py-1 text-xs">
                           {!l.do_not_contact && (
                             <button
-                              className="w-full text-left px-3 py-2 hover:bg-white/10"
+                              className="w-full text-left px-3 py-2 hover:bg-fg/10"
                               onClick={() => { setLeadMenu(null); void setLeadExcluded(l.id, !l.excluded); }}
                             >
                               {l.excluded ? "Include this lead" : "Skip this lead"}
                             </button>
                           )}
                           {l.website && !l.is_test && (
-                            <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void startBrowserCheck(l.id); }}>
+                            <button className="w-full text-left px-3 py-2 hover:bg-fg/10" onClick={() => { setLeadMenu(null); void startBrowserCheck(l.id); }}>
                               Re-check in browser
                             </button>
                           )}
                           {l.skip_code === "other_trade" && (
-                            <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, true); }}>
+                            <button className="w-full text-left px-3 py-2 hover:bg-fg/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, true); }}>
                               Include anyway (different trade)
                             </button>
                           )}
                           {l.trade_override && (
-                            <button className="w-full text-left px-3 py-2 hover:bg-white/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, false); }}>
+                            <button className="w-full text-left px-3 py-2 hover:bg-fg/10" onClick={() => { setLeadMenu(null); void setTradeOverride(l.id, false); }}>
                               Go back to skipping other trades
                             </button>
                           )}
@@ -1266,16 +1266,16 @@ export default function CampaignDetail() {
       {/* Email drafts */}
       <GlassCard className="mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Mail size={16} className="text-purple" />
-          <h3 className="font-display text-sm tracking-widest uppercase text-white/75 font-bold">Emails</h3>
-          <span className="text-xs font-mono text-white/50">({emails.length})</span>
+          <Mail size={16} className="text-primary" />
+          <h3 className="font-display text-sm text-fg2 font-medium">Emails</h3>
+          <span className="text-xs font-mono text-muted">({emails.length})</span>
           {emails.some((e) => e.status === "drafted") && (
             <div className="ml-auto flex items-center gap-1.5 flex-wrap">
               {(["all", "ready", "check", "blocked"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setReviewFilter(f)}
-                  className={`px-2 py-1 rounded-md border text-[11px] font-semibold transition ${reviewFilter === f ? "bg-primary/20 border-primary/50 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white"}`}
+                  className={`px-2 py-1 rounded-md border text-label font-semibold transition ${reviewFilter === f ? "bg-primary/20 border-primary/50 text-fg" : "bg-fg/5 border-line text-muted hover:text-fg"}`}
                 >
                   {f === "all" ? "All" : f === "ready" ? `Ready (${readyDrafts})` : f === "check" ? `Check this (${checkDrafts})` : `Blocked (${blockedDrafts})`}
                 </button>
@@ -1284,7 +1284,7 @@ export default function CampaignDetail() {
                 onClick={() => void startReview()}
                 disabled={campaign.job?.status === "running"}
                 title="The AI checker reads each draft against what we found on the lead's website and marks it Ready, Check this or Blocked."
-                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple/15 hover:bg-purple/25 border border-purple/40 text-purple text-[11px] font-bold transition disabled:opacity-50"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-label font-bold transition disabled:opacity-50"
               >
                 <ShieldCheck size={11} /> Review all
               </button>
@@ -1292,8 +1292,8 @@ export default function CampaignDetail() {
           )}
         </div>
         {emails.length === 0 ? (
-          <div className="text-center py-10 text-white/50 text-sm">
-            <>No drafts yet. Click <span className="text-white font-semibold">Generate emails</span> after leads are in.</>
+          <div className="text-center py-10 text-muted text-sm">
+            <>No drafts yet. Click <span className="text-fg font-semibold">Generate emails</span> after leads are in.</>
           </div>
         ) : (
           <>
@@ -1306,7 +1306,7 @@ export default function CampaignDetail() {
                   <div
                     key={e.id}
                     onClick={() => setEmailDetail(e)}
-                    className="rounded-lg bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] hover:border-white/[0.12] p-3 cursor-pointer transition"
+                    className="rounded-lg bg-fg/[0.02] hover:bg-fg/[0.05] border border-line hover:border-line p-3 cursor-pointer transition"
                   >
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       {e.status === "drafted" && !unsendable(e) && (
@@ -1316,40 +1316,40 @@ export default function CampaignDetail() {
                           onChange={() => toggleSelected(e.id)}
                           onClick={(ev) => ev.stopPropagation()}
                           aria-label={`Select draft to ${e.to_email}`}
-                          className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                          className="w-4 h-4 accent-primary cursor-pointer"
                         />
                       )}
                       {showStep && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/10 border border-accent/30 text-accent text-[10px] font-bold tracking-wider uppercase">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/10 border border-accent/30 text-accent text-label font-bold">
                           Step {pos}/{total}
                         </span>
                       )}
                       {e.source === "agent_drafted" && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple/15 border border-purple/30 text-purple text-[10px] font-bold tracking-wider uppercase">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-primary text-label font-bold">
                           Agent
                         </span>
                       )}
-                      <span className="text-xs text-white/50 font-mono">to</span>
-                      <span className="text-sm text-white font-medium truncate">{e.to_email}</span>
+                      <span className="text-xs text-muted font-mono">to</span>
+                      <span className="text-sm text-fg font-medium truncate">{e.to_email}</span>
                       <StatusPill status={e.status} />
                       {e.status === "drafted" && <ReviewBadge status={e.review_status ?? "check"} />}
                       {e.blocked_lead_skipped && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-white/10 border border-white/20 text-white/70 text-[10px] font-bold tracking-wider uppercase" title="You skipped this lead, so this draft will never be sent.">
+                        <span className="px-1.5 py-0.5 rounded-md bg-fg/10 border border-line text-fg2 text-label font-bold" title="You skipped this lead, so this draft will never be sent.">
                           Lead skipped
                         </span>
                       )}
                       {e.blocked_contact && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-bold tracking-wider uppercase" title="This draft will not be sent.">
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-300 text-label font-bold" title="This draft will not be sent.">
                           {/bounced/i.test(e.blocked_contact) ? "Bounced earlier" : "Already contacted"}
                         </span>
                       )}
                       {e.blocked_do_not_contact && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 border border-red-500/40 text-red-300 text-[10px] font-bold tracking-wider uppercase" title="This person asked not to be contacted. This draft will never be sent.">
+                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 border border-red-500/40 text-red-300 text-label font-bold" title="This person asked not to be contacted. This draft will never be sent.">
                           Blocked: do not contact
                         </span>
                       )}
                       {(e.click_count ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-label font-bold">
                           <MousePointerClick size={10} /> {e.click_count}
                         </span>
                       )}
@@ -1359,7 +1359,7 @@ export default function CampaignDetail() {
                             {(e.review_status ?? "check") !== "ready" && (
                               <button
                                 onClick={() => void markReady(e)}
-                                className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-300 text-[11px] font-semibold transition"
+                                className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-300 text-label font-semibold transition"
                                 title="I have read it myself: mark it ready to send"
                               >
                                 <Check size={11} /> Mark ready
@@ -1368,42 +1368,42 @@ export default function CampaignDetail() {
                             <button
                               onClick={() => void startReview([e.id])}
                               disabled={campaign.job?.status === "running"}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple/10 hover:bg-purple/20 border border-purple/30 text-purple text-[11px] font-semibold transition disabled:opacity-40"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-label font-semibold transition disabled:opacity-40"
                               title="Run the AI check on this draft again"
                             >
                               <ShieldCheck size={11} /> Review again
                             </button>
                             <button
                               onClick={() => setEditDraft(e)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-[11px] font-semibold transition"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-fg/5 hover:bg-fg/10 border border-line text-fg2 hover:text-fg text-label font-semibold transition"
                               title="Edit subject and body"
                             >
                               <Pencil size={11} /> Edit
                             </button>
                             <button
                               onClick={() => void deleteDraft(e)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-[11px] font-semibold transition"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-label font-semibold transition"
                               title="Delete this draft"
                             >
                               <Trash2 size={11} /> Delete
                             </button>
                           </>
                         )}
-                        <ExternalLink size={11} className="text-white/30" />
+                        <ExternalLink size={11} className="text-muted" />
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-white mb-0.5">{e.subject}</p>
-                    <p className="text-xs text-white/55 line-clamp-2 whitespace-pre-wrap">{e.body_text}</p>
+                    <p className="text-sm font-semibold text-fg mb-0.5">{e.subject}</p>
+                    <p className="text-xs text-muted line-clamp-2 whitespace-pre-wrap">{e.body_text}</p>
                     {e.status === "drafted" && (e.review_reasons?.length ?? 0) > 0 && (e.review_status ?? "check") !== "ready" && (
-                      <ul className={`mt-1.5 text-[11px] list-disc pl-5 ${(e.review_status ?? "check") === "blocked" ? "text-red-300/90" : "text-amber-300/90"}`}>
+                      <ul className={`mt-1.5 text-label list-disc pl-5 ${(e.review_status ?? "check") === "blocked" ? "text-red-300" : "text-amber-300"}`}>
                         {e.review_reasons!.map((r, i) => <li key={i}>{r}</li>)}
                       </ul>
                     )}
                     {e.status === "drafted" && (e.review_status ?? "check") === "ready" && (e.review_reasons?.length ?? 0) > 0 && (
-                      <p className="mt-1 text-[11px] text-green-300/80">{e.review_reasons![0]}</p>
+                      <p className="mt-1 text-label text-green-300">{e.review_reasons![0]}</p>
                     )}
                     {e.status === "drafted" && (e.written_by || e.reviewed_by) && (
-                      <p className="mt-1 text-[10px] text-white/35 font-mono">{e.written_by ? `written by ${e.written_by}` : ""}{e.written_by && e.reviewed_by ? " · " : ""}{e.reviewed_by ? `checked by ${e.reviewed_by}` : ""}</p>
+                      <p className="mt-1 text-label text-muted font-mono">{e.written_by ? `written by ${e.written_by}` : ""}{e.written_by && e.reviewed_by ? " · " : ""}{e.reviewed_by ? `checked by ${e.reviewed_by}` : ""}</p>
                     )}
                   </div>
                 );
@@ -1477,12 +1477,12 @@ export default function CampaignDetail() {
 
 function ReviewBadge({ status }: { status: "ready" | "check" | "blocked" }) {
   const map = {
-    ready: { label: "Ready", cls: "bg-green-500/15 border-green-500/40 text-green-300", Icon: ShieldCheck },
-    check: { label: "Check this", cls: "bg-amber-500/15 border-amber-500/40 text-amber-300", Icon: ShieldAlert },
-    blocked: { label: "Blocked", cls: "bg-red-500/15 border-red-500/40 text-red-300", Icon: ShieldX },
+    ready: { label: "Ready", cls: "tag-ok", Icon: ShieldCheck },
+    check: { label: "Check this", cls: "tag-warn", Icon: ShieldAlert },
+    blocked: { label: "Blocked", cls: "tag-bad", Icon: ShieldX },
   }[status];
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-wider uppercase ${map.cls}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-label font-bold ${map.cls}`}>
       <map.Icon size={10} /> {map.label}
     </span>
   );
@@ -1499,7 +1499,7 @@ function FitLabels({ lead }: { lead: Lead }) {
   return (
     <>
       {items.map((i) => (
-        <span key={i.text} title={i.title} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${i.text === "Browser-checked" ? "bg-green-500/10 border-green-500/30 text-green-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"}`}>
+        <span key={i.text} title={i.title} className={`text-label font-mono px-1.5 py-0.5 rounded border ${i.text === "Browser-checked" ? "tag-ok" : "tag-warn"}`}>
           {i.text}
         </span>
       ))}
@@ -1526,7 +1526,7 @@ function ActionButton({
 }) {
   const tints: Record<typeof tint, string> = {
     primary: "from-primary/15 to-primary/5 border-primary/30 hover:border-primary/60 text-primary",
-    purple: "from-purple/15 to-purple/5 border-purple/30 hover:border-purple/60 text-purple",
+    purple: "from-primary/15 to-primary/5 border-primary/30 hover:border-primary/60 text-primary",
     accent: "from-accent/15 to-accent/5 border-accent/30 hover:border-accent/60 text-accent",
   };
   return (
@@ -1537,9 +1537,9 @@ function ActionButton({
     >
       <div className="flex items-center gap-2 mb-1.5">
         {busy ? <Loader2 size={16} className="animate-spin" /> : icon}
-        <span className="font-display text-sm font-bold tracking-wide text-white">{label}</span>
+        <span className="font-display text-sm font-bold tracking-wide text-fg">{label}</span>
       </div>
-      <p className="text-xs text-white/60">{sublabel}</p>
+      <p className="text-xs text-muted">{sublabel}</p>
     </button>
   );
 }
@@ -1547,14 +1547,14 @@ function ActionButton({
 function MiniStat({ label, value, icon, tint }: { label: string; value: number; icon: React.ReactNode; tint: "primary" | "purple" | "accent" | "green" }) {
   const tints: Record<typeof tint, string> = {
     primary: "text-primary",
-    purple: "text-purple",
+    purple: "text-primary",
     accent: "text-accent",
     green: "text-green-300",
   };
   return (
-    <div className="rounded-lg bg-white/[0.02] border border-white/[0.06] px-3 py-2">
-      <div className={`flex items-center gap-1.5 mb-0.5 ${tints[tint]}`}>{icon}<span className="text-[10px] uppercase tracking-widest font-bold">{label}</span></div>
-      <div className="font-display text-xl font-black text-white">
+    <div className="rounded-lg bg-fg/[0.02] border border-line px-3 py-2">
+      <div className={`flex items-center gap-1.5 mb-0.5 ${tints[tint]}`}>{icon}<span className="text-label font-medium">{label}</span></div>
+      <div className="font-display text-xl font-black text-fg">
         <AnimatedNumber value={value} />
       </div>
     </div>
@@ -1563,17 +1563,17 @@ function MiniStat({ label, value, icon, tint }: { label: string; value: number; 
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    drafted: "bg-white/5 border-white/15 text-white/60",
-    sent: "bg-primary/15 border-primary/40 text-primary",
-    delivered: "bg-green-500/15 border-green-500/40 text-green-300",
-    bounced: "bg-red-500/15 border-red-500/40 text-red-300",
-    clicked: "bg-accent/15 border-accent/40 text-accent",
-    replied: "bg-green-500/25 border-green-500/60 text-green-200",
-    complained: "bg-red-500/15 border-red-500/40 text-red-300",
-    failed: "bg-red-500/15 border-red-500/40 text-red-300",
+    drafted: "bg-fg/5 border-line text-muted",
+    sent: "tag-warn",
+    delivered: "tag-ok",
+    bounced: "tag-bad",
+    clicked: "tag-info",
+    replied: "tag-ok",
+    complained: "tag-bad",
+    failed: "tag-bad",
   };
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md border text-[10px] font-bold tracking-wider uppercase ${map[status] ?? "bg-white/5 border-white/10 text-white/50"}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md border text-label font-bold ${map[status] ?? "bg-fg/5 border-line text-muted"}`}>
       {status}
     </span>
   );
@@ -1627,7 +1627,7 @@ function AddTestLeadModal({ open, onClose, campaignId, onAdded }: { open: boolea
           <PrimaryButton type="submit" loading={busy} disabled={!email.trim() || busy}>
             <FlaskConical size={14} /> Add test lead
           </PrimaryButton>
-          <button type="button" onClick={onClose} className="px-4 py-3 text-sm text-white/60 hover:text-white font-medium">Cancel</button>
+          <button type="button" onClick={onClose} className="px-4 py-3 text-sm text-muted hover:text-fg font-medium">Cancel</button>
         </div>
       </form>
     </Modal>
@@ -1790,7 +1790,7 @@ function GenerateEmailsModal({
       <form onSubmit={submit} className="space-y-4">
         {/* Framework picker — the new heart of the flow */}
         <div>
-          <div className="text-xs uppercase tracking-widest text-white/80 font-display font-bold mb-2">
+          <div className="text-xs text-fg2 font-display font-medium mb-2">
             Sequence framework
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1803,24 +1803,24 @@ function GenerateEmailsModal({
                   onClick={() => setFramework(opt.value)}
                   className={`text-left rounded-xl border px-3 py-2.5 transition ${
                     active
-                      ? "bg-primary/15 border-primary/50 shadow-glow"
-                      : "bg-white/[0.02] border-white/10 hover:border-white/25"
+                      ? "bg-primary/15 border-primary/50"
+                      : "bg-fg/[0.02] border-line hover:border-line"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`font-display font-bold text-sm ${active ? "text-white" : "text-white/85"}`}>
+                    <span className={`font-display font-bold text-sm ${active ? "text-fg" : "text-fg2"}`}>
                       {opt.label}
                     </span>
                     {active && <Check size={13} className="text-primary" />}
                   </div>
-                  <p className={`text-[11px] ${active ? "text-white/75" : "text-white/50"}`}>{opt.desc}</p>
+                  <p className={`text-label ${active ? "text-fg2" : "text-muted"}`}>{opt.desc}</p>
                   {opt.stepLabels && (
-                    <div className="flex items-center gap-1 mt-2 text-[10px] font-mono text-white/50">
-                      <span className="px-1.5 py-0.5 rounded bg-black/30">1· {opt.stepLabels[0]}</span>
+                    <div className="flex items-center gap-1 mt-2 text-label font-mono text-muted">
+                      <span className="px-1.5 py-0.5 rounded bg-inset">1· {opt.stepLabels[0]}</span>
                       <span>→</span>
-                      <span className="px-1.5 py-0.5 rounded bg-black/30">2· {opt.stepLabels[1]}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-inset">2· {opt.stepLabels[1]}</span>
                       <span>→</span>
-                      <span className="px-1.5 py-0.5 rounded bg-black/30">3· {opt.stepLabels[2]}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-inset">3· {opt.stepLabels[2]}</span>
                     </div>
                   )}
                 </button>
@@ -1828,20 +1828,20 @@ function GenerateEmailsModal({
             })}
           </div>
           {totalSteps > 1 && (
-            <p className="text-[11px] text-white/55 mt-2">
+            <p className="text-label text-muted mt-2">
               You'll send each step manually — "Send step 1" now, then "Send step 2" a few days later, etc.
               Leads who reply to an earlier step are auto-skipped on later sends.
             </p>
           )}
         </div>
 
-        <div className="rounded-lg bg-white/[0.03] border border-white/[0.08] p-3 space-y-1">
+        <div className="rounded-lg bg-fg/[0.03] border border-line p-3 space-y-1">
           <div className="flex justify-between text-sm">
-            <span className="text-white/70">Drafts to create</span>
+            <span className="text-fg2">Drafts to create</span>
             <span className="font-mono font-bold text-primary">
               {plannedCount}
               {totalSteps > 1 && (
-                <span className="text-white/50 font-normal text-xs ml-1">
+                <span className="text-muted font-normal text-xs ml-1">
                   ({leadsWithEmail.length} leads × {totalSteps} steps)
                 </span>
               )}
@@ -1849,7 +1849,7 @@ function GenerateEmailsModal({
           </div>
           {skippedExcluded > 0 && (
             <div className="flex justify-between text-xs">
-              <span className="text-amber-300/80">Leads you unticked (not drafted)</span>
+              <span className="text-amber-300">Leads you unticked (not drafted)</span>
               <span className="font-mono text-amber-300">{skippedExcluded}</span>
             </div>
           )}
@@ -1857,26 +1857,26 @@ function GenerateEmailsModal({
             const needing = leadsWithEmail.filter((l) => l.site_check?.needs_browser && l.site_check?.via !== "browser").length;
             if (needing === 0) return null;
             return (
-              <div className="text-[11px] text-amber-300/90 pt-1">
+              <div className="text-label text-amber-300 pt-1">
                 {needing} lead{needing === 1 ? "" : "s"} still need a browser check, so their emails are written without mentioning a website gap. Close this and click "Check in browser" first if you want the gap included. Drafting never waits for it.
               </div>
             );
           })()}
-          <div className="text-[11px] text-white/45 pt-1">Every draft is checked by the AI reviewer after it is written. Only drafts marked Ready are sent by "Send".</div>
+          <div className="text-label text-muted pt-1">Every draft is checked by the AI reviewer after it is written. Only drafts marked Ready are sent by "Send".</div>
           {skippedQuality > 0 && (
             <div className="flex justify-between text-xs">
-              <span className="text-amber-300/80">Chains, other trades, already contacted, bounced, .gov/.edu and out-of-state leads (skipped)</span>
+              <span className="text-amber-300">Chains, other trades, already contacted, bounced, .gov/.edu and out-of-state leads (skipped)</span>
               <span className="font-mono text-amber-300">{skippedQuality}</span>
             </div>
           )}
           {skippedNoEmail > 0 && (
             <div className="flex justify-between text-xs">
-              <span className="text-amber-300/80">Leads without an email (skipped)</span>
+              <span className="text-amber-300">Leads without an email (skipped)</span>
               <span className="font-mono text-amber-300">{skippedNoEmail}</span>
             </div>
           )}
           {skippedNoEmailButWebsite > 0 && (
-            <div className="pt-2 mt-1 border-t border-white/5 text-[11px] text-white/60">
+            <div className="pt-2 mt-1 border-t border-line text-label text-muted">
               💡 Tip: {skippedNoEmailButWebsite} of those have websites. Close this and click
               <span className="font-semibold text-primary"> Check websites </span>
               in the Leads card to find their emails first (it also finds gaps, links and owners).
@@ -1884,8 +1884,8 @@ function GenerateEmailsModal({
           )}
           {skippedAlreadyDrafted > 0 && (
             <div className="flex justify-between text-xs">
-              <span className="text-white/50">Already drafted (skipped)</span>
-              <span className="font-mono text-white/50">{skippedAlreadyDrafted}</span>
+              <span className="text-muted">Already drafted (skipped)</span>
+              <span className="font-mono text-muted">{skippedAlreadyDrafted}</span>
             </div>
           )}
         </div>
@@ -1910,7 +1910,7 @@ function GenerateEmailsModal({
                   : `Drafting ${progress.done} of ${progress.total}`}
               </span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-fg/5 overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-300"
                 style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }}
@@ -1931,7 +1931,7 @@ function GenerateEmailsModal({
             <Sparkles size={14} /> Generate {plannedCount} draft{plannedCount === 1 ? "" : "s"}
             {totalSteps > 1 && <span className="opacity-75">· {currentFramework.label.split(" ")[0]}</span>}
           </PrimaryButton>
-          <button type="button" onClick={onClose} className="px-4 py-3 text-sm text-white/60 hover:text-white font-medium">
+          <button type="button" onClick={onClose} className="px-4 py-3 text-sm text-muted hover:text-fg font-medium">
             {busy ? "Close (keeps running)" : "Cancel"}
           </button>
         </div>
@@ -1960,8 +1960,8 @@ function LeadDetailModal({ lead, emailedOn, socialBusy, socialJobSeq, onWriteSoc
 
         {/* Website check + owner */}
         <OwnerField lead={lead} onSaved={onChanged} />
-        <div className="rounded-lg bg-white/[0.03] border border-white/10 p-3">
-          <p className="text-[10px] uppercase tracking-wider text-white/50 font-bold mb-2">Website check</p>
+        <div className="rounded-lg bg-fg/[0.03] border border-line p-3">
+          <p className="text-label text-muted font-medium mb-2">Website check</p>
           <SiteDetails lead={lead} />
         </div>
 
@@ -1978,11 +1978,11 @@ function LeadDetailModal({ lead, emailedOn, socialBusy, socialJobSeq, onWriteSoc
 
         {/* Raw Apify data — collapsed by default */}
         {lead.raw && Object.keys(lead.raw).length > 0 && (
-          <details className="rounded-lg bg-black/30 border border-white/[0.06]">
-            <summary className="cursor-pointer px-3 py-2 text-xs text-white/60 font-mono hover:text-white/85 transition">
+          <details className="rounded-lg bg-inset border border-line">
+            <summary className="cursor-pointer px-3 py-2 text-xs text-muted font-mono hover:text-fg2 transition">
               Raw Apify data ({Object.keys(lead.raw).length} fields)
             </summary>
-            <pre className="px-3 pb-3 text-[10px] text-white/70 overflow-x-auto max-h-80 font-mono">
+            <pre className="px-3 pb-3 text-label text-fg2 overflow-x-auto max-h-80 font-mono">
               {JSON.stringify(lead.raw, null, 2)}
             </pre>
           </details>
@@ -2006,9 +2006,9 @@ function FooterPreview({ email }: { email: EmailRow }) {
   }, [email.campaign_id, email.id, email.body_text]);
   if (!text) return null;
   return (
-    <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-3">
-      <div className="text-[10px] font-bold tracking-widest uppercase text-white/40 mb-1.5">Added automatically when sent</div>
-      <pre className="whitespace-pre-wrap font-sans text-sm text-white/55 leading-relaxed">{text}</pre>
+    <div className="rounded-lg border border-dashed border-line bg-fg/[0.02] p-3">
+      <div className="text-label font-medium text-muted mb-1.5">Added automatically when sent</div>
+      <pre className="whitespace-pre-wrap font-sans text-sm text-muted leading-relaxed">{text}</pre>
     </div>
   );
 }
@@ -2061,10 +2061,10 @@ function EditDraftModal({ email, onClose, onSaved }: { email: EmailRow; onClose:
           <TextArea value={body} onChange={(e) => setBody(e.target.value)} rows={12} />
         </FormField>
         <FooterPreview email={email} />
-        <p className="text-[11px] text-white/45">Don't type the sign-off or opt-out line above — they are added automatically.</p>
+        <p className="text-label text-muted">Don't type the sign-off or opt-out line above — they are added automatically.</p>
         {err && <p className="text-xs text-red-300">{err}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm font-semibold transition">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-fg/5 hover:bg-fg/10 border border-line text-fg2 text-sm font-semibold transition">
             Cancel
           </button>
           <PrimaryButton type="submit" loading={busy} disabled={busy}>
@@ -2093,29 +2093,29 @@ function EmailDetailModal({ email, onClose }: { email: EmailRow; onClose: () => 
               <MousePointerClick size={11} /> {email.click_count} click{email.click_count === 1 ? "" : "s"}
             </span>
           )}
-          <span className="text-[11px] text-white/40 font-mono ml-auto">
+          <span className="text-label text-muted font-mono ml-auto">
             Created {new Date(email.created_at).toLocaleString()}
           </span>
         </div>
 
-        <div className="rounded-lg bg-black/30 border border-white/[0.06] p-4 max-h-[60vh] overflow-y-auto">
+        <div className="rounded-lg bg-inset border border-line p-4 max-h-[60vh] overflow-y-auto">
           {email.body_html ? (
             <div
-              className="prose prose-invert prose-sm max-w-none text-white/85 leading-relaxed"
+              className="prose prose-invert prose-sm max-w-none text-fg2 leading-relaxed"
               dangerouslySetInnerHTML={{ __html: email.body_html }}
             />
           ) : (
-            <pre className="whitespace-pre-wrap font-sans text-sm text-white/85 leading-relaxed">{email.body_text}</pre>
+            <pre className="whitespace-pre-wrap font-sans text-sm text-fg2 leading-relaxed">{email.body_text}</pre>
           )}
         </div>
 
         {email.status === "drafted" && <FooterPreview email={email} />}
 
-        <details className="rounded-lg bg-black/20 border border-white/[0.04]">
-          <summary className="cursor-pointer px-3 py-2 text-xs text-white/50 font-mono hover:text-white/80 transition">
+        <details className="rounded-lg bg-inset border border-line">
+          <summary className="cursor-pointer px-3 py-2 text-xs text-muted font-mono hover:text-fg2 transition">
             Plain text version
           </summary>
-          <pre className="px-3 pb-3 text-[11px] text-white/60 whitespace-pre-wrap font-mono">{email.body_text}</pre>
+          <pre className="px-3 pb-3 text-label text-muted whitespace-pre-wrap font-mono">{email.body_text}</pre>
         </details>
       </div>
     </Modal>
@@ -2143,17 +2143,17 @@ function DetailRow({
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
-      className="text-primary hover:text-white transition inline-flex items-center gap-1"
+      className="text-primary hover:text-fg transition inline-flex items-center gap-1"
     >
       <span className="truncate">{value}</span>
       {external && <ExternalLink size={11} className="shrink-0" />}
     </a>
   ) : (
-    <span className="text-white/85 truncate">{value}</span>
+    <span className="text-fg2 truncate">{value}</span>
   );
   return (
-    <div className={`${full ? "col-span-full" : ""} rounded-lg bg-white/[0.02] border border-white/[0.06] px-3 py-2`}>
-      <div className="text-[10px] uppercase tracking-widest text-white/45 font-bold mb-0.5">{label}</div>
+    <div className={`${full ? "col-span-full" : ""} rounded-lg bg-fg/[0.02] border border-line px-3 py-2`}>
+      <div className="text-label text-muted font-medium mb-0.5">{label}</div>
       <div className={`text-sm ${mono ? "font-mono" : ""} truncate`}>{content}</div>
     </div>
   );
@@ -2188,7 +2188,7 @@ function SenderNameEditor({ campaign, onUpdate }: { campaign: Campaign; onUpdate
   if (editing) {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-white/55">From:</span>
+        <span className="text-xs text-muted">From:</span>
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -2201,12 +2201,12 @@ function SenderNameEditor({ campaign, onUpdate }: { campaign: Campaign; onUpdate
           }}
           placeholder="Your display name"
           autoFocus
-          className="px-2 py-1 rounded-md bg-black/40 border border-primary/50 text-xs text-white font-medium placeholder:text-white/30 focus:outline-none focus:border-primary w-48"
+          className="px-2 py-1 rounded-md bg-inset border border-primary/50 text-xs text-fg font-medium placeholder:text-muted focus:outline-none focus:border-primary w-48"
         />
         <button
           onClick={save}
           disabled={busy}
-          className="px-2 py-1 rounded-md bg-primary/20 hover:bg-primary/30 border border-primary/50 text-primary text-[10px] font-bold uppercase tracking-wider transition disabled:opacity-50"
+          className="px-2 py-1 rounded-md bg-primary/20 hover:bg-primary/30 border border-primary/50 text-primary text-label font-bold transition disabled:opacity-50"
         >
           {busy ? <Loader2 size={10} className="animate-spin" /> : "Save"}
         </button>
@@ -2215,7 +2215,7 @@ function SenderNameEditor({ campaign, onUpdate }: { campaign: Campaign; onUpdate
             setEditing(false);
             setValue(campaign.default_sender_name ?? "");
           }}
-          className="px-2 py-1 rounded-md text-white/50 hover:text-white text-[10px] uppercase tracking-wider transition"
+          className="px-2 py-1 rounded-md text-muted hover:text-fg text-label transition"
         >
           Cancel
         </button>
@@ -2230,15 +2230,15 @@ function SenderNameEditor({ campaign, onUpdate }: { campaign: Campaign; onUpdate
       className="group flex items-center gap-1.5 text-xs transition"
       title="Edit the From display name recipients see"
     >
-      <span className="text-white/55">From:</span>
+      <span className="text-muted">From:</span>
       <span
         className={`font-semibold transition ${
-          current ? "text-white/85 group-hover:text-white" : "text-amber-300 group-hover:text-amber-200"
+          current ? "text-fg2 group-hover:text-fg" : "text-amber-300 group-hover:text-amber-200"
         }`}
       >
         {current ?? "+ set your name"}
       </span>
-      <span className="text-white/30 group-hover:text-white/60 transition">✏</span>
+      <span className="text-muted group-hover:text-muted transition">✏</span>
     </button>
   );
 }

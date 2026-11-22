@@ -29,12 +29,12 @@ import type { Activity, ActivityCategory } from "@/lib/types";
 
 const CATEGORY_META: Record<ActivityCategory, { color: string; bg: string; border: string; icon: typeof Mail }> = {
   task: { color: "text-primary", bg: "bg-primary/15", border: "border-primary/40", icon: GitBranch },
-  research: { color: "text-purple", bg: "bg-purple/15", border: "border-purple/40", icon: Search },
+  research: { color: "text-primary", bg: "bg-primary/15", border: "border-primary/40", icon: Search },
   email: { color: "text-accent", bg: "bg-accent/15", border: "border-accent/40", icon: Mail },
   content: { color: "text-primary", bg: "bg-primary/15", border: "border-primary/40", icon: FileText },
   decision: { color: "text-amber-300", bg: "bg-amber-500/15", border: "border-amber-500/40", icon: Zap },
   error: { color: "text-red-300", bg: "bg-red-500/15", border: "border-red-500/40", icon: AlertCircle },
-  system: { color: "text-white/70", bg: "bg-white/5", border: "border-white/10", icon: ActivityIcon },
+  system: { color: "text-fg2", bg: "bg-fg/5", border: "border-line", icon: ActivityIcon },
 };
 
 // Maps activity details → a dashboard route. If the activity carries
@@ -155,10 +155,10 @@ export default function LiveAgentFeed() {
     return (
       <button
         onClick={reopen}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-black/70 backdrop-blur-xl border border-white/15 hover:border-primary/60 text-xs text-white/80 hover:text-white transition shadow-xl"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-card backdrop-blur-xl border border-line hover:border-primary/60 text-xs text-fg2 hover:text-fg transition shadow-xl"
         title="Show live agent feed"
       >
-        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-400 animate-pulse" : "bg-white/30"}`} />
+        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-fg/30"}`} />
         Live
       </button>
     );
@@ -166,25 +166,25 @@ export default function LiveAgentFeed() {
 
   return (
     <div className="fixed bottom-6 right-6 z-40 w-[380px] max-w-[calc(100vw-3rem)]">
-      <div className="glass backdrop-blur-2xl bg-black/60 border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
+      <div className="glass backdrop-blur-2xl bg-card border border-line rounded-2xl overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
-          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-400 animate-pulse" : "bg-white/30"}`} />
-          <span className="font-display text-[10px] tracking-[0.3em] uppercase text-white/80 font-bold">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-line">
+          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-fg/30"}`} />
+          <span className="font-display text-label text-fg2 font-medium">
             {isActive ? "Live feed" : "Agent feed"}
           </span>
-          <span className="text-[10px] text-white/40 font-mono">({entries.length})</span>
+          <span className="text-label text-muted font-mono">({entries.length})</span>
           <div className="flex-1" />
           <button
             onClick={() => setPaused((p) => !p)}
-            className="w-6 h-6 rounded-md hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+            className="w-6 h-6 rounded-md hover:bg-fg/10 text-muted hover:text-fg flex items-center justify-center transition"
             title={paused ? "Resume polling" : "Pause polling"}
           >
             {paused ? <Play size={11} /> : <Pause size={11} />}
           </button>
           <button
             onClick={dismiss}
-            className="w-6 h-6 rounded-md hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+            className="w-6 h-6 rounded-md hover:bg-fg/10 text-muted hover:text-fg flex items-center justify-center transition"
             title="Hide feed (reopen with the Live chip)"
           >
             <X size={13} />
@@ -194,11 +194,11 @@ export default function LiveAgentFeed() {
         {/* Entries */}
         <div className="max-h-[420px] overflow-y-auto">
           {entries.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-white/40">
+            <div className="px-4 py-8 text-center text-xs text-muted">
               No activity yet. Your agent's actions will appear here the moment they happen.
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-line">
               {entries.slice(0, 10).map((a) => {
                 const meta = CATEGORY_META[a.category] ?? CATEGORY_META.system;
                 const Icon = meta.icon;
@@ -210,7 +210,7 @@ export default function LiveAgentFeed() {
                     key={a.id}
                     onClick={route ? () => navigate(route) : undefined}
                     className={`w-full text-left flex items-start gap-3 px-4 py-2.5 transition-colors ${
-                      route ? "hover:bg-white/[0.03] cursor-pointer" : ""
+                      route ? "hover:bg-fg/[0.03] cursor-pointer" : ""
                     } ${isNew ? "animate-feed-flash" : ""}`}
                   >
                     <div
@@ -221,13 +221,13 @@ export default function LiveAgentFeed() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`text-[9px] font-mono font-bold tracking-wider uppercase ${meta.color}`}
+                          className={`text-label font-mono font-medium ${meta.color}`}
                         >
                           {a.category}
                         </span>
-                        <span className="text-[10px] text-white/40 font-mono">{timeAgo(a.created_at)}</span>
+                        <span className="text-label text-muted font-mono">{timeAgo(a.created_at)}</span>
                       </div>
-                      <p className="text-xs text-white/85 leading-snug mt-0.5 line-clamp-2">{a.summary}</p>
+                      <p className="text-xs text-fg2 leading-snug mt-0.5 line-clamp-2">{a.summary}</p>
                     </div>
                   </Wrapper>
                 );
@@ -237,7 +237,7 @@ export default function LiveAgentFeed() {
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-white/[0.06] text-[10px] text-white/35 font-mono text-center">
+        <div className="px-4 py-2 border-t border-line text-label text-muted font-mono text-center">
           {paused
             ? "Paused — click play to resume"
             : isActive

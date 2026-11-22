@@ -51,7 +51,7 @@ export default function Pages() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSkillOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent/25 to-purple/25 border border-accent/50 text-white hover:border-accent/80 transition font-bold tracking-wide shadow-glow-accent"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent/25 to-primary/25 border border-accent/50 text-fg hover:border-accent/80 transition font-bold tracking-wide"
             >
               <Sparkles size={16} strokeWidth={2.5} /> Teach Your Agent
             </button>
@@ -65,23 +65,23 @@ export default function Pages() {
         }
       />
 
-      <GlassCard className="mb-6 bg-gradient-to-br from-accent/[0.06] to-purple/[0.06] border-accent/25">
+      <GlassCard className="mb-6 bg-gradient-to-br from-accent/[0.06] to-primary/[0.06] border-accent/25">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-accent/20 border border-accent/50 flex items-center justify-center shrink-0 shadow-glow-accent">
+          <div className="w-12 h-12 rounded-xl bg-accent/20 border border-accent/50 flex items-center justify-center shrink-0">
             <Sparkles size={22} className="text-accent" strokeWidth={2.3} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-display text-sm tracking-widest uppercase text-accent font-bold mb-1">
+            <div className="font-display text-sm text-accent font-medium mb-1">
               Front-end dev skill · $1K value · free
             </div>
-            <p className="text-sm text-white/85 font-medium">
+            <p className="text-sm text-fg2 font-medium">
               Glassmorphic design, glow effects, hover animations, form embeds — all wrapped in one
               copy-paste skill. Teach any agent to ship beautiful landing pages from a natural-language brief.
             </p>
           </div>
           <button
             onClick={() => setSkillOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent hover:bg-accent/90 text-black font-display font-black tracking-widest text-xs uppercase shadow-glow-accent shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent hover:bg-accent/90 text-on-solid font-display font-black tracking-widest text-xs uppercase shrink-0"
           >
             <Sparkles size={14} strokeWidth={3} /> View Skill
           </button>
@@ -90,15 +90,15 @@ export default function Pages() {
 
       {showEmpty && (
         <GlassCard className="text-center py-16">
-          <div className="font-display text-xl text-white font-bold mb-2">No pages yet</div>
-          <p className="text-sm text-white/70 font-medium mb-6 max-w-xl mx-auto">
+          <div className="font-display text-xl text-fg font-bold mb-2">No pages yet</div>
+          <p className="text-sm text-fg2 font-medium mb-6 max-w-xl mx-auto">
             Ask your agent to create a landing page — or hit "New Page" to write one by hand.
             Both routes hit the same endpoint; both end up at{" "}
             <code className="text-primary">/p/&lt;slug&gt;</code> on your domain.
           </p>
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-display font-black tracking-widest text-sm uppercase shadow-glow transition"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-on-solid font-display font-black tracking-widest text-sm uppercase transition"
           >
             <Plus size={16} strokeWidth={3} /> Create First Page
           </button>
@@ -113,8 +113,8 @@ export default function Pages() {
               <GlassCard key={p.slug} hover className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-display text-xl tracking-wide text-white font-bold">{p.title}</div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-white/65 font-mono uppercase tracking-widest font-bold">
+                    <div className="font-display text-xl tracking-wide text-fg font-bold">{p.title}</div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-fg2 font-mono font-medium">
                       <span>/p/{p.slug}</span>
                       {p.linked_form_slug && (
                         <span className="flex items-center gap-1 text-primary">
@@ -125,17 +125,17 @@ export default function Pages() {
                   </div>
                   {p.accent && (
                     <div
-                      className="w-5 h-5 rounded-md border border-white/10 shrink-0"
+                      className="w-5 h-5 rounded-md border border-line shrink-0"
                       style={{ background: p.accent }}
                       title={p.accent}
                     />
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 font-mono text-xs text-white/90 bg-black/40 border border-white/[0.06] rounded-lg px-3 py-2 overflow-hidden">
+                <div className="flex items-center gap-2 font-mono text-xs text-fg bg-inset border border-line rounded-lg px-3 py-2 overflow-hidden">
                   <span className="truncate flex-1 font-semibold">{publicUrl}</span>
                   <button
-                    className="text-primary hover:text-primary/80 shrink-0"
+                    className="text-primary hover:text-primary shrink-0"
                     onClick={() => void copyToClipboard(publicUrl)}
                     title="Copy URL"
                   >
@@ -145,18 +145,18 @@ export default function Pages() {
                     href={publicUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-primary hover:text-primary/80 shrink-0"
+                    className="text-primary hover:text-primary shrink-0"
                     title="Open page"
                   >
                     <ExternalLink size={14} />
                   </a>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-white/70 font-mono border-t border-white/[0.06] pt-3 font-semibold">
+                <div className="flex items-center justify-between text-xs text-fg2 font-mono border-t border-line pt-3 font-semibold">
                   <span>updated {timeAgo(p.updated_at)}</span>
                   <button
                     onClick={() => void remove(p.slug, p.title)}
-                    className="text-white/40 hover:text-danger transition"
+                    className="text-muted hover:text-danger transition"
                     title="Delete page"
                   >
                     <Trash2 size={13} />

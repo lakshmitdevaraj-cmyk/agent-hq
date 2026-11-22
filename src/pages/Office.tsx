@@ -11,11 +11,11 @@ import type { Agent, Activity, Task } from "@/lib/types";
 
 // ── Demo seed so empty deploy looks alive ────────────────────────────
 const SEED_AGENTS: Agent[] = [
-  { id: "a1", name: "Atlas", sign_in_name: "atlas-a1b2", api_key: null, role: "Executive Assistant", emoji: "🧭", color: "#00BFFF", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a2", name: "Nova", sign_in_name: "nova-c3d4", api_key: null, role: "Outreach SDR", emoji: "🚀", color: "#FF6B35", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a3", name: "Lexa", sign_in_name: "lexa-e5f6", api_key: null, role: "Voice Agent", emoji: "🎙️", color: "#A855F7", status: "idle", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a4", name: "Sage", sign_in_name: "sage-g7h8", api_key: null, role: "Research Analyst", emoji: "🔍", color: "#00E676", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a5", name: "Echo", sign_in_name: "echo-i9j0", api_key: null, role: "Content Writer", emoji: "✍️", color: "#F59E0B", status: "idle", last_heartbeat: null, created_at: "" },
+  { id: "a1", name: "Atlas", sign_in_name: "atlas-a1b2", api_key: null, role: "Executive Assistant", emoji: "🧭", color: "#4C6FD6", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a2", name: "Nova", sign_in_name: "nova-c3d4", api_key: null, role: "Outreach SDR", emoji: "🚀", color: "#B8741A", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a3", name: "Lexa", sign_in_name: "lexa-e5f6", api_key: null, role: "Voice Agent", emoji: "🎙️", color: "#7A67D6", status: "idle", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a4", name: "Sage", sign_in_name: "sage-g7h8", api_key: null, role: "Research Analyst", emoji: "🔍", color: "#2F9460", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a5", name: "Echo", sign_in_name: "echo-i9j0", api_key: null, role: "Content Writer", emoji: "✍️", color: "#C08A2B", status: "idle", last_heartbeat: null, created_at: "" },
 ];
 
 const SEED_ACTIVITY: Activity[] = [
@@ -81,7 +81,7 @@ export default function Office() {
     <>
       <PageHeader
         title="The Office"
-        subtitle="Your AI employees, live on duty. This is mission control."
+        subtitle="Your AI employees, live on duty. This is your control room."
       />
 
       <div className="grid grid-cols-4 gap-4 mb-8">
@@ -96,29 +96,29 @@ export default function Office() {
         {displayAgents.slice(0, POSITIONS.length).map((a, i) => (
           <AgentSprite key={a.id} agent={a} x={POSITIONS[i].x} y={POSITIONS[i].y} delay={i * 0.15} />
         ))}
-        <div className="absolute top-4 left-4 glass px-3 py-1.5 font-mono text-xs text-white font-bold tracking-wider">
+        <div className="absolute top-4 left-4 glass px-3 py-1.5 font-mono text-xs text-fg font-bold tracking-wider">
           <span className="pulse-dot dot-green inline-block mr-2 align-middle" /> LIVE
         </div>
-        <div className="absolute top-4 right-4 glass px-3 py-1.5 font-mono text-xs text-white/90 font-semibold">
+        <div className="absolute top-4 right-4 glass px-3 py-1.5 font-mono text-xs text-fg font-semibold">
           {displayAgents.length} agents · {displayActivity.length} events
         </div>
       </GlassCard>
 
       {/* Activity ticker */}
       <div className="mt-6">
-        <h2 className="font-display text-lg tracking-widest text-white font-bold mb-3 uppercase">Live Activity</h2>
+        <h2 className="font-display text-lg text-fg font-medium mb-3">Live Activity</h2>
         <GlassCard className="p-0">
-          <div className="divide-y divide-white/[0.06]">
+          <div className="divide-y divide-line">
             {displayActivity.slice(0, 8).map((a) => {
               const agent = displayAgents.find((x) => x.id === a.agent_id);
               return (
                 <div key={a.id} className="flex items-center gap-4 px-5 py-3">
                   <span className="text-xl">{agent?.emoji ?? "⚡"}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white font-medium truncate">{a.summary}</div>
-                    <div className="text-[10px] text-white/65 uppercase tracking-widest font-bold mt-0.5">{a.category}</div>
+                    <div className="text-sm text-fg font-medium truncate">{a.summary}</div>
+                    <div className="text-label text-fg2 font-medium mt-0.5">{a.category}</div>
                   </div>
-                  <span className="text-xs text-white/70 font-mono shrink-0 font-semibold">{timeAgo(a.created_at)}</span>
+                  <span className="text-xs text-fg2 font-mono shrink-0 font-semibold">{timeAgo(a.created_at)}</span>
                 </div>
               );
             })}
@@ -137,7 +137,7 @@ function SceneBackdrop() {
         className="absolute inset-x-0 bottom-0 h-[55%]"
         style={{
           background:
-            "linear-gradient(180deg, transparent 0%, rgba(0,191,255,0.04) 40%, rgba(168,85,247,0.06) 100%)",
+            "linear-gradient(180deg, transparent 0%, rgb(var(--primary) / 0.04) 100%)",
         }}
       />
       {/* Grid floor */}
@@ -145,7 +145,7 @@ function SceneBackdrop() {
         className="absolute inset-x-0 bottom-0 h-[55%] opacity-40"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(0,191,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(0,191,255,0.18) 1px, transparent 1px)",
+            "linear-gradient(rgb(var(--fg) / 0.1) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--fg) / 0.1) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
           maskImage: "linear-gradient(180deg, transparent 0%, black 30%, black 100%)",
           transform: "perspective(800px) rotateX(55deg)",
@@ -155,11 +155,8 @@ function SceneBackdrop() {
       {/* Horizon glow */}
       <div
         className="absolute inset-x-0 top-[40%] h-px"
-        style={{ boxShadow: "0 0 40px 8px rgba(0,191,255,0.35)" }}
+        style={{ background: "rgb(var(--line))" }}
       />
-      {/* Corner glows */}
-      <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-primary/20 blur-3xl" />
-      <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-purple/20 blur-3xl" />
     </div>
   );
 }

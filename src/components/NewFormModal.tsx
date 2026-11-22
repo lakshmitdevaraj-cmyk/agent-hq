@@ -117,13 +117,13 @@ export default function NewFormModal({ open, onClose, onCreated }: Props) {
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-widest text-white/80 font-display font-bold">
+            <span className="text-xs text-fg2 font-display font-medium">
               Fields
             </span>
             <button
               type="button"
               onClick={addField}
-              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-bold uppercase tracking-widest"
+              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary font-medium"
             >
               <Plus size={14} strokeWidth={2.5} /> Add Field
             </button>
@@ -148,13 +148,13 @@ export default function NewFormModal({ open, onClose, onCreated }: Props) {
                 <select
                   value={f.type}
                   onChange={(e) => updateField(i, { type: e.target.value as Field["type"] })}
-                  className="bg-black/40 border border-white/10 rounded-lg px-2 py-2.5 text-sm text-white font-medium focus:outline-none focus:border-primary/60"
+                  className="bg-inset border border-line rounded-lg px-2 py-2.5 text-sm text-fg font-medium focus:outline-none focus:border-primary/60"
                 >
                   <option value="text">text</option>
                   <option value="email">email</option>
                   <option value="textarea">textarea</option>
                 </select>
-                <label className="flex items-center gap-1.5 text-xs text-white/80 font-bold uppercase shrink-0">
+                <label className="flex items-center gap-1.5 text-xs text-fg2 font-medium shrink-0">
                   <input
                     type="checkbox"
                     checked={f.required}
@@ -166,7 +166,7 @@ export default function NewFormModal({ open, onClose, onCreated }: Props) {
                 <button
                   type="button"
                   onClick={() => removeField(i)}
-                  className="text-white/40 hover:text-danger transition shrink-0"
+                  className="text-muted hover:text-danger transition shrink-0"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -187,7 +187,7 @@ export default function NewFormModal({ open, onClose, onCreated }: Props) {
               reset();
               onClose();
             }}
-            className="px-4 py-3 text-sm text-white/70 hover:text-white font-display font-bold uppercase tracking-widest"
+            className="px-4 py-3 text-sm text-fg2 hover:text-fg font-display font-medium"
           >
             Cancel
           </button>

@@ -88,7 +88,7 @@ export function LinkIcons({ items, size = 12 }: { items: LinkItem[]; size?: numb
             onClick={(e) => e.stopPropagation()}
             title={x.label}
             aria-label={x.label}
-            className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white flex items-center justify-center transition"
+            className="w-7 h-7 rounded-md bg-fg/5 hover:bg-fg/10 border border-line text-fg2 hover:text-fg flex items-center justify-center transition"
           >
             <Icon size={size} />
           </a>
@@ -100,10 +100,10 @@ export function LinkIcons({ items, size = 12 }: { items: LinkItem[]; size?: numb
 
 /** Score pill: red = big gap (good prospect), grey = small gap. The reasons show on hover and next to it. */
 export function GapBadge({ score, reasons }: { score: number | null | undefined; reasons?: string[] }) {
-  if (typeof score !== "number") return <span className="text-[10px] font-mono text-white/35">not checked</span>;
-  const tone = score >= 70 ? "bg-red-500/15 border-red-500/40 text-red-300" : score >= 40 ? "bg-amber-500/15 border-amber-500/40 text-amber-300" : "bg-white/10 border-white/20 text-white/70";
+  if (typeof score !== "number") return <span className="text-label font-mono text-muted">not checked</span>;
+  const tone = score >= 70 ? "tag-bad" : score >= 40 ? "tag-warn" : "tag-neutral";
   return (
-    <span title={(reasons ?? []).join(" · ")} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border text-[10px] font-mono font-bold ${tone}`}>
+    <span title={(reasons ?? []).join(" · ")} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border text-label font-mono font-bold ${tone}`}>
       Gap {score}
     </span>
   );

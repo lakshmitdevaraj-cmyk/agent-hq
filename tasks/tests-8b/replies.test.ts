@@ -46,9 +46,9 @@ t("health-check and bounce reports are recognised", () => {
 });
 
 t("alert subject carries the flag", () => {
-  assert.equal(replySubject("Regal Electrolysis", "Webster", "unauthenticated"), "[Unauthenticated] Reply from Regal Electrolysis");
-  assert.equal(replySubject("Regal Electrolysis", "Webster", "spam"), "[Spam] Reply from Regal Electrolysis");
-  assert.equal(replySubject("Regal Electrolysis", "Webster", null), "New reply: Regal Electrolysis (Webster)");
+  assert.equal(replySubject("Regal Electrolysis", "Webster", "unauthenticated"), "[Alcance] [Unauthenticated] Reply from Regal Electrolysis");
+  assert.equal(replySubject("Regal Electrolysis", "Webster", "spam"), "[Alcance] [Spam] Reply from Regal Electrolysis");
+  assert.equal(replySubject("Regal Electrolysis", "Webster", null), "[Alcance] Reply from Regal Electrolysis");
 });
 
 const msg = { message_id: "m1", thread_id: "t1", inbox_id: "lakshmi@team.shiftforge.ai", from: "Santhana <santhana@regalelectrolysis.com>", to: ["lakshmi@team.shiftforge.ai"], subject: "Re: hello", text: "Got it", html: null, timestamp: "2026-11-22T02:27:00Z", labels: ["received", "unread", "unauthenticated"], authentication_results: { dkim: "none", dmarc: "none", spf: "none" } };

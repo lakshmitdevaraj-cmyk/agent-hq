@@ -52,7 +52,7 @@ export default function TaskQuickAdd({ onAdded }: Props) {
     return (
       <button
         onClick={() => setActive(true)}
-        className="w-full rounded-xl border-2 border-dashed border-white/15 hover:border-primary/60 text-white/70 hover:text-white hover:bg-primary/[0.06] transition-all py-4 px-4 flex items-center justify-center gap-2 font-display text-xs tracking-widest uppercase font-bold"
+        className="w-full rounded-xl border-2 border-dashed border-line hover:border-primary/60 text-fg2 hover:text-fg hover:bg-primary/[0.06] transition-all py-4 px-4 flex items-center justify-center gap-2 font-display text-xs font-bold"
       >
         <Plus size={16} strokeWidth={2.5} />
         Add a task
@@ -61,7 +61,7 @@ export default function TaskQuickAdd({ onAdded }: Props) {
   }
 
   return (
-    <div className="rounded-xl border-2 border-primary/60 bg-primary/[0.08] p-3 shadow-glow">
+    <div className="rounded-xl border-2 border-primary/60 bg-primary/[0.08] p-3">
       <input
         ref={inputRef}
         type="text"
@@ -75,13 +75,13 @@ export default function TaskQuickAdd({ onAdded }: Props) {
           }
         }}
         placeholder="What should your agents work on?"
-        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-white/50 font-medium"
+        className="w-full bg-transparent outline-none text-sm text-fg placeholder:text-muted font-medium"
       />
       <div className="flex items-center gap-2 mt-3">
         <button
           onClick={() => void submit()}
           disabled={loading || !title.trim()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/90 hover:bg-primary text-black font-bold text-xs tracking-widest uppercase transition disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/90 hover:bg-primary text-on-solid font-bold text-xs transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Check size={14} strokeWidth={3} />
           Add
@@ -91,7 +91,7 @@ export default function TaskQuickAdd({ onAdded }: Props) {
             setTitle("");
             setActive(false);
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 text-xs tracking-widest uppercase font-bold transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-fg2 hover:text-fg hover:bg-fg/5 text-xs font-bold transition"
         >
           <X size={14} strokeWidth={3} />
           Cancel

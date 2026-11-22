@@ -59,7 +59,7 @@ export default function Forms() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSkillOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent/25 to-purple/25 border border-accent/50 text-white hover:border-accent/80 transition font-bold tracking-wide shadow-glow-accent"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent/25 to-primary/25 border border-accent/50 text-fg hover:border-accent/80 transition font-bold tracking-wide"
             >
               <Sparkles size={16} strokeWidth={2.5} /> Teach Your Agent
             </button>
@@ -75,13 +75,13 @@ export default function Forms() {
 
       {showEmpty && (
         <GlassCard className="text-center py-16">
-          <div className="font-display text-xl text-white font-bold mb-2">No forms yet</div>
-          <p className="text-sm text-white/70 font-medium mb-6 max-w-md mx-auto">
+          <div className="font-display text-xl text-fg font-bold mb-2">No forms yet</div>
+          <p className="text-sm text-fg2 font-medium mb-6 max-w-md mx-auto">
             Create a public form and share the URL. Every submission shows up in your activity log and your agent can act on it.
           </p>
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-display font-black tracking-widest text-sm uppercase shadow-glow transition"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-on-solid font-display font-black tracking-widest text-sm uppercase transition"
           >
             <Plus size={16} strokeWidth={3} /> Create First Form
           </button>
@@ -101,18 +101,18 @@ export default function Forms() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-display text-xl tracking-wide text-white font-bold">{f.title}</div>
-                    <p className="text-sm text-white/75 mt-1 font-medium">{f.description}</p>
+                    <div className="font-display text-xl tracking-wide text-fg font-bold">{f.title}</div>
+                    <p className="text-sm text-fg2 mt-1 font-medium">{f.description}</p>
                   </div>
                   <ArrowRight
                     size={18}
-                    className="text-white/30 group-hover:text-primary group-hover:translate-x-1 transition shrink-0 mt-1"
+                    className="text-muted group-hover:text-primary group-hover:translate-x-1 transition shrink-0 mt-1"
                   />
                 </div>
 
                 {linkedPages.length > 0 && (
                   <div className="flex items-start gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-accent font-display font-bold shrink-0 mt-1">
+                    <div className="flex items-center gap-1.5 text-label text-accent font-display font-medium shrink-0 mt-1">
                       <LayoutTemplate size={11} strokeWidth={2.5} />
                       Embedded on
                     </div>
@@ -134,12 +134,12 @@ export default function Forms() {
                 )}
 
                 <div
-                  className="flex items-center gap-2 font-mono text-xs text-white/90 bg-black/40 border border-white/[0.06] rounded-lg px-3 py-2 overflow-hidden"
+                  className="flex items-center gap-2 font-mono text-xs text-fg bg-inset border border-line rounded-lg px-3 py-2 overflow-hidden"
                   onClick={(e) => e.preventDefault()}
                 >
                   <span className="truncate flex-1 font-semibold">{publicUrl}</span>
                   <button
-                    className="text-primary hover:text-primary/80 shrink-0"
+                    className="text-primary hover:text-primary shrink-0"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -154,19 +154,19 @@ export default function Forms() {
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-primary hover:text-primary/80 shrink-0"
+                    className="text-primary hover:text-primary shrink-0"
                     title="Open form in new tab"
                   >
                     <ExternalLink size={14} />
                   </a>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-white/65 border-t border-white/[0.06] pt-3 font-mono uppercase tracking-widest font-bold">
+                <div className="flex items-center justify-between text-xs text-fg2 border-t border-line pt-3 font-mono font-medium">
                   <div className="flex items-center gap-4">
                     <span>{f.fields.length} fields</span>
                     <span>/ {f.slug}</span>
                   </div>
-                  <span className="text-primary group-hover:text-primary/80">View submissions →</span>
+                  <span className="text-primary group-hover:text-primary">View submissions →</span>
                 </div>
               </Link>
             );

@@ -166,17 +166,17 @@ export default function OnboardingWizard({ open, onClose, onlyMissing = true, on
                   ? "bg-primary/25 text-primary border border-primary/60"
                   : i < stepIndex
                   ? "bg-green-500/20 text-green-400 border border-green-500/40"
-                  : "bg-white/[0.04] text-white/30 border border-white/10"
+                  : "bg-fg/[0.04] text-muted border border-line"
               }`}
             >
               {i < stepIndex ? <Check size={14} /> : i + 1}
             </div>
             <div className="flex-1 min-w-0">
-              <div className={`text-xs font-display tracking-widest uppercase truncate ${i === stepIndex ? "text-white" : "text-white/40"}`}>
+              <div className={`text-xs font-display truncate ${i === stepIndex ? "text-fg" : "text-muted"}`}>
                 {s.title.split(" ")[0]}
               </div>
             </div>
-            {i < totalSteps - 1 && <div className="w-4 h-px bg-white/10 shrink-0" />}
+            {i < totalSteps - 1 && <div className="w-4 h-px bg-fg/10 shrink-0" />}
           </div>
         ))}
       </div>
@@ -184,22 +184,22 @@ export default function OnboardingWizard({ open, onClose, onlyMissing = true, on
       {/* Current step */}
       <div className="space-y-5">
         <div>
-          <div className="text-xs font-mono tracking-[0.3em] uppercase text-primary/80 font-bold mb-2">
+          <div className="text-xs font-mono text-primary font-medium mb-2">
             {current.eyebrow}
           </div>
-          <h3 className="font-display text-2xl font-bold text-white mb-1">{current.title}</h3>
-          <p className="text-sm text-white/75">{current.tagline}</p>
+          <h3 className="font-display text-2xl font-bold text-fg mb-1">{current.title}</h3>
+          <p className="text-sm text-fg2">{current.tagline}</p>
         </div>
 
         <div className="rounded-xl bg-primary/[0.05] border border-primary/20 p-4">
-          <p className="text-sm text-white/80 leading-relaxed">{current.why}</p>
+          <p className="text-sm text-fg2 leading-relaxed">{current.why}</p>
         </div>
 
         <a
           href={current.getKeyUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-primary hover:text-white transition font-semibold"
+          className="inline-flex items-center gap-2 text-sm text-primary hover:text-fg transition font-semibold"
         >
           Get a key from {current.getKeyLabel}
           <ExternalLink size={14} />
@@ -224,7 +224,7 @@ export default function OnboardingWizard({ open, onClose, onlyMissing = true, on
             <button
               type="button"
               onClick={() => setReveal((r) => !r)}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-white/50 hover:text-white transition"
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted hover:text-fg transition"
               aria-label={reveal ? "Hide key" : "Show key"}
             >
               {reveal ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -260,13 +260,13 @@ export default function OnboardingWizard({ open, onClose, onlyMissing = true, on
           </PrimaryButton>
           <button
             onClick={skip}
-            className="px-4 py-3 text-sm text-white/60 hover:text-white transition font-medium"
+            className="px-4 py-3 text-sm text-muted hover:text-fg transition font-medium"
           >
             {stepIndex + 1 >= totalSteps ? "Finish later" : "Skip for now"}
           </button>
         </div>
 
-        <p className="text-xs text-white/45 pt-2">
+        <p className="text-xs text-muted pt-2">
           Step {stepIndex + 1} of {totalSteps} · All keys editable later in Settings.
         </p>
       </div>

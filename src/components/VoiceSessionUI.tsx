@@ -24,11 +24,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  connecting: "text-white/60 bg-white/10",
+  connecting: "text-muted bg-fg/10",
   listening: "text-success bg-success/15",
   speaking: "text-primary bg-primary/15",
   thinking: "text-amber bg-amber/15",
-  idle: "text-white/40 bg-white/5",
+  idle: "text-muted bg-fg/5",
 };
 
 export default function VoiceSessionUI({
@@ -144,11 +144,11 @@ export default function VoiceSessionUI({
           <div className="relative z-10 flex flex-col items-center justify-center h-full">
             <VoiceOrb status={status} />
             <div
-              className={`mt-6 px-4 py-1.5 rounded-full font-display text-xs tracking-widest font-bold uppercase ${STATUS_COLOR[status]}`}
+              className={`mt-6 px-4 py-1.5 rounded-full font-display text-xs font-bold ${STATUS_COLOR[status]}`}
             >
               {STATUS_LABEL[status]}
             </div>
-            <p className="text-sm text-white/70 font-medium mt-4 max-w-xs text-center">
+            <p className="text-sm text-fg2 font-medium mt-4 max-w-xs text-center">
               {status === "connecting" && "Connecting to Gemini Live..."}
               {status === "listening" && "Go ahead — I'm listening."}
               {status === "speaking" && "Speaking..."}
@@ -158,7 +158,7 @@ export default function VoiceSessionUI({
           </div>
           <button
             onClick={() => void endCall()}
-            className="absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2 rounded-xl bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30 transition font-bold tracking-wide text-xs uppercase"
+            className="absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2 rounded-xl bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30 transition font-bold text-xs"
           >
             <PhoneOff size={14} strokeWidth={2.5} /> End
           </button>
@@ -171,19 +171,19 @@ export default function VoiceSessionUI({
         )}
 
         <div className="flex flex-col gap-2">
-          <h3 className="font-display text-xs tracking-widest uppercase text-white/75 font-bold flex items-center gap-2">
+          <h3 className="font-display text-xs text-fg2 font-medium flex items-center gap-2">
             <Zap size={13} className="text-accent" strokeWidth={2.5} /> Actions Your Agent Took
           </h3>
           <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto">
             {tools.length === 0 ? (
-              <GlassCard className="text-center py-5 text-sm text-white/50 font-medium">
+              <GlassCard className="text-center py-5 text-sm text-muted font-medium">
                 No tools called yet. Try saying "add a task to draft the Acme proposal."
               </GlassCard>
             ) : (
               tools.map((t) => (
                 <GlassCard key={t.id} className="p-3 flex items-center gap-3">
                   <code className="font-mono text-xs text-accent font-bold shrink-0">{t.name}</code>
-                  <code className="font-mono text-xs text-white/70 flex-1 truncate">
+                  <code className="font-mono text-xs text-fg2 flex-1 truncate">
                     {JSON.stringify(t.params)}
                   </code>
                   {t.error ? (
@@ -191,7 +191,7 @@ export default function VoiceSessionUI({
                   ) : t.result !== undefined ? (
                     <span className="text-xs text-success font-bold shrink-0">OK</span>
                   ) : (
-                    <span className="text-xs text-white/40 font-bold shrink-0">PENDING</span>
+                    <span className="text-xs text-muted font-bold shrink-0">PENDING</span>
                   )}
                 </GlassCard>
               ))
@@ -202,13 +202,13 @@ export default function VoiceSessionUI({
 
       {/* Transcript panel */}
       <div className="col-span-2 flex flex-col gap-2">
-        <h3 className="font-display text-xs tracking-widest uppercase text-white/75 font-bold">
+        <h3 className="font-display text-xs text-fg2 font-medium">
           Transcript
         </h3>
         <GlassCard className="p-0 h-[620px] overflow-y-auto">
           {transcripts.length === 0 ? (
             <div className="h-full flex items-center justify-center text-center px-6">
-              <p className="text-sm text-white/50 font-medium max-w-xs">
+              <p className="text-sm text-muted font-medium max-w-xs">
                 Transcript appears here as you and your agent speak.
               </p>
             </div>
@@ -217,25 +217,25 @@ export default function VoiceSessionUI({
               {transcripts.map((t) => (
                 <div
                   key={t.id}
-                  className={`px-5 py-3 border-b border-white/[0.04] ${
+                  className={`px-5 py-3 border-b border-line ${
                     t.role === "agent" ? "bg-primary/[0.04]" : ""
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1.5">
                     {t.role === "user" ? (
-                      <User size={12} className="text-white/60" strokeWidth={2.5} />
+                      <User size={12} className="text-muted" strokeWidth={2.5} />
                     ) : (
                       <Mic size={12} className="text-primary" strokeWidth={2.5} />
                     )}
                     <span
-                      className={`text-[10px] uppercase tracking-widest font-display font-bold ${
-                        t.role === "agent" ? "text-primary" : "text-white/60"
+                      className={`text-label font-display font-medium ${
+                        t.role === "agent" ? "text-primary" : "text-muted"
                       }`}
                     >
                       {t.role === "agent" ? "Agent" : "You"}
                     </span>
                   </div>
-                  <p className="text-sm text-white/95 font-medium leading-snug">{t.text}</p>
+                  <p className="text-sm text-fg font-medium leading-snug">{t.text}</p>
                 </div>
               ))}
             </div>
@@ -247,18 +247,18 @@ export default function VoiceSessionUI({
 }
 
 function VoiceOrb({ status }: { status: string }) {
-  const color = status === "speaking" ? "#00BFFF" : status === "listening" ? "#00E676" : "#A855F7";
+  const color = status === "speaking" ? "rgb(var(--primary))" : status === "listening" ? "rgb(var(--ok))" : "rgb(var(--muted))";
   const active = status === "listening" || status === "speaking";
 
   return (
     <div className="relative w-44 h-44 flex items-center justify-center">
       <div
-        className="absolute inset-0 rounded-full blur-2xl transition-opacity"
-        style={{ background: color, opacity: active ? 0.45 : 0.15 }}
+        className="absolute inset-0 rounded-full transition-opacity"
+        style={{ background: color, opacity: active ? 0.14 : 0.06 }}
       />
       <div
-        className="absolute inset-2 rounded-full blur-lg transition-opacity"
-        style={{ background: color, opacity: active ? 0.6 : 0.2 }}
+        className="absolute inset-2 rounded-full transition-opacity"
+        style={{ background: color, opacity: active ? 0.18 : 0.08 }}
       />
       {active && (
         <>
@@ -275,8 +275,8 @@ function VoiceOrb({ status }: { status: string }) {
       <div
         className="relative w-24 h-24 rounded-full flex items-center justify-center"
         style={{
-          background: `radial-gradient(circle at 30% 30%, ${color}55, ${color}15 60%, transparent)`,
-          border: `1px solid ${color}88`,
+          background: `color-mix(in srgb, ${color} 18%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${color} 60%, transparent)`,
         }}
       >
         <Mic size={36} strokeWidth={2} style={{ color }} />
@@ -293,15 +293,15 @@ function SessionBackdrop({ status }: { status: string }) {
         style={{
           background:
             status === "speaking"
-              ? "linear-gradient(180deg, transparent 0%, rgba(0,191,255,0.08) 100%)"
-              : "linear-gradient(180deg, transparent 0%, rgba(168,85,247,0.06) 100%)",
+              ? "linear-gradient(180deg, transparent 0%, rgb(var(--primary) / 0.08) 100%)"
+              : "linear-gradient(180deg, transparent 0%, rgb(var(--fg) / 0.04) 100%)",
         }}
       />
       <div
         className="absolute inset-x-0 bottom-0 h-1/2 opacity-30"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(0,191,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(0,191,255,0.18) 1px, transparent 1px)",
+            "linear-gradient(rgb(var(--fg) / 0.1) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--fg) / 0.1) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
           maskImage: "linear-gradient(180deg, transparent 0%, black 30%, black 100%)",
           transform: "perspective(600px) rotateX(55deg)",

@@ -123,9 +123,9 @@ export default function WebhookSetupCard() {
   }
 
   const fixBlock = (
-    <div className="mt-3 pt-3 border-t border-white/[0.06] text-xs text-white/70 space-y-2">
+    <div className="mt-3 pt-3 border-t border-line text-xs text-fg2 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={() => void checkEvents(false)} disabled={busy === "events"} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs font-semibold disabled:opacity-50">
+        <button onClick={() => void checkEvents(false)} disabled={busy === "events"} className="px-3 py-1.5 rounded-lg bg-fg/5 hover:bg-fg/10 border border-line text-fg2 text-xs font-semibold disabled:opacity-50">
           {busy === "events" ? "Reading…" : "Check webhook events"}
         </button>
         {fix?.some((w) => w.needs_change) && (
@@ -133,15 +133,15 @@ export default function WebhookSetupCard() {
             Fix webhook events
           </button>
         )}
-        <span className="text-white/45">Replies from domains without email authentication need the "message.received.unauthenticated" event.</span>
+        <span className="text-muted">Replies from domains without email authentication need the "message.received.unauthenticated" event.</span>
       </div>
-      {fix && fix.length === 0 && <p className="text-amber-200/90">No AgentMail webhook points at this site yet. Paste the URL above into the AgentMail console first.</p>}
+      {fix && fix.length === 0 && <p className="text-amber-200">No AgentMail webhook points at this site yet. Paste the URL above into the AgentMail console first.</p>}
       {fix?.map((w) => (
-        <div key={w.webhook_id} className="rounded-md bg-black/25 border border-white/10 p-2 space-y-1 break-words">
-          <div className="font-mono text-[11px] text-white/60 break-all">{w.url}</div>
+        <div key={w.webhook_id} className="rounded-md bg-inset border border-line p-2 space-y-1 break-words">
+          <div className="font-mono text-label text-muted break-all">{w.url}</div>
           <div>{w.message}</div>
           {w.needs_change && (
-            <div className="font-mono text-[11px] text-white/55 break-all">
+            <div className="font-mono text-label text-muted break-all">
               Now: {w.before.join(", ") || "(none)"}<br />Would send: {w.after.join(", ")}
             </div>
           )}
@@ -152,7 +152,7 @@ export default function WebhookSetupCard() {
 
   if (loading) {
     return (
-      <GlassCard className="mb-5 flex items-center gap-3 text-white/60">
+      <GlassCard className="mb-5 flex items-center gap-3 text-muted">
         <Loader2 size={16} className="animate-spin" /> Checking webhook status…
       </GlassCard>
     );
@@ -170,15 +170,15 @@ export default function WebhookSetupCard() {
             <Zap size={16} className="text-green-300" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-white">Event tracking live</p>
-            <p className="text-xs text-white/60">
+            <p className="text-sm font-semibold text-fg">Event tracking live</p>
+            <p className="text-xs text-muted">
               AgentMail webhook has received {agentmailWebhook!.event_count} events. Opens, clicks, bounces, and replies update in real time.
             </p>
           </div>
           <button
             onClick={runTest}
             disabled={busy === "test"}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-semibold transition disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-fg/5 hover:bg-fg/10 border border-line text-fg2 text-xs font-semibold transition disabled:opacity-50"
           >
             {busy === "test" ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             Re-test
@@ -192,7 +192,7 @@ export default function WebhookSetupCard() {
   // Step 1: no webhook yet
   if (!agentmailWebhook) {
     return (
-      <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.08] to-purple/[0.08] border-accent/30">
+      <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.08] to-primary/[0.08] border-accent/30">
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center shrink-0">
             <Webhook size={18} className="text-accent" />
@@ -200,10 +200,10 @@ export default function WebhookSetupCard() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={13} className="text-accent" />
-              <span className="text-xs uppercase tracking-widest text-accent font-bold">Final setup step</span>
+              <span className="text-xs text-accent font-medium">Final setup step</span>
             </div>
-            <p className="text-sm text-white font-semibold mb-1">Wire event tracking</p>
-            <p className="text-xs text-white/70 leading-relaxed mb-3">
+            <p className="text-sm text-fg font-semibold mb-1">Wire event tracking</p>
+            <p className="text-xs text-fg2 leading-relaxed mb-3">
               AgentMail pushes delivered / bounced / clicked / replied events to your dashboard via webhook. This
               is how counters tick live during a send. Takes 60 seconds.
             </p>
@@ -224,7 +224,7 @@ export default function WebhookSetupCard() {
 
   // Step 2 & 3: webhook exists, guide user through paste + test
   return (
-    <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.06] to-purple/[0.06] border-accent/25">
+    <GlassCard className="mb-5 bg-gradient-to-br from-accent/[0.06] to-primary/[0.06] border-accent/25">
       <div className="flex items-start gap-4">
         <div className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center shrink-0">
           <Webhook size={18} className="text-accent" />
@@ -232,30 +232,30 @@ export default function WebhookSetupCard() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles size={13} className="text-accent" />
-            <span className="text-xs uppercase tracking-widest text-accent font-bold">Almost there</span>
+            <span className="text-xs text-accent font-medium">Almost there</span>
           </div>
 
           {/* Step 2: paste into AgentMail */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-5 h-5 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-[10px] font-bold text-green-300">
+              <div className="w-5 h-5 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-label font-bold text-green-300">
                 <Check size={10} />
               </div>
-              <span className="text-xs text-white/80 font-semibold">Webhook created</span>
+              <span className="text-xs text-fg2 font-semibold">Webhook created</span>
             </div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-5 h-5 rounded-full bg-accent/20 border border-accent/60 flex items-center justify-center text-[10px] font-bold text-accent">
+              <div className="w-5 h-5 rounded-full bg-accent/20 border border-accent/60 flex items-center justify-center text-label font-bold text-accent">
                 2
               </div>
-              <span className="text-xs text-white font-semibold">Paste this URL into AgentMail → Settings → Webhooks</span>
+              <span className="text-xs text-fg font-semibold">Paste this URL into AgentMail → Settings → Webhooks</span>
             </div>
             <div className="flex items-center gap-2 ml-7">
-              <code className="flex-1 px-3 py-2 rounded-md bg-black/50 border border-white/10 text-[11px] text-primary font-mono overflow-x-auto whitespace-nowrap">
+              <code className="flex-1 px-3 py-2 rounded-md bg-inset border border-line text-label text-primary font-mono overflow-x-auto whitespace-nowrap">
                 {webhookUrl}
               </code>
               <button
                 onClick={copyUrl}
-                className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white/85 text-xs font-semibold transition"
+                className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-md bg-fg/5 hover:bg-fg/10 border border-line text-fg2 text-xs font-semibold transition"
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? "Copied" : "Copy"}
@@ -270,7 +270,7 @@ export default function WebhookSetupCard() {
                 Open AgentMail
               </a>
             </div>
-            <p className="text-[11px] text-white/50 ml-7 mt-1">
+            <p className="text-label text-muted ml-7 mt-1">
               Enable all event types (message.sent, message.delivered, message.bounced, message.received).
             </p>
           </div>
@@ -278,16 +278,16 @@ export default function WebhookSetupCard() {
           {/* Step 3: run test */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-5 h-5 rounded-full bg-accent/20 border border-accent/60 flex items-center justify-center text-[10px] font-bold text-accent">
+              <div className="w-5 h-5 rounded-full bg-accent/20 border border-accent/60 flex items-center justify-center text-label font-bold text-accent">
                 3
               </div>
-              <span className="text-xs text-white font-semibold">Run a test</span>
+              <span className="text-xs text-fg font-semibold">Run a test</span>
             </div>
             <div className="ml-7 flex items-center gap-3">
               <button
                 onClick={runTest}
                 disabled={busy === "test"}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black text-xs font-bold tracking-wide shadow-glow-accent hover:bg-accent/90 transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-on-solid text-xs font-bold tracking-wide hover:bg-accent/90 transition disabled:opacity-50"
               >
                 {busy === "test" ? (
                   <>
@@ -312,8 +312,8 @@ export default function WebhookSetupCard() {
                 </div>
               )}
             </div>
-            {testResult && <p className="text-[11px] text-white/55 ml-7 mt-2">{testResult.hint}</p>}
-            {err && <p className="text-[11px] text-red-300 ml-7 mt-2">{err}</p>}
+            {testResult && <p className="text-label text-muted ml-7 mt-2">{testResult.hint}</p>}
+            {err && <p className="text-label text-red-300 ml-7 mt-2">{err}</p>}
             <div className="ml-7">{fixBlock}</div>
           </div>
         </div>

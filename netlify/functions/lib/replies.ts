@@ -62,9 +62,9 @@ export const FLAG_TIP: Record<Exclude<ReplyFlag, null>, string> = {
   blocked: "AgentMail blocked this sender. Check before acting.",
 };
 
-/** The reply-alert subject: the flag leads when there is one. */
+/** The reply-alert subject: "[Alcance] Reply from <business>", with the flag after the prefix when there is one. */
 export function replySubject(business: string, campaignName: string, flag: ReplyFlag): string {
-  const s = flag ? `[${FLAG_LABEL[flag]}] Reply from ${business}` : `New reply: ${business} (${campaignName})`;
+  const s = flag ? `[Alcance] [${FLAG_LABEL[flag]}] Reply from ${business}` : `[Alcance] Reply from ${business}`;
   return s.replace(/[\r\n]+/g, " ").slice(0, 200);
 }
 

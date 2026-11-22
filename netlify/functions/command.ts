@@ -5031,7 +5031,7 @@ export const handler: Handler = async (event) => {
           const id = h.webhook_id ?? h.id ?? "";
           const d = dryRunWebhookPatch({ webhook_id: id, event_types: h.event_types ?? [] });
           let applied = false;
-          let message = d.needs_change ? `Missing: ${d.added.join(", ")}` : "Already subscribed to every event HQ handles.";
+          let message = d.needs_change ? `Missing: ${d.added.join(", ")}` : "Already subscribed to every event Alcance handles.";
           if (apply && d.needs_change && id) {
             if (process.env.NETLIFY_DEV === "true" && process.env.ALLOW_WEBHOOK_PATCH !== "1") {
               message = "Not sent: this is a local dev server (local testing never changes the real AgentMail webhook).";
@@ -5039,7 +5039,7 @@ export const handler: Handler = async (event) => {
               let r = await agentmailFetch(agentmailKey, `/webhooks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ event_types: d.after }) });
               if (!r.ok && (r.status === 400 || r.status === 422)) r = await agentmailFetch(agentmailKey, `/webhooks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ add_event_types: d.added }) });
               applied = r.ok;
-              message = r.ok ? "Updated. Replies from domains without email authentication now reach HQ." : `AgentMail would not update it (${r.status}). Tick "${d.added.join(", ")}" in the AgentMail console, Webhooks.`;
+              message = r.ok ? "Updated. Replies from domains without email authentication now reach Alcance." : `AgentMail would not update it (${r.status}). Tick "${d.added.join(", ")}" in the AgentMail console, Webhooks.`;
             }
           }
           out.push({ ...d, url: h.url ?? "", applied, message });
@@ -5070,8 +5070,8 @@ export const handler: Handler = async (event) => {
             body: JSON.stringify({
               to: [address],
               subject: "ShiftForge HQ webhook health check",
-              text: "This is an automated test from your ShiftForge HQ dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
-              html: "<p>This is an automated test from your ShiftForge HQ dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
+              text: "This is an automated test from your Alcance dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
+              html: "<p>This is an automated test from your Alcance dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
             }),
           });
           if (!sendR.ok) return fail(500, `Test send failed (${sendR.status}): ${(await sendR.text()).slice(0, 200)}`);

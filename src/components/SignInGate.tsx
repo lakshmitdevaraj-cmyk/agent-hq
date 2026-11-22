@@ -40,13 +40,13 @@ export default function SignInGate() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-      <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0b1020] p-6">
+      <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-line bg-card p-6">
         <div className="flex items-center gap-3 mb-2">
           <KeyRound size={20} className="text-primary" />
-          <h2 className="font-display text-xl font-bold text-white">Sign in</h2>
+          <h2 className="font-display text-xl font-bold text-fg">Sign in</h2>
         </div>
-        <p className="text-sm text-white/65 mb-4">
-          Paste your ShiftForge HQ API key. You can copy it from the Integrations page in a browser that is already signed in.
+        <p className="text-sm text-fg2 mb-4">
+          Paste your Alcance API key. You can copy it from the Integrations page in a browser that is already signed in.
         </p>
         <input
           autoFocus
@@ -54,7 +54,7 @@ export default function SignInGate() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="ahq_…"
-          className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/15 text-white text-sm font-mono focus:outline-none focus:border-primary/60"
+          className="w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm font-mono focus:outline-none focus:border-primary/60"
         />
         {err && <div className="text-xs text-red-300 mt-2">{err}</div>}
         <button

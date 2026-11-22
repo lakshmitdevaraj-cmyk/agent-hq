@@ -96,7 +96,7 @@ export default function Analytics() {
 
       {/* Conversion ratios */}
       {totals && totals.sent > 0 && (
-        <GlassCard className="mb-6 bg-gradient-to-br from-primary/[0.04] to-purple/[0.04]">
+        <GlassCard className="mb-6 bg-gradient-to-br from-primary/[0.04] to-primary/[0.04]">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <RatioTile label="Delivery rate" value={pct(totals.delivered, totals.sent)} sub={`${totals.delivered} of ${totals.sent}`} />
             <RatioTile label="Click rate" value={pct(totals.clicked, totals.sent)} sub={`${totals.clicked} of ${totals.sent}`} />
@@ -121,17 +121,17 @@ export default function Analytics() {
       <GlassCard>
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 size={16} className="text-primary" />
-          <h3 className="font-display text-sm tracking-widest uppercase text-white/75 font-bold">Per campaign</h3>
+          <h3 className="font-display text-sm text-fg2 font-medium">Per campaign</h3>
         </div>
         {campaigns.length === 0 ? (
-          <div className="text-center py-10 text-white/50 text-sm">
+          <div className="text-center py-10 text-muted text-sm">
             No campaigns yet. <Link to="/outreach" className="text-primary hover:underline">Create one →</Link>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] uppercase tracking-widest text-white/45 font-bold">
+                <tr className="text-label text-muted font-medium">
                   <th className="text-left py-2 pr-2">Campaign</th>
                   <th className="text-right py-2 px-2">Leads</th>
                   <th className="text-right py-2 px-2">Sent</th>
@@ -144,19 +144,19 @@ export default function Analytics() {
               </thead>
               <tbody>
                 {campaigns.map((c) => (
-                  <tr key={c.id} className="border-t border-white/[0.05] hover:bg-white/[0.02] transition">
+                  <tr key={c.id} className="border-t border-line hover:bg-fg/[0.02] transition">
                     <td className="py-2.5 pr-2">
-                      <Link to={`/outreach/${c.id}`} className="text-white hover:text-primary font-medium truncate block max-w-xs">
+                      <Link to={`/outreach/${c.id}`} className="text-fg hover:text-primary font-medium truncate block max-w-xs">
                         {c.name}
                       </Link>
                     </td>
-                    <td className="py-2.5 px-2 text-right font-mono text-white/85">{c.leads_imported ?? 0}</td>
-                    <td className="py-2.5 px-2 text-right font-mono text-white/85">{c.emails_sent ?? 0}</td>
+                    <td className="py-2.5 px-2 text-right font-mono text-fg2">{c.leads_imported ?? 0}</td>
+                    <td className="py-2.5 px-2 text-right font-mono text-fg2">{c.emails_sent ?? 0}</td>
                     <td className="py-2.5 px-2 text-right font-mono text-green-300">{c.emails_delivered ?? 0}</td>
                     <td className="py-2.5 px-2 text-right font-mono text-red-300">{c.emails_bounced ?? 0}</td>
                     <td className="py-2.5 px-2 text-right font-mono text-accent">{c.emails_clicked ?? 0}</td>
                     <td className="py-2.5 px-2 text-right font-mono text-green-300">{c.emails_replied ?? 0}</td>
-                    <td className="py-2.5 pl-2 text-right text-[11px] text-white/45 font-mono">{c.created_at ? timeAgo(c.created_at) : "—"}</td>
+                    <td className="py-2.5 pl-2 text-right text-label text-muted font-mono">{c.created_at ? timeAgo(c.created_at) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -171,7 +171,7 @@ export default function Analytics() {
 function StatTile({ label, value, icon, tint }: { label: string; value: number; icon: React.ReactNode; tint: "primary" | "purple" | "accent" | "green" | "red" }) {
   const tints: Record<typeof tint, string> = {
     primary: "from-primary/15 to-primary/5 border-primary/25 text-primary",
-    purple: "from-purple/15 to-purple/5 border-purple/25 text-purple",
+    purple: "from-primary/15 to-primary/5 border-primary/25 text-primary",
     accent: "from-accent/15 to-accent/5 border-accent/25 text-accent",
     green: "from-green-500/15 to-green-500/5 border-green-500/25 text-green-300",
     red: "from-red-500/15 to-red-500/5 border-red-500/25 text-red-300",
@@ -180,9 +180,9 @@ function StatTile({ label, value, icon, tint }: { label: string; value: number; 
     <div className={`rounded-xl p-4 bg-gradient-to-br ${tints[tint]} border`}>
       <div className="flex items-center gap-1.5 mb-2 opacity-90">
         {icon}
-        <span className="text-[10px] uppercase tracking-widest font-bold">{label}</span>
+        <span className="text-label font-medium">{label}</span>
       </div>
-      <div className="font-display text-2xl font-black text-white">
+      <div className="font-display text-2xl font-black text-fg">
         <AnimatedNumber value={value} />
       </div>
     </div>
@@ -192,11 +192,11 @@ function StatTile({ label, value, icon, tint }: { label: string; value: number; 
 function RatioTile({ label, value, sub, warn }: { label: string; value: string; sub: string; warn?: boolean }) {
   return (
     <div>
-      <div className={`text-[10px] uppercase tracking-widest font-bold mb-1 ${warn ? "text-red-300" : "text-white/50"}`}>
+      <div className={`text-label font-medium mb-1 ${warn ? "text-red-300" : "text-muted"}`}>
         {label}
       </div>
-      <div className={`font-display text-3xl font-black tabular-nums ${warn ? "text-red-300" : "text-white"}`}>{value}</div>
-      <div className="text-[11px] font-mono text-white/45 mt-0.5">{sub}</div>
+      <div className={`font-display text-3xl font-black tabular-nums ${warn ? "text-red-300" : "text-fg"}`}>{value}</div>
+      <div className="text-label font-mono text-muted mt-0.5">{sub}</div>
     </div>
   );
 }

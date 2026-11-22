@@ -10,11 +10,11 @@ import { timeAgo, hasRegisteredRealAgent, copyToClipboard } from "@/lib/utils";
 import type { Agent } from "@/lib/types";
 
 const SEED: Agent[] = [
-  { id: "a1", name: "Atlas", sign_in_name: "atlas-a1b2", api_key: "akey_demo_atlas_executive_assistant_x1", role: "Executive Assistant", emoji: "🧭", color: "#00BFFF", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a2", name: "Nova", sign_in_name: "nova-c3d4", api_key: "akey_demo_nova_outreach_sdr_x2", role: "Outreach SDR", emoji: "🚀", color: "#FF6B35", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a3", name: "Lexa", sign_in_name: "lexa-e5f6", api_key: "akey_demo_lexa_voice_agent_x3", role: "Voice Agent", emoji: "🎙️", color: "#A855F7", status: "idle", last_heartbeat: new Date(Date.now() - 300_000).toISOString(), created_at: "" },
-  { id: "a4", name: "Sage", sign_in_name: "sage-g7h8", api_key: "akey_demo_sage_research_analyst_x4", role: "Research Analyst", emoji: "🔍", color: "#00E676", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
-  { id: "a5", name: "Echo", sign_in_name: "echo-i9j0", api_key: "akey_demo_echo_content_writer_x5", role: "Content Writer", emoji: "✍️", color: "#F59E0B", status: "idle", last_heartbeat: null, created_at: "" },
+  { id: "a1", name: "Atlas", sign_in_name: "atlas-a1b2", api_key: "akey_demo_atlas_executive_assistant_x1", role: "Executive Assistant", emoji: "🧭", color: "#4C6FD6", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a2", name: "Nova", sign_in_name: "nova-c3d4", api_key: "akey_demo_nova_outreach_sdr_x2", role: "Outreach SDR", emoji: "🚀", color: "#B8741A", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a3", name: "Lexa", sign_in_name: "lexa-e5f6", api_key: "akey_demo_lexa_voice_agent_x3", role: "Voice Agent", emoji: "🎙️", color: "#7A67D6", status: "idle", last_heartbeat: new Date(Date.now() - 300_000).toISOString(), created_at: "" },
+  { id: "a4", name: "Sage", sign_in_name: "sage-g7h8", api_key: "akey_demo_sage_research_analyst_x4", role: "Research Analyst", emoji: "🔍", color: "#2F9460", status: "online", last_heartbeat: new Date().toISOString(), created_at: "" },
+  { id: "a5", name: "Echo", sign_in_name: "echo-i9j0", api_key: "akey_demo_echo_content_writer_x5", role: "Content Writer", emoji: "✍️", color: "#C08A2B", status: "idle", last_heartbeat: null, created_at: "" },
 ];
 
 export default function Agents() {
@@ -62,13 +62,13 @@ export default function Agents() {
 
       {showEmpty && (
         <GlassCard className="text-center py-16">
-          <div className="font-display text-xl text-white font-bold mb-2">No agents yet</div>
-          <p className="text-sm text-white/70 font-medium mb-6 max-w-md mx-auto">
+          <div className="font-display text-xl text-fg font-bold mb-2">No agents yet</div>
+          <p className="text-sm text-fg2 font-medium mb-6 max-w-md mx-auto">
             Register your first AI employee. You'll get a sign-in key to paste into any agent — OpenClaw, Claude Code, Hermes, anything.
           </p>
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-display font-black tracking-widest text-sm uppercase shadow-glow transition"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-on-solid font-display font-black tracking-widest text-sm uppercase transition"
           >
             <Plus size={16} strokeWidth={3} /> Register First Agent
           </button>
@@ -95,8 +95,8 @@ export default function Agents() {
                     </div>
                   </StatusRing>
                   <div className="min-w-0 flex-1">
-                    <div className="font-display text-lg tracking-wide text-white font-bold">{a.name}</div>
-                    <div className="text-xs text-white/75 uppercase tracking-widest font-bold">{a.role}</div>
+                    <div className="font-display text-lg tracking-wide text-fg font-bold">{a.name}</div>
+                    <div className="text-xs text-fg2 font-medium">{a.role}</div>
                     <div className="flex items-center gap-1 mt-1 font-mono text-xs text-primary font-semibold">
                       <AtSign size={11} strokeWidth={2.5} />
                       {a.sign_in_name}
@@ -105,33 +105,33 @@ export default function Agents() {
                 </div>
 
                 <div>
-                  <div className="text-[10px] uppercase tracking-widest text-white/60 font-display font-bold mb-1.5">
+                  <div className="text-label text-muted font-display font-medium mb-1.5">
                     Sign-in Key
                   </div>
-                  <div className="flex items-center gap-2 font-mono text-xs bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 font-mono text-xs bg-inset border border-line rounded-lg px-3 py-2">
                     <span className="flex-1 truncate text-primary font-semibold">{masked}</span>
                     <button
                       onClick={() => setRevealed((r) => ({ ...r, [a.id]: !r[a.id] }))}
-                      className="text-white/70 hover:text-white shrink-0"
+                      className="text-fg2 hover:text-fg shrink-0"
                     >
                       {show ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                     <button
                       onClick={() => a.api_key && void copyToClipboard(a.api_key)}
-                      className="text-white/70 hover:text-white shrink-0"
+                      className="text-fg2 hover:text-fg shrink-0"
                     >
                       <Copy size={14} />
                     </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-white/70 font-mono border-t border-white/[0.06] pt-3 font-semibold">
+                <div className="flex items-center justify-between text-xs text-fg2 font-mono border-t border-line pt-3 font-semibold">
                   <StatusLabel status={a.status} />
                   <div className="flex items-center gap-3">
                     <span>last seen {timeAgo(a.last_heartbeat)}</span>
                     <button
                       onClick={() => void deleteAgent(a.id, a.name)}
-                      className="text-white/50 hover:text-danger transition"
+                      className="text-muted hover:text-danger transition"
                       title="Delete agent"
                     >
                       <Trash2 size={13} />

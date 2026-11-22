@@ -90,7 +90,7 @@ export default function Voice() {
       <>
         <PageHeader title="Voice" subtitle="Talking to your agent, live, in your browser." />
         <GlassCard className="text-center py-16">
-          <p className="text-white/70 font-medium">Loading...</p>
+          <p className="text-fg2 font-medium">Loading...</p>
         </GlassCard>
       </>
     );
@@ -142,7 +142,7 @@ export default function Voice() {
         right={
           <button
             onClick={() => void resetConfig()}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/5 text-xs uppercase tracking-widest font-bold transition"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-fg2 hover:text-fg hover:bg-fg/5 text-xs font-bold transition"
             title="Replace Gemini key"
           >
             <Settings size={14} /> Replace Key
@@ -158,24 +158,24 @@ export default function Voice() {
 
       <GlassCard className="text-center py-16 relative overflow-hidden mb-8">
         <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-purple/10 blur-3xl" />
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-primary/10 blur-3xl" />
 
         <div className="relative">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-purple/30 border border-primary/40 flex items-center justify-center shadow-glow mx-auto mb-5">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/30 border border-primary/40 flex items-center justify-center mx-auto mb-5">
             <Mic size={42} className="text-primary" strokeWidth={2} />
           </div>
-          <h2 className="font-display text-2xl text-white font-bold tracking-wide mb-2">Ready when you are.</h2>
-          <p className="text-sm text-white/75 font-medium max-w-md mx-auto mb-6">
+          <h2 className="font-display text-2xl text-fg font-bold tracking-wide mb-2">Ready when you are.</h2>
+          <p className="text-sm text-fg2 font-medium max-w-md mx-auto mb-6">
             Your agent can create tasks, log activity, and query the dashboard while you talk.
             The transcript + actions appear live as you go.
           </p>
           <button
             onClick={() => void startSession()}
-            className="inline-flex items-center gap-2 px-7 py-4 rounded-xl bg-primary hover:bg-primary/90 text-black font-display font-black tracking-widest text-sm uppercase shadow-glow transition"
+            className="inline-flex items-center gap-2 px-7 py-4 rounded-xl bg-primary hover:bg-primary/90 text-on-solid font-display font-black tracking-widest text-sm uppercase transition"
           >
             <Mic size={18} strokeWidth={3} /> Start Conversation
           </button>
-          <p className="text-xs text-white/50 font-medium mt-4">
+          <p className="text-xs text-muted font-medium mt-4">
             Your browser will ask for microphone access.
           </p>
         </div>
@@ -184,11 +184,11 @@ export default function Voice() {
       <GlassCard className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles size={16} className="text-accent" strokeWidth={2.3} />
-          <h3 className="font-display text-sm tracking-widest uppercase text-white font-bold">
+          <h3 className="font-display text-sm text-fg font-medium">
             Real things you can say
           </h3>
         </div>
-        <p className="text-sm text-white/75 font-medium mb-4">
+        <p className="text-sm text-fg2 font-medium mb-4">
           Start a conversation and try one of these out loud. You'll see tasks appear, activity log
           update, and your agent confirm — all live.
         </p>
@@ -196,7 +196,7 @@ export default function Voice() {
           {SUGGESTED_PROMPTS.map((p) => (
             <div
               key={p}
-              className="glass p-3 text-sm text-white/90 font-medium border-white/[0.06] hover:border-primary/40 transition"
+              className="glass p-3 text-sm text-fg font-medium border-line hover:border-primary/40 transition"
             >
               "{p}"
             </div>
@@ -225,15 +225,15 @@ function Tile({
       ? "text-primary"
       : accent === "success"
         ? "text-success"
-        : "text-purple";
+        : "text-primary";
   return (
     <GlassCard className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${cls}`}>
+      <div className={`w-10 h-10 rounded-xl bg-fg/5 flex items-center justify-center ${cls}`}>
         <Icon size={20} strokeWidth={2.3} />
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-widest text-white/65 font-display font-bold">{label}</div>
-        <div className="text-sm text-white font-bold mt-0.5">{value}</div>
+        <div className="text-label text-fg2 font-display font-medium">{label}</div>
+        <div className="text-sm text-fg font-bold mt-0.5">{value}</div>
       </div>
     </GlassCard>
   );

@@ -23,16 +23,16 @@ export default function AgentSprite({ agent, x, y, delay = 0 }: Props) {
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
             style={{
-              background: `radial-gradient(circle at 30% 30%, ${agent.color}55, ${agent.color}15 60%, transparent)`,
-              border: `1px solid ${agent.color}66`,
+              background: `color-mix(in srgb, ${agent.color} 18%, transparent)`,
+              border: `1px solid color-mix(in srgb, ${agent.color} 55%, transparent)`,
             }}
           >
             <span>{agent.emoji}</span>
           </div>
         </StatusRing>
         <div className="glass px-3 py-1.5 min-w-[110px] text-center">
-          <div className="font-display text-xs tracking-widest text-white font-bold">{agent.name}</div>
-          <div className="text-[10px] text-white/75 uppercase tracking-widest font-semibold">{agent.role}</div>
+          <div className="font-display text-xs tracking-widest text-fg font-bold">{agent.name}</div>
+          <div className="text-label text-fg2 font-medium">{agent.role}</div>
         </div>
       </div>
     </motion.div>

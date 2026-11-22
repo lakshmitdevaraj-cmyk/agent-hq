@@ -50,28 +50,28 @@ export default function PublicForm() {
         {error && !config && (
           <GlassCard className="text-center py-10">
             <p className="text-danger font-display text-lg">Form unavailable</p>
-            <p className="text-white/50 mt-2 text-sm">{error}</p>
+            <p className="text-muted mt-2 text-sm">{error}</p>
           </GlassCard>
         )}
 
         {config && !submitted && (
           <GlassCard className="p-8">
             <h1 className="page-title text-3xl mb-2">{config.title}</h1>
-            {config.description && <p className="text-white/60 mb-6">{config.description}</p>}
+            {config.description && <p className="text-muted mb-6">{config.description}</p>}
             <form onSubmit={submit} className="flex flex-col gap-4">
               {config.fields.map((f, i) => {
                 const fieldName = f.name?.trim() || `field_${i + 1}`;
                 const inputType = f.type === "textarea" ? "textarea" : f.type || "text";
                 return (
                   <div key={fieldName} className="flex flex-col gap-1.5">
-                    <label className="text-xs uppercase tracking-widest text-white/70 font-display font-bold">
+                    <label className="text-xs text-fg2 font-display font-medium">
                       {f.label} {f.required && <span className="text-accent">*</span>}
                     </label>
                     {inputType === "textarea" ? (
                       <textarea
                         required={f.required}
                         rows={4}
-                        className="bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white/95 font-medium focus:outline-none focus:border-primary/60 focus:shadow-glow transition"
+                        className="bg-inset border border-line rounded-lg px-3 py-2.5 text-sm text-fg font-medium focus:outline-none focus:border-primary/60 focus: transition"
                         value={values[fieldName] ?? ""}
                         onChange={(e) => setValues((v) => ({ ...v, [fieldName]: e.target.value }))}
                       />
@@ -79,7 +79,7 @@ export default function PublicForm() {
                       <input
                         type={inputType}
                         required={f.required}
-                        className="bg-black/30 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white/95 font-medium focus:outline-none focus:border-primary/60 focus:shadow-glow transition"
+                        className="bg-inset border border-line rounded-lg px-3 py-2.5 text-sm text-fg font-medium focus:outline-none focus:border-primary/60 focus: transition"
                         value={values[fieldName] ?? ""}
                         onChange={(e) => setValues((v) => ({ ...v, [fieldName]: e.target.value }))}
                       />
@@ -90,7 +90,7 @@ export default function PublicForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 px-5 py-3 rounded-xl bg-gradient-to-r from-primary/80 to-purple/80 text-white font-display tracking-widest text-sm uppercase shadow-glow disabled:opacity-60"
+                className="mt-2 px-5 py-3 rounded-xl bg-gradient-to-r from-primary/80 to-primary/80 text-fg font-display text-sm disabled:opacity-60"
               >
                 {loading ? "Submitting…" : "Submit"}
               </button>
@@ -102,7 +102,7 @@ export default function PublicForm() {
           <GlassCard className="text-center py-12 flex flex-col items-center gap-4">
             <CheckCircle2 size={48} className="text-success" />
             <h2 className="font-display text-2xl">Got it.</h2>
-            <p className="text-white/60 max-w-sm">An agent is already on it.</p>
+            <p className="text-muted max-w-sm">An agent is already on it.</p>
           </GlassCard>
         )}
       </div>

@@ -35,7 +35,7 @@ const SERVICE_META: Record<ServiceKey, { title: string; summary: string; url: st
     summary: "Google Maps scraper for leads",
     url: "https://console.apify.com/settings/integrations",
     urlLabel: "Apify Console",
-    accent: "from-purple/20 to-purple/5 border-purple/30",
+    accent: "from-primary/20 to-primary/5 border-primary/30",
   },
   agentmail: {
     title: "AgentMail",
@@ -80,11 +80,11 @@ function FooterSettings() {
 
   return (
     <GlassCard className="mt-6">
-      <h3 className="font-display text-lg font-bold text-white mb-1">Email footer</h3>
-      <p className="text-sm text-white/65 mb-3">
+      <h3 className="font-display text-lg font-bold text-fg mb-1">Email footer</h3>
+      <p className="text-sm text-fg2 mb-3">
         Every outreach email automatically ends with the opt-out line and the ShiftForge AI signature. Optionally add a postal address below — it is appended to that footer. Leave blank to omit.
       </p>
-      <label htmlFor="postal-address" className="text-xs font-bold tracking-wider uppercase text-white/60">
+      <label htmlFor="postal-address" className="text-xs font-medium text-muted">
         Postal address (optional)
       </label>
       <textarea
@@ -93,7 +93,7 @@ function FooterSettings() {
         onChange={(e) => setAddress(e.target.value)}
         rows={2}
         placeholder="Leave blank to omit"
-        className="mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60"
+        className="mt-1 w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm focus:outline-none focus:border-primary/60"
       />
       <div className="flex items-center gap-3 mt-3">
         <button
@@ -103,7 +103,7 @@ function FooterSettings() {
         >
           {busy && <Loader2 size={12} className="animate-spin" />} Save
         </button>
-        {msg && <span className="text-xs text-white/60">{msg}</span>}
+        {msg && <span className="text-xs text-muted">{msg}</span>}
       </div>
     </GlassCard>
   );
@@ -173,35 +173,35 @@ function SendingSettings() {
   const dirty = inbox !== saved.inbox || alertTo.trim().toLowerCase() !== saved.alertTo;
   return (
     <GlassCard className="mt-6">
-      <h3 className="font-display text-lg font-bold text-white mb-1">Sending inbox and reply alerts</h3>
-      <p className="text-sm text-white/65 mb-3">
+      <h3 className="font-display text-lg font-bold text-fg mb-1">Sending inbox and reply alerts</h3>
+      <p className="text-sm text-fg2 mb-3">
         New emails are sent from the inbox you pick. Emails already sent keep their own inbox, so their status and replies keep working. Leave it on the default to use your first AgentMail inbox, as before.
       </p>
       {loadErr && <p className="text-xs text-red-300 mb-2">{loadErr}</p>}
-      <label htmlFor="sending-inbox" className="text-xs font-bold tracking-wider uppercase text-white/60">Send new emails from</label>
+      <label htmlFor="sending-inbox" className="text-xs font-medium text-muted">Send new emails from</label>
       <select
         id="sending-inbox"
         value={inbox}
         onChange={(e) => setInbox(e.target.value)}
         disabled={!info}
-        className="mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60"
+        className="mt-1 w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm focus:outline-none focus:border-primary/60"
       >
         <option value="">Default (first AgentMail inbox)</option>
         {info?.inboxes.map((i) => <option key={i.inbox_id} value={i.inbox_id}>{i.email}{i.display_name ? ` (${i.display_name})` : ""}</option>)}
         {inbox && info && !info.inboxes.some((i) => i.inbox_id === inbox) && <option value={inbox}>{inbox}</option>}
       </select>
-      {coverage && <p className={`text-xs mt-1.5 ${coverage.ok ? "text-green-300/90" : "text-amber-300"}`}>{coverage.text}</p>}
+      {coverage && <p className={`text-xs mt-1.5 ${coverage.ok ? "text-green-300" : "text-amber-300"}`}>{coverage.text}</p>}
 
-      <label htmlFor="reply-alert" className="block mt-4 text-xs font-bold tracking-wider uppercase text-white/60">Notify me of replies at</label>
+      <label htmlFor="reply-alert" className="block mt-4 text-xs font-medium text-muted">Notify me of replies at</label>
       <input
         id="reply-alert"
         type="email"
         value={alertTo}
         onChange={(e) => setAlertTo(e.target.value)}
         placeholder="you@gmail.com (leave blank for no alerts)"
-        className="mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60"
+        className="mt-1 w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm focus:outline-none focus:border-primary/60"
       />
-      <p className="text-xs text-white/50 mt-1">One short email per new reply, sent from your sending inbox to this address only. No alert for "no thanks" replies or out-of-office messages.</p>
+      <p className="text-xs text-muted mt-1">One short email per new reply, sent from your sending inbox to this address only. No alert for "no thanks" replies or out-of-office messages.</p>
 
       <div className="flex items-center gap-3 mt-3">
         <button
@@ -249,8 +249,8 @@ function OutreachDefaultsSettings() {
   if (!form || !saved) return null;
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
   const set = (k: keyof OutreachDefaults, v: string | number) => setForm({ ...form, [k]: v });
-  const input = "mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60";
-  const label = "text-xs font-bold tracking-wider uppercase text-white/60";
+  const input = "mt-1 w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm focus:outline-none focus:border-primary/60";
+  const label = "text-xs font-medium text-muted";
 
   async function save() {
     if (!form) return;
@@ -282,12 +282,12 @@ function OutreachDefaultsSettings() {
 
   return (
     <GlassCard className="mt-6">
-      <h3 className="font-display text-lg font-bold text-white mb-1">Drafting defaults</h3>
-      <p className="text-sm text-white/65 mb-3">
+      <h3 className="font-display text-lg font-bold text-fg mb-1">Drafting defaults</h3>
+      <p className="text-sm text-fg2 mb-3">
         These prefill the "Generate emails" form for every campaign (a campaign's own saved sender details win).
         Changing a model runs a real test call first, so a wrong name fails here, not mid-campaign.
       </p>
-      <div className="grid gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
         {ROLES.map((r) => {
           const mk = `${r.key}_model` as keyof OutreachDefaults;
           const pk = `${r.key}_provider` as keyof OutreachDefaults;
@@ -295,7 +295,7 @@ function OutreachDefaultsSettings() {
           const second = form[pk] === "second";
           return (
             <div key={r.key}>
-              <label htmlFor={`m-${r.key}`} className={label}>{r.title} model <span className="normal-case font-normal text-white/40">· {r.hint}</span></label>
+              <label htmlFor={`m-${r.key}`} className={label}>{r.title} model <span className="normal-case font-normal text-muted">· {r.hint}</span></label>
               <div className="flex gap-2">
                 <select aria-label={`${r.title} provider`} value={String(form[pk])} onChange={(e) => set(pk, e.target.value)} className={`${input} !w-40`}>
                   <option value="gemini">Gemini</option>
@@ -303,14 +303,14 @@ function OutreachDefaultsSettings() {
                 </select>
                 <input id={`m-${r.key}`} value={second ? form.second_ai_model : String(form[mk])} disabled={second} onChange={(e) => set(mk, e.target.value)} className={input} />
               </div>
-              <div className="text-[11px] text-white/45 mt-1">{second ? "Uses the model set in the Second AI provider card below." : `Default: ${String(form[dk])}`}</div>
+              <div className="text-label text-muted mt-1">{second ? "Uses the model set in the Second AI provider card below." : `Default: ${String(form[dk])}`}</div>
             </div>
           );
         })}
         <div>
           <label htmlFor="b-cap" className={label}>Browser check limit per campaign</label>
           <input id="b-cap" type="number" min={0} max={200} value={form.browser_check_cap} onChange={(e) => set("browser_check_cap", e.target.value === "" ? 0 : Number(e.target.value))} className={`${input} !w-32`} />
-          <div className="text-[11px] text-white/45 mt-1">Most leads each campaign can be re-checked in a real browser (Apify credits). Each check is about half a cent per page; you see the estimate before it starts.</div>
+          <div className="text-label text-muted mt-1">Most leads each campaign can be re-checked in a real browser (Apify credits). Each check is about half a cent per page; you see the estimate before it starts.</div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -335,7 +335,7 @@ function OutreachDefaultsSettings() {
         >
           {busy && <Loader2 size={12} className="animate-spin" />} {busy ? "Testing and saving…" : "Save"}
         </button>
-        {msg && <span className={`text-xs ${msg.ok ? "text-white/60" : "text-red-300"}`}>{msg.text}</span>}
+        {msg && <span className={`text-xs ${msg.ok ? "text-muted" : "text-red-300"}`}>{msg.text}</span>}
       </div>
     </GlassCard>
   );
@@ -355,8 +355,8 @@ function SecondProviderSettings() {
   }
   useEffect(() => { void load(); }, []);
   if (!form) return null;
-  const input = "mt-1 w-full px-3 py-2 rounded-lg bg-black/30 border border-white/15 text-white text-sm focus:outline-none focus:border-primary/60";
-  const label = "text-xs font-bold tracking-wider uppercase text-white/60";
+  const input = "mt-1 w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm focus:outline-none focus:border-primary/60";
+  const label = "text-xs font-medium text-muted";
 
   async function save() {
     if (!form) return;
@@ -392,12 +392,12 @@ function SecondProviderSettings() {
 
   return (
     <GlassCard className="mt-6">
-      <h3 className="font-display text-lg font-bold text-white mb-1">Second AI provider <span className="text-xs font-normal text-white/45">(optional)</span></h3>
-      <p className="text-sm text-white/65 mb-3">
+      <h3 className="font-display text-lg font-bold text-fg mb-1">Second AI provider <span className="text-xs font-normal text-muted">(optional)</span></h3>
+      <p className="text-sm text-fg2 mb-3">
         Any OpenAI-compatible service (DeepSeek by default). If Gemini is busy or out of quota, drafting and reviewing fall back to this one automatically.
         You can also pick it as the Drafting, Reviewer or Helper model above. A fallback never makes an unreviewed draft "ready".
       </p>
-      <div className="grid gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <div>
           <label htmlFor="a2-url" className={label}>Base URL</label>
           <input id="a2-url" value={form.base} onChange={(e) => setForm({ ...form, base: e.target.value })} className={input} />
@@ -407,7 +407,7 @@ function SecondProviderSettings() {
           <input id="a2-model" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className={input} />
         </div>
         <div>
-          <label htmlFor="a2-key" className={label}>API key {form.configured && <span className="normal-case font-mono text-white/45">· saved {form.masked}</span>}</label>
+          <label htmlFor="a2-key" className={label}>API key {form.configured && <span className="normal-case font-mono text-muted">· saved {form.masked}</span>}</label>
           <input id="a2-key" type="password" autoComplete="off" placeholder={form.configured ? "Leave empty to keep the saved key" : "Paste key"} value={key} onChange={(e) => setKey(e.target.value)} className={input} />
         </div>
       </div>
@@ -475,7 +475,7 @@ function MoveSiteSettings() {
   const importFile = (f: File) =>
     run(async () => {
       const file = JSON.parse(await f.text()) as MoveFile;
-      if (file.format !== "shiftforge-hq-export" || !file.stores) throw new Error("This is not a ShiftForge HQ export file");
+      if (file.format !== "shiftforge-hq-export" || !file.stores) throw new Error("This is not an Alcance export file");
       for (const [name, rows] of Object.entries(file.stores)) {
         let written = 0;
         let skipped = 0;
@@ -505,8 +505,8 @@ function MoveSiteSettings() {
   const btn = "flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40";
   return (
     <GlassCard className="mt-6">
-      <h3 className="font-display text-lg font-bold text-white mb-1">Move to another site</h3>
-      <p className="text-sm text-white/65 mb-3">
+      <h3 className="font-display text-lg font-bold text-fg mb-1">Move to another site</h3>
+      <p className="text-sm text-fg2 mb-3">
         Export everything (campaigns, leads, drafts, sent emails, replies, settings) to one file, then import it on the new site.
         Your API keys (AgentMail, Gemini, Apify) are never included; enter them again on the new site.
         Wait a minute after your last change before exporting.
@@ -531,7 +531,7 @@ function MoveSiteSettings() {
         <button onClick={compare} disabled={busy} className={btn}>Compare counts</button>
       </div>
       {log.length > 0 && (
-        <pre className={`mt-3 text-xs whitespace-pre-wrap ${ok ? "text-white/70" : "text-red-300"}`}>{log.join("\n")}</pre>
+        <pre className={`mt-3 text-xs whitespace-pre-wrap ${ok ? "text-fg2" : "text-red-300"}`}>{log.join("\n")}</pre>
       )}
     </GlassCard>
   );
@@ -608,7 +608,7 @@ export default function Settings() {
         </GlassCard>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {services.map((s) => {
           const meta = SERVICE_META[s];
           const svc = status?.[s];
@@ -618,40 +618,40 @@ export default function Settings() {
           return (
             <GlassCard key={s} className={`bg-gradient-to-br ${meta.accent}`}>
               <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-xl bg-black/30 border border-white/10 flex items-center justify-center shrink-0">
-                  <Key size={22} className="text-white/80" />
+                <div className="w-14 h-14 rounded-xl bg-inset border border-line flex items-center justify-center shrink-0">
+                  <Key size={22} className="text-fg2" />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap mb-1">
-                    <h3 className="font-display text-lg font-bold text-white">{meta.title}</h3>
+                    <h3 className="font-display text-lg font-bold text-fg">{meta.title}</h3>
                     {configured ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-300 text-[10px] font-mono font-bold uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-300 text-label font-mono font-bold">
                         <Check size={10} /> Connected
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/15 text-white/50 text-[10px] font-mono font-bold uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fg/5 border border-line text-muted text-label font-mono font-bold">
                         Not set
                       </span>
                     )}
                     {configured && lastTestOk === false && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-[10px] font-mono font-bold uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-label font-mono font-bold">
                         <AlertCircle size={10} /> Last test failed
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-white/65 mb-1">{meta.summary}</p>
+                  <p className="text-sm text-fg2 mb-1">{meta.summary}</p>
                   {configured ? (
-                    <p className="text-xs text-white/50 font-mono">
+                    <p className="text-xs text-muted font-mono break-words">
                       {svc?.masked}
-                      {svc?.updated_at && <span className="text-white/35 ml-2">· saved {new Date(svc.updated_at).toLocaleString()}</span>}
+                      {svc?.updated_at && <span className="text-muted ml-2">· saved {new Date(svc.updated_at).toLocaleString()}</span>}
                     </p>
                   ) : (
                     <a
                       href={meta.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-primary hover:text-white inline-flex items-center gap-1 font-semibold"
+                      className="text-xs text-primary hover:text-fg inline-flex items-center gap-1 font-semibold"
                     >
                       Get a free key from {meta.urlLabel} <ExternalLink size={11} />
                     </a>
@@ -667,7 +667,7 @@ export default function Settings() {
                       <button
                         onClick={() => retest(s)}
                         disabled={busy === s}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs font-semibold transition disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-fg/5 hover:bg-fg/10 border border-line text-fg2 text-xs font-semibold transition disabled:opacity-50"
                       >
                         {busy === s ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                         Test

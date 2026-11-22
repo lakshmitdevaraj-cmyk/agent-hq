@@ -13,14 +13,14 @@ import { FB_RESULT_LABEL, touchesText, HAS_OPTIONS, LOW_GAP, autoHidden, isNotFi
 
 const HIGH_GAP = 60;
 const STATUS_TONE: Record<EmailState, string> = {
-  not_emailed: "bg-white/10 border-white/20 text-white/70",
-  emailed: "bg-accent/15 border-accent/40 text-accent",
-  replied: "bg-green-500/15 border-green-500/40 text-green-300",
-  bounced: "bg-red-500/15 border-red-500/40 text-red-300",
-  do_not_contact: "bg-red-500/15 border-red-500/40 text-red-300",
+  not_emailed: "bg-fg/10 border-line text-fg2",
+  emailed: "tag-warn",
+  replied: "tag-ok",
+  bounced: "tag-bad",
+  do_not_contact: "tag-bad",
 };
 
-const selectCls = "bg-black/30 border border-white/15 rounded-md px-2 py-1.5 text-xs text-white";
+const selectCls = "bg-inset border border-line rounded-md px-2 py-1.5 text-xs text-fg";
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -44,24 +44,24 @@ function EmailField({ lead, onSaved }: { lead: Prospect; onSaved: (patch: Record
     } catch (e) { setErr(e instanceof Error ? e.message : "Could not save"); } finally { setBusy(false); }
   }
   return (
-    <div className="text-xs text-white/75 space-y-1">
+    <div className="text-xs text-fg2 space-y-1">
       {editing ? (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <input autoFocus type="email" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void save(); }} placeholder="name@company.com" className="flex-1 min-w-[180px] bg-black/30 border border-white/15 rounded-md px-2 py-1.5 text-xs text-white font-mono" />
-          <button onClick={() => void save()} disabled={busy} className="px-2 py-1 rounded-md bg-primary/20 border border-primary/40 text-primary text-[11px] font-bold disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
-          {lead.email && <button onClick={() => { if (confirm("Remove this email address from the lead? Unsent drafts for it are removed too.")) void save(true); }} disabled={busy} className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/40 text-red-300 text-[11px] disabled:opacity-50">Clear email</button>}
-          <button onClick={() => { setEditing(false); setErr(null); }} className="px-2 py-1 rounded-md bg-white/5 border border-white/15 text-[11px] text-white/70">Cancel</button>
+          <input autoFocus type="email" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void save(); }} placeholder="name@company.com" className="flex-1 min-w-[180px] bg-inset border border-line rounded-md px-2 py-1.5 text-xs text-fg font-mono" />
+          <button onClick={() => void save()} disabled={busy} className="px-2 py-1 rounded-md bg-primary/20 border border-primary/40 text-primary text-label font-bold disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+          {lead.email && <button onClick={() => { if (confirm("Remove this email address from the lead? Unsent drafts for it are removed too.")) void save(true); }} disabled={busy} className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/40 text-red-300 text-label disabled:opacity-50">Clear email</button>}
+          <button onClick={() => { setEditing(false); setErr(null); }} className="px-2 py-1 rounded-md bg-fg/5 border border-line text-label text-fg2">Cancel</button>
         </div>
       ) : (
         <div className="flex items-center gap-2 flex-wrap">
-          <span>Email: {lead.email ? <span className="font-mono">{lead.email}</span> : <span className="text-white/40">none</span>}</span>
-          {lead.email_source === "manual" && <span className="text-[10px] text-white/45">manual{lead.email_manual_at ? `, ${shortDate(lead.email_manual_at)}` : ""}</span>}
-          <button onClick={() => { setValue(lead.email ?? ""); setEditing(true); setNote(null); }} disabled={!lead.campaign_id} className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/15 text-[10px] text-white/80">Edit email</button>
+          <span>Email: {lead.email ? <span className="font-mono">{lead.email}</span> : <span className="text-muted">none</span>}</span>
+          {lead.email_source === "manual" && <span className="text-label text-muted">manual{lead.email_manual_at ? `, ${shortDate(lead.email_manual_at)}` : ""}</span>}
+          <button onClick={() => { setValue(lead.email ?? ""); setEditing(true); setNote(null); }} disabled={!lead.campaign_id} className="px-1.5 py-0.5 rounded bg-fg/5 hover:bg-fg/10 border border-line text-label text-fg2">Edit email</button>
         </div>
       )}
-      {lead.email_typo && lead.email && <p className="text-[11px] text-amber-200/90">Possible typo: <span className="font-mono">{lead.email_typo.domain}</span> looks like <span className="font-mono">{lead.email_typo.suggestion}</span>. Check it; nothing was changed.</p>}
-      {err && <p className="text-[11px] text-red-300">{err}</p>}
-      {note && <p className="text-[11px] text-amber-200/90">{note}</p>}
+      {lead.email_typo && lead.email && <p className="text-label text-amber-200">Possible typo: <span className="font-mono">{lead.email_typo.domain}</span> looks like <span className="font-mono">{lead.email_typo.suggestion}</span>. Check it; nothing was changed.</p>}
+      {err && <p className="text-label text-red-300">{err}</p>}
+      {note && <p className="text-label text-amber-200">{note}</p>}
     </div>
   );
 }
@@ -83,10 +83,10 @@ function FacebookChecked({ lead, onSaved }: { lead: Prospect; onSaved: (patch: R
     } catch (e) { setErr(e instanceof Error ? e.message : "Could not save"); } finally { setBusy(false); }
   }
   return (
-    <div className="rounded-lg bg-white/[0.03] border border-white/10 p-3 space-y-2" data-testid="fb-checked">
+    <div className="rounded-lg bg-fg/[0.03] border border-line p-3 space-y-2" data-testid="fb-checked">
       <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Facebook checked</p>
-        {lead.fb_checked ? <span className="text-[11px] text-green-300/90">{FB_RESULT_LABEL[lead.fb_checked.result]} on {shortDate(lead.fb_checked.at)}</span> : <span className="text-[11px] text-white/45">not checked yet</span>}
+        <p className="text-label text-muted font-medium">Facebook checked</p>
+        {lead.fb_checked ? <span className="text-label text-green-300">{FB_RESULT_LABEL[lead.fb_checked.result]} on {shortDate(lead.fb_checked.at)}</span> : <span className="text-label text-muted">not checked yet</span>}
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
         <select value={result} onChange={(e) => setResult(e.target.value)} aria-label="What I found" className={selectCls}>
@@ -94,12 +94,12 @@ function FacebookChecked({ lead, onSaved }: { lead: Prospect; onSaved: (patch: R
           <option value="gone">Page gone</option>
           <option value="not_fit">Not a fit</option>
         </select>
-        <input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" aria-label="Note" className="flex-1 min-w-[140px] bg-black/30 border border-white/15 rounded-md px-2 py-1.5 text-xs text-white" />
-        <button onClick={() => void save()} disabled={busy} className="px-2 py-1 rounded-md bg-primary/20 border border-primary/40 text-primary text-[11px] font-bold disabled:opacity-50">{busy ? "Saving…" : lead.fb_checked ? "Update" : "Mark as checked"}</button>
-        {lead.fb_checked && <button onClick={() => void save(true)} disabled={busy} className="px-2 py-1 rounded-md bg-white/5 border border-white/15 text-[11px] text-white/70">Clear</button>}
+        <input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" aria-label="Note" className="flex-1 min-w-[140px] bg-inset border border-line rounded-md px-2 py-1.5 text-xs text-fg" />
+        <button onClick={() => void save()} disabled={busy} className="px-2 py-1 rounded-md bg-primary/20 border border-primary/40 text-primary text-label font-bold disabled:opacity-50">{busy ? "Saving…" : lead.fb_checked ? "Update" : "Mark as checked"}</button>
+        {lead.fb_checked && <button onClick={() => void save(true)} disabled={busy} className="px-2 py-1 rounded-md bg-fg/5 border border-line text-label text-fg2">Clear</button>}
       </div>
-      {lead.fb_checked?.note && <p className="text-[11px] text-white/55 break-words">Note: {lead.fb_checked.note}</p>}
-      {err && <p className="text-[11px] text-red-300">{err}</p>}
+      {lead.fb_checked?.note && <p className="text-label text-muted break-words">Note: {lead.fb_checked.note}</p>}
+      {err && <p className="text-label text-red-300">{err}</p>}
     </div>
   );
 }
@@ -251,7 +251,7 @@ export default function Prospects() {
     }
   }
   const lowGap = (r: Prospect) => typeof r.gap_score === "number" && r.gap_score < LOW_GAP;
-  const chip = (on: boolean) => `px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${on ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/5 border-white/15 text-white/70 hover:bg-white/10"}`;
+  const chip = (on: boolean) => `px-2.5 py-1.5 rounded-md border text-xs font-semibold transition ${on ? "bg-primary/20 border-primary/50 text-primary" : "bg-fg/5 border-line text-fg2 hover:bg-fg/10"}`;
 
   return (
     <div>
@@ -271,7 +271,7 @@ export default function Prospects() {
 
       <GlassCard className="mb-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-white/50 font-bold">Has:</span>
+          <span className="text-label text-muted font-bold">Has:</span>
           {HAS_OPTIONS.map((o) => (
             <button key={o.key} className={chip(hasAny.includes(o.key))} onClick={() => setHasAny(hasAny.includes(o.key) ? hasAny.filter((x) => x !== o.key) : [...hasAny, o.key])}>{o.label}</button>
           ))}
@@ -325,7 +325,7 @@ export default function Prospects() {
             {areas.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
           <button className={chip(showNotFit)} onClick={() => setShowNotFit(!showNotFit)} title="Leads you ticked as Not a fit are hidden by default">Show not a fit ({notFitCount})</button>
-          <label className="flex items-center gap-1.5 text-xs text-white/60 ml-auto cursor-pointer">
+          <label className="flex items-center gap-1.5 text-xs text-muted ml-auto cursor-pointer">
             <input type="checkbox" className="accent-primary" checked={showTests} onChange={(e) => setShowTests(e.target.checked)} /> Show test leads
           </label>
         </div>
@@ -335,14 +335,14 @@ export default function Prospects() {
       {err && <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm px-4 py-3">{err}</div>}
 
       {batch && batch.status !== "none" && (batch.status === "running" || batch.status === "paused" || batch.status === "stopped" || (batch.status === "done" && batch.made !== undefined && !!batch.finished_at && Date.now() - Date.parse(batch.finished_at) < 3_600_000)) && (
-        <div className={`mb-4 rounded-lg border text-sm px-4 py-3 flex items-center gap-3 flex-wrap ${batch.status === "paused" || batch.status === "stopped" ? "bg-amber-500/10 border-amber-500/30 text-amber-200" : batch.status === "done" ? "bg-green-500/10 border-green-500/30 text-green-300" : "bg-purple/10 border-purple/30 text-purple"}`} data-testid="batch-banner">
+        <div className={`mb-4 rounded-lg border text-sm px-4 py-3 flex items-center gap-3 flex-wrap ${batch.status === "paused" || batch.status === "stopped" ? "bg-amber-500/10 border-amber-500/30 text-amber-200" : batch.status === "done" ? "bg-green-500/10 border-green-500/30 text-green-300" : "bg-primary/10 border-primary/30 text-primary"}`} data-testid="batch-banner">
           {batch.status === "running" && <Loader2 size={15} className="animate-spin" />}
           <span className="font-semibold">
             {batch.status === "running" ? `Writing social messages: ${batch.done ?? 0} of ${batch.total ?? 0} done` : batch.status === "done" ? `Social messages written: ${batch.made ?? 0} new${batch.skipped ? `, ${batch.skipped} skipped` : ""}` : batch.status === "paused" ? "Social message writing is paused" : "Social message writing stopped"}
           </span>
           {batch.message && <span className="text-xs opacity-90 break-words min-w-0">{batch.message}</span>}
           <div className="flex-1" />
-          {(batch.status === "paused" || batch.status === "stopped") && <button onClick={() => void resumeBatch()} className="px-3 py-1 rounded-md bg-white/10 border border-white/20 text-xs font-bold">Continue</button>}
+          {(batch.status === "paused" || batch.status === "stopped") && <button onClick={() => void resumeBatch()} className="px-3 py-1 rounded-md bg-fg/10 border border-line text-xs font-bold">Continue</button>}
           {batch.status !== "running" && <button onClick={() => setBatch(null)} className="text-xs underline opacity-80">Dismiss</button>}
         </div>
       )}
@@ -350,28 +350,28 @@ export default function Prospects() {
       {picked.size > 0 && (
         <div className="mb-4 rounded-lg bg-primary/10 border border-primary/30 text-sm px-4 py-2.5 flex items-center gap-3 flex-wrap" data-testid="bulk-bar">
           <span className="font-semibold text-primary">{pickedShown.length} selected{pickedShown.length !== picked.size ? ` (${picked.size - pickedShown.length} hidden by the filters)` : ""}</span>
-          <button onClick={() => void openPlan()} disabled={pickedShown.length === 0 || batch?.status === "running"} className="px-3 py-1.5 rounded-md bg-purple/20 border border-purple/40 text-purple text-xs font-bold disabled:opacity-50">Write social messages for {pickedShown.length} selected</button>
-          <button onClick={() => setPicked(new Set())} className="text-xs text-white/70 underline">Clear selection</button>
+          <button onClick={() => void openPlan()} disabled={pickedShown.length === 0 || batch?.status === "running"} className="px-3 py-1.5 rounded-md bg-primary/20 border border-primary/40 text-primary text-xs font-bold disabled:opacity-50">Write social messages for {pickedShown.length} selected</button>
+          <button onClick={() => setPicked(new Set())} className="text-xs text-fg2 underline">Clear selection</button>
         </div>
       )}
 
       <GlassCard className="min-w-0">
         {!loaded ? (
-          <div className="flex items-center gap-2 text-white/60 text-sm py-6"><Loader2 size={16} className="animate-spin" /> Loading…</div>
+          <div className="flex items-center gap-2 text-muted text-sm py-6"><Loader2 size={16} className="animate-spin" /> Loading…</div>
         ) : shown.length === 0 ? (
-          <p className="text-sm text-white/60 py-6 text-center">{base.length === 0 ? "No leads yet. Run a campaign first." : "No leads match these filters."}</p>
+          <p className="text-sm text-muted py-6 text-center">{base.length === 0 ? "No leads yet. Run a campaign first." : "No leads match these filters."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-white/50 uppercase tracking-wider text-[10px] border-b border-white/10 whitespace-nowrap">
+                <tr className="text-muted text-label border-b border-line whitespace-nowrap">
                   <th className="py-2 pr-2 font-bold"><input type="checkbox" className="accent-primary" aria-label="Select all shown" title="Select all shown" checked={allShownPicked} onChange={(e) => setPicked(e.target.checked ? new Set([...picked, ...shown.map((r) => r.id)]) : new Set([...picked].filter((id) => !shown.some((r) => r.id === id))))} /></th>
                   <th className="py-2 pr-3 font-bold">Business</th>
                   <th className="py-2 pr-3 font-bold">Owner</th>
                   <th className="py-2 pr-3 font-bold">Campaign</th>
                   <th className="py-2 pr-3 font-bold">Niche</th>
                   <th className="py-2 pr-3 font-bold">Area</th>
-                  <th className="py-2 pr-3 font-bold"><button onClick={() => setAsc(!asc)} className="uppercase font-bold" title="Sort by gap score">Gap {asc ? "▲" : "▼"}</button></th>
+                  <th className="py-2 pr-3 font-bold"><button onClick={() => setAsc(!asc)} className="font-medium" title="Sort by gap score">Gap {asc ? "▲" : "▼"}</button></th>
                   <th className="py-2 pr-3 font-bold">Email</th>
                   <th className="py-2 pr-3 font-bold">Contacted</th>
                   <th className="py-2 pr-3 font-bold">Not a fit</th>
@@ -382,28 +382,28 @@ export default function Prospects() {
               </thead>
               <tbody>
                 {shown.map((r) => (
-                  <tr key={r.id} onClick={() => setSelectedId(r.id)} className={`border-b border-white/[0.06] hover:bg-white/[0.05] cursor-pointer ${selectedId === r.id ? "bg-primary/[0.07]" : ""}`}>
+                  <tr key={r.id} onClick={() => setSelectedId(r.id)} className={`border-b border-line hover:bg-fg/[0.05] cursor-pointer ${selectedId === r.id ? "bg-primary/[0.07]" : ""}`}>
                     <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="accent-primary" aria-label={`Select ${r.name}`} checked={picked.has(r.id)} onChange={() => togglePick(r.id)} /></td>
-                    <td className="py-2 pr-3 text-white font-medium max-w-[220px] truncate">
-                      {r.name}{r.is_test && <span className="ml-1.5 text-[9px] text-accent">TEST</span>}
-                      {fitLabels(r).map((t) => <span key={t} title={t} className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-300">{t.includes("lead-gen") ? "Check: lead-gen?" : "Check: not home service?"}</span>)}
-                      {!r.email && reachAnotherWay(r).length > 0 && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-purple/15 border border-purple/40 text-purple">Reach another way</span>}
+                    <td className="py-2 pr-3 text-fg font-medium max-w-[220px] truncate">
+                      {r.name}{r.is_test && <span className="ml-1.5 text-label text-accent">TEST</span>}
+                      {fitLabels(r).map((t) => <span key={t} title={t} className="ml-1.5 text-label px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-300">{t.includes("lead-gen") ? "Check: lead-gen?" : "Check: not home service?"}</span>)}
+                      {!r.email && reachAnotherWay(r).length > 0 && <span className="ml-1.5 text-label px-1 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary">Reach another way</span>}
                     </td>
-                    <td className="py-2 pr-3 text-white/70">{r.owner_name ? `${r.owner_name}${r.owner_confidence === "low" ? " ?" : ""}` : <span className="text-white/30">-</span>}</td>
+                    <td className="py-2 pr-3 text-fg2">{r.owner_name ? `${r.owner_name}${r.owner_confidence === "low" ? " ?" : ""}` : <span className="text-muted">-</span>}</td>
                     <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                       {r.campaign_id ? <Link to={`/outreach/${r.campaign_id}`} className="text-primary hover:underline">{r.campaign_name}</Link> : "-"}
                     </td>
-                    <td className="py-2 pr-3 text-white/70 max-w-[160px] truncate">{r.category ?? "-"}</td>
-                    <td className="py-2 pr-3 text-white/70">{areaOf(r.address) || "-"}</td>
-                    <td className="py-2 pr-3 whitespace-nowrap"><GapBadge score={r.gap_score} reasons={r.gap_reasons} />{lowGap(r) && <span title={`Gap score is under ${LOW_GAP}: probably little to improve. A hint only.`} className="ml-1 text-[9px] px-1 py-0.5 rounded bg-white/5 border border-white/10 text-white/40">Low gap</span>}</td>
+                    <td className="py-2 pr-3 text-fg2 max-w-[160px] truncate">{r.category ?? "-"}</td>
+                    <td className="py-2 pr-3 text-fg2">{areaOf(r.address) || "-"}</td>
+                    <td className="py-2 pr-3 whitespace-nowrap"><GapBadge score={r.gap_score} reasons={r.gap_reasons} />{lowGap(r) && <span title={`Gap score is under ${LOW_GAP}: probably little to improve. A hint only.`} className="ml-1 text-label px-1 py-0.5 rounded bg-fg/5 border border-line text-muted">Low gap</span>}</td>
                     <td className="py-2 pr-3">
-                      <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-mono ${STATUS_TONE[r.email_status]}`}>{STATUS_LABEL[r.email_status]}</span>
+                      <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${STATUS_TONE[r.email_status]}`}>{STATUS_LABEL[r.email_status]}</span>
                     </td>
-                    <td className="py-2 pr-3 text-white/70 whitespace-nowrap">
-                      {touchesText(r) ? touchesText(r) : <span className="text-white/30">-</span>}
-                      {r.touches?.replied && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-green-500/15 border border-green-500/40 text-green-300">Replied</span>}
-                      {(r.social_drafts ?? []).length > 0 && <span title="A social message is ready to send" className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-purple/15 border border-purple/40 text-purple">{r.social_drafts!.length} ready</span>}
-                      {r.fb_checked && <span title={`Facebook ${FB_RESULT_LABEL[r.fb_checked.result].toLowerCase()} on ${r.fb_checked.at.slice(0, 10)}${r.fb_checked.note ? `: ${r.fb_checked.note}` : ""}`} className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-white/5 border border-white/15 text-white/60">FB checked</span>}
+                    <td className="py-2 pr-3 text-fg2 whitespace-nowrap">
+                      {touchesText(r) ? touchesText(r) : <span className="text-muted">-</span>}
+                      {r.touches?.replied && <span className="ml-1.5 text-label px-1 py-0.5 rounded bg-green-500/15 border border-green-500/40 text-green-300">Replied</span>}
+                      {(r.social_drafts ?? []).length > 0 && <span title="A social message is ready to send" className="ml-1.5 text-label px-1 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary">{r.social_drafts!.length} ready</span>}
+                      {r.fb_checked && <span title={`Facebook ${FB_RESULT_LABEL[r.fb_checked.result].toLowerCase()} on ${r.fb_checked.at.slice(0, 10)}${r.fb_checked.note ? `: ${r.fb_checked.note}` : ""}`} className="ml-1.5 text-label px-1 py-0.5 rounded bg-fg/5 border border-line text-muted">FB checked</span>}
                     </td>
                     <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" className="accent-primary" aria-label={`Not a fit: ${r.name}`} checked={isNotFit(r)} disabled={!r.campaign_id} onChange={(e) => void setNotFit(r, e.target.checked)} />
@@ -413,12 +413,12 @@ export default function Prospects() {
                         <select className={selectCls} value={r.excluded_reason ?? "other"} aria-label={`Reason: ${r.name}`} onChange={(e) => void setNotFit(r, true, { reason: e.target.value })}>
                           {NOT_FIT_REASONS.map((o) => <option key={o.code} value={o.code}>{o.label}</option>)}
                         </select>
-                      ) : r.not_fit_kept ? <span className="text-[11px] text-white/45">Kept by me</span> : r.auto_not_fit ? (
-                        <span title={r.auto_not_fit.detail} className="text-[11px] text-white/45">{reasonLabel(r.auto_not_fit.code) || "Other"} <span className="text-white/30">(auto)</span></span>
-                      ) : <span className="text-white/30">-</span>}
+                      ) : r.not_fit_kept ? <span className="text-label text-muted">Kept by me</span> : r.auto_not_fit ? (
+                        <span title={r.auto_not_fit.detail} className="text-label text-muted">{reasonLabel(r.auto_not_fit.code) || "Other"} <span className="text-muted">(auto)</span></span>
+                      ) : <span className="text-muted">-</span>}
                     </td>
                     <td className="py-2 pr-3">
-                      {r.review_status ? <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-mono ${r.review_status === "ready" ? "border-green-500/40 text-green-300 bg-green-500/10" : r.review_status === "blocked" ? "border-red-500/40 text-red-300 bg-red-500/10" : "border-amber-500/40 text-amber-300 bg-amber-500/10"}`}>{REVIEW_LABEL[r.review_status]}</span> : <span className="text-white/30">-</span>}
+                      {r.review_status ? <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${r.review_status === "ready" ? "border-green-500/40 text-green-300 bg-green-500/10" : r.review_status === "blocked" ? "border-red-500/40 text-red-300 bg-red-500/10" : "border-amber-500/40 text-amber-300 bg-amber-500/10"}`}>{REVIEW_LABEL[r.review_status]}</span> : <span className="text-muted">-</span>}
                     </td>
                     <td className="py-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1"><LinkIcons items={leadLinks(r)} size={11} /></div>
@@ -435,11 +435,11 @@ export default function Prospects() {
         {selected && (
           <>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-mono ${STATUS_TONE[selected.email_status]}`}>{STATUS_LABEL[selected.email_status]}</span>
-              {selected.emailed_at && <span className="text-[11px] text-white/50">on {shortDate(selected.emailed_at)}</span>}
-              {selected.campaign_id && <Link to={`/outreach/${selected.campaign_id}`} className="text-[11px] text-primary hover:underline">{selected.campaign_name}</Link>}
+              <span className={`px-1.5 py-0.5 rounded-md border text-label font-mono ${STATUS_TONE[selected.email_status]}`}>{STATUS_LABEL[selected.email_status]}</span>
+              {selected.emailed_at && <span className="text-label text-muted">on {shortDate(selected.emailed_at)}</span>}
+              {selected.campaign_id && <Link to={`/outreach/${selected.campaign_id}`} className="text-label text-primary hover:underline">{selected.campaign_name}</Link>}
             </div>
-            <div className="space-y-1 text-xs text-white/75">
+            <div className="space-y-1 text-xs text-fg2">
               <EmailField key={selected.id} lead={selected} onSaved={(p) => patchRow(selected.id, p)} />
               {selected.phone && <div>Phone: <a className="font-mono" href={`tel:${selected.phone}`}>{selected.phone}</a></div>}
               {selected.rating !== null && <div>Google rating: {selected.rating}{selected.reviews_count ? ` (${selected.reviews_count} reviews)` : ""}</div>}
@@ -448,12 +448,12 @@ export default function Prospects() {
             <div className="flex gap-1.5 flex-wrap"><LinkIcons items={leadLinks(selected)} size={13} /></div>
             <SocialMessages key={selected.id} lead={selected} emailedOn={selected.emailed_at} order="newest" onChanged={(st) => patchRow(selected.id, { touches: st.summary, social_drafts: st.social_drafts })} />
             <FacebookChecked key={`fb-${selected.id}`} lead={selected} onSaved={(p) => patchRow(selected.id, p)} />
-            <div className="rounded-lg bg-white/[0.03] border border-white/10 p-3 space-y-2">
+            <div className="rounded-lg bg-fg/[0.03] border border-line p-3 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Not a fit</p>
-                {lowGap(selected) && <span className="text-[9px] px-1 py-0.5 rounded bg-white/5 border border-white/10 text-white/40">Low gap ({selected.gap_score})</span>}
+                <p className="text-label text-muted font-medium">Not a fit</p>
+                {lowGap(selected) && <span className="text-label px-1 py-0.5 rounded bg-fg/5 border border-line text-muted">Low gap ({selected.gap_score})</span>}
               </div>
-              <label className="flex items-center gap-2 text-xs text-white/80 cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-fg2 cursor-pointer">
                 <input type="checkbox" className="accent-primary" checked={isNotFit(selected)} disabled={!selected.campaign_id} onChange={(e) => void setNotFit(selected, e.target.checked)} />
                 Not a fit (no emails or social messages; nothing is deleted)
               </label>
@@ -462,14 +462,14 @@ export default function Prospects() {
                   <select className={selectCls} value={selected.excluded_reason ?? "other"} onChange={(e) => void setNotFit(selected, true, { reason: e.target.value })}>
                     {NOT_FIT_REASONS.map((o) => <option key={o.code} value={o.code}>{o.label}</option>)}
                   </select>
-                  <input key={selected.id} defaultValue={selected.excluded_note ?? ""} maxLength={200} placeholder="Optional note" onBlur={(e) => { if (e.target.value !== (selected.excluded_note ?? "")) void setNotFit(selected, true, { note: e.target.value }); }} className="w-full bg-black/30 border border-white/15 rounded-md px-2 py-1.5 text-xs text-white" />
+                  <input key={selected.id} defaultValue={selected.excluded_note ?? ""} maxLength={200} placeholder="Optional note" onBlur={(e) => { if (e.target.value !== (selected.excluded_note ?? "")) void setNotFit(selected, true, { note: e.target.value }); }} className="w-full bg-inset border border-line rounded-md px-2 py-1.5 text-xs text-fg" />
                 </div>
-              ) : selected.auto_not_fit ? <p className="text-[11px] text-white/50">HQ's own flag (auto): {reasonLabel(selected.auto_not_fit.code) || "Other"}. {selected.auto_not_fit.detail}{autoHidden(selected) ? " Untick to keep this lead; the next website check will not flag it again." : ""}</p> : selected.not_fit_kept ? <p className="text-[11px] text-white/50">Kept by me: HQ's own flags no longer hide or skip this lead.</p> : null}
-              <div className="text-[11px] text-white/60">Contacted: {touchesText(selected) || "not yet"}{selected.touches?.replied ? " · Replied" : ""}</div>
+              ) : selected.auto_not_fit ? <p className="text-label text-muted">Alcance's own flag (auto): {reasonLabel(selected.auto_not_fit.code) || "Other"}. {selected.auto_not_fit.detail}{autoHidden(selected) ? " Untick to keep this lead; the next website check will not flag it again." : ""}</p> : selected.not_fit_kept ? <p className="text-label text-muted">Kept by me: HQ's own flags no longer hide or skip this lead.</p> : null}
+              <div className="text-label text-muted">Contacted: {touchesText(selected) || "not yet"}{selected.touches?.replied ? " · Replied" : ""}</div>
             </div>
             <OwnerField lead={selected} onSaved={(p) => patchRow(selected.id, p)} />
-            <div className="rounded-lg bg-white/[0.03] border border-white/10 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-white/50 font-bold mb-2">Website check</p>
+            <div className="rounded-lg bg-fg/[0.03] border border-line p-3">
+              <p className="text-label text-muted font-medium mb-2">Website check</p>
               <SiteDetails lead={selected} />
             </div>
 
@@ -480,27 +480,27 @@ export default function Prospects() {
       <Modal open={!!planFor} onClose={() => { if (!planFor?.starting) setPlanFor(null); }} title="Write social messages?" description={`For ${pickedShown.length} selected lead${pickedShown.length === 1 ? "" : "s"}, across campaigns.`} maxWidth="max-w-lg">
         {planFor && (
           <div className="space-y-3 text-sm" data-testid="plan-confirm">
-            {!planFor.plan && !planFor.err && <div className="flex items-center gap-2 text-white/60"><Loader2 size={15} className="animate-spin" /> Working out what will be written…</div>}
+            {!planFor.plan && !planFor.err && <div className="flex items-center gap-2 text-muted"><Loader2 size={15} className="animate-spin" /> Working out what will be written…</div>}
             {planFor.plan && (
               <>
                 <p><strong>{planFor.plan.total}</strong> message{planFor.plan.total === 1 ? "" : "s"} for <strong>{planFor.plan.leads}</strong> lead{planFor.plan.leads === 1 ? "" : "s"}{Object.keys(planFor.plan.by_channel).length > 0 ? ` (${Object.entries(planFor.plan.by_channel).map(([c, n]) => `${n} ${c === "linkedin" ? "LinkedIn" : c[0].toUpperCase() + c.slice(1)}`).join(", ")})` : ""}.</p>
-                <p className="text-white/70">About {planFor.plan.gemini_calls.rough_total} Gemini calls ({planFor.plan.gemini_calls.writing} to write, about {planFor.plan.gemini_calls.reviewing} to review). Writing runs in the background and pauses by itself if Gemini's daily limit is reached.</p>
+                <p className="text-fg2">About {planFor.plan.gemini_calls.rough_total} Gemini calls ({planFor.plan.gemini_calls.writing} to write, about {planFor.plan.gemini_calls.reviewing} to review). Writing runs in the background and pauses by itself if Gemini's daily limit is reached.</p>
                 {planFor.plan.skipped > 0 && (
-                  <div className="rounded-md bg-white/5 border border-white/10 px-3 py-2 text-xs text-white/70">
+                  <div className="rounded-md bg-fg/5 border border-line px-3 py-2 text-xs text-fg2">
                     <p className="font-semibold mb-1">{planFor.plan.skipped} skipped:</p>
                     <ul className="list-disc pl-4">{Object.entries(planFor.plan.skip_reasons).map(([r, n]) => <li key={r}>{n} × {r}</li>)}</ul>
                   </div>
                 )}
               </>
             )}
-            <label className="flex items-start gap-2 text-xs text-white/80 cursor-pointer">
+            <label className="flex items-start gap-2 text-xs text-fg2 cursor-pointer">
               <input type="checkbox" className="accent-primary mt-0.5" checked={planFor.rewrite} onChange={(e) => void loadPlan(e.target.checked)} />
               <span>Rewrite existing: also write again for leads that already have a message waiting. Messages already sent are never touched.</span>
             </label>
             {planFor.err && <p className="text-red-300 text-xs">{planFor.err}</p>}
             <div className="flex items-center gap-2 justify-end pt-1">
-              <button onClick={() => setPlanFor(null)} disabled={planFor.starting} className="px-3 py-2 rounded-md bg-white/5 border border-white/15 text-xs text-white/80">Cancel</button>
-              <button onClick={() => void startBatch()} disabled={planFor.starting || !planFor.plan || planFor.plan.total === 0} className="px-4 py-2 rounded-md bg-purple/25 border border-purple/50 text-purple text-xs font-bold disabled:opacity-50">{planFor.starting ? "Starting…" : `Write ${planFor.plan?.total ?? 0} message${planFor.plan?.total === 1 ? "" : "s"}`}</button>
+              <button onClick={() => setPlanFor(null)} disabled={planFor.starting} className="px-3 py-2 rounded-md bg-fg/5 border border-line text-xs text-fg2">Cancel</button>
+              <button onClick={() => void startBatch()} disabled={planFor.starting || !planFor.plan || planFor.plan.total === 0} className="px-4 py-2 rounded-md bg-primary/25 border border-primary/50 text-primary text-xs font-bold disabled:opacity-50">{planFor.starting ? "Starting…" : `Write ${planFor.plan?.total ?? 0} message${planFor.plan?.total === 1 ? "" : "s"}`}</button>
             </div>
           </div>
         )}

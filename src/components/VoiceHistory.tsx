@@ -42,7 +42,7 @@ export default function VoiceHistory() {
   if (sessions.length === 0) {
     return (
       <GlassCard className="text-center py-10 mt-8">
-        <p className="text-sm text-white/60 font-medium">
+        <p className="text-sm text-muted font-medium">
           No past conversations yet. Your transcripts will appear here after your first voice session.
         </p>
       </GlassCard>
@@ -51,7 +51,7 @@ export default function VoiceHistory() {
 
   return (
     <div className="mt-10">
-      <h3 className="font-display text-lg tracking-widest uppercase text-white font-bold mb-4 flex items-center gap-2">
+      <h3 className="font-display text-lg text-fg font-medium mb-4 flex items-center gap-2">
         <Clock size={16} className="text-primary" strokeWidth={2.5} /> Past Conversations
       </h3>
       <div className="flex flex-col gap-3">
@@ -67,12 +67,12 @@ export default function VoiceHistory() {
                 className="w-full flex items-center gap-4 px-5 py-4 text-left"
                 onClick={() => setOpen((p) => ({ ...p, [s.id]: !p[s.id] }))}
               >
-                <div className="text-white/60 shrink-0">
+                <div className="text-muted shrink-0">
                   {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white font-medium truncate">"{firstUser}"</p>
-                  <div className="flex items-center gap-4 text-[10px] text-white/60 uppercase tracking-widest font-bold mt-1.5 font-mono">
+                  <p className="text-sm text-fg font-medium truncate">"{firstUser}"</p>
+                  <div className="flex items-center gap-4 text-label text-muted font-medium mt-1.5 font-mono">
                     <span>{timeAgo(s.started_at)}</span>
                     <span>·</span>
                     <span>{duration}</span>
@@ -91,7 +91,7 @@ export default function VoiceHistory() {
                     e.stopPropagation();
                     void remove(s.id);
                   }}
-                  className="text-white/40 hover:text-danger shrink-0 p-2"
+                  className="text-muted hover:text-danger shrink-0 p-2"
                   title="Delete"
                 >
                   <Trash2 size={14} />
@@ -99,8 +99,8 @@ export default function VoiceHistory() {
               </button>
 
               {isOpen && (
-                <div className="border-t border-white/[0.06] bg-black/20">
-                  <div className="divide-y divide-white/[0.04]">
+                <div className="border-t border-line bg-inset">
+                  <div className="divide-y divide-line">
                     {s.transcripts.map((t, i) => (
                       <div
                         key={i}
@@ -108,32 +108,32 @@ export default function VoiceHistory() {
                       >
                         <div className="flex items-center gap-2 mb-1">
                           {t.role === "user" ? (
-                            <User size={11} className="text-white/60" strokeWidth={2.5} />
+                            <User size={11} className="text-muted" strokeWidth={2.5} />
                           ) : (
                             <Mic size={11} className="text-primary" strokeWidth={2.5} />
                           )}
                           <span
-                            className={`text-[10px] uppercase tracking-widest font-display font-bold ${
-                              t.role === "agent" ? "text-primary" : "text-white/60"
+                            className={`text-label font-display font-medium ${
+                              t.role === "agent" ? "text-primary" : "text-muted"
                             }`}
                           >
                             {t.role === "agent" ? "Agent" : "You"}
                           </span>
                         </div>
-                        <p className="text-sm text-white/95 font-medium">{t.text}</p>
+                        <p className="text-sm text-fg font-medium">{t.text}</p>
                       </div>
                     ))}
                   </div>
                   {s.tools.length > 0 && (
-                    <div className="px-5 py-3 border-t border-white/[0.06]">
-                      <div className="text-[10px] uppercase tracking-widest text-white/60 font-display font-bold mb-2">
+                    <div className="px-5 py-3 border-t border-line">
+                      <div className="text-label text-muted font-display font-medium mb-2">
                         Tools Called
                       </div>
                       <div className="flex flex-col gap-1">
                         {s.tools.map((t, i) => (
-                          <div key={i} className="text-xs font-mono text-white/80">
+                          <div key={i} className="text-xs font-mono text-fg2">
                             <span className="text-accent font-bold">{t.name}</span>
-                            <span className="text-white/50"> {JSON.stringify(t.params)}</span>
+                            <span className="text-muted"> {JSON.stringify(t.params)}</span>
                           </div>
                         ))}
                       </div>

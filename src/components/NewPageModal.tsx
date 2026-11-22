@@ -129,7 +129,7 @@ export default function NewPageModal({ open, onClose, onCreated }: Props) {
                 type="color"
                 value={accent}
                 onChange={(e) => setAccent(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-white/10 bg-transparent cursor-pointer"
+                className="w-10 h-10 rounded-lg border border-line bg-transparent cursor-pointer"
               />
               <TextInput value={accent} onChange={(e) => setAccent(e.target.value)} className="flex-1" />
             </div>
@@ -161,7 +161,7 @@ export default function NewPageModal({ open, onClose, onCreated }: Props) {
               reset();
               onClose();
             }}
-            className="px-4 py-3 text-sm text-white/70 hover:text-white font-display font-bold uppercase tracking-widest"
+            className="px-4 py-3 text-sm text-fg2 hover:text-fg font-display font-medium"
           >
             Cancel
           </button>

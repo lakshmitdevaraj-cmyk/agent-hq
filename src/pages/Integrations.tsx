@@ -269,9 +269,9 @@ function buildFullGuide(baseUrl: string, apiKey: string): string {
     g.items.map((a) => `- \`${a.action}\` — ${a.desc}${a.params ? `\n  params: \`${a.params}\`` : ""}`),
   ).join("\n");
 
-  return `# ShiftForge HQ Integration Guide
+  return `# Alcance Integration Guide
 
-You have access to an ShiftForge HQ mission control dashboard. Every action you take
+You have access to an Alcance outreach dashboard. Every action you take
 can be logged, shown to the human operator, and tracked over time.
 
 ## Credentials
@@ -393,7 +393,7 @@ Prefer the agent key for day-to-day operations.
 }
 
 function buildAgentPrompt(baseUrl: string, apiKey: string): string {
-  return `You are connected to an ShiftForge HQ dashboard — a visual mission control
+  return `You are connected to an Alcance dashboard — a visual control room
 where the human operator watches your work in real time.
 
 ENDPOINT: ${baseUrl}/api/command
@@ -501,7 +501,7 @@ Pages (landing pages):
                      Tailwind CDN, your own fonts, your own everything.
                      This is what you use for real landing pages.
 
-                   - THEMED — html_body is just a body fragment. ShiftForge HQ
+                   - THEMED — html_body is just a body fragment. Alcance
                      wraps it in the dark-futuristic theme. Classes:
                      .hero, .features, .card, .button, .button.ghost,
                      .stat, .eyebrow, .cta-row, footer. Good for fast
@@ -761,7 +761,7 @@ export default function Integrations() {
       />
 
       {/* ── HERO: ONE-CLICK GIVES ──────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-5 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
         <BigCopyCard
           icon={Brain}
           accent="primary"
@@ -783,10 +783,10 @@ export default function Integrations() {
       </div>
 
       {/* ── CREDENTIALS ──────────────────────────────── */}
-      <h2 className="font-display text-sm tracking-widest text-white font-bold mb-4 uppercase flex items-center gap-2">
+      <h2 className="font-display text-sm text-fg font-medium mb-4 flex items-center gap-2">
         <KeyRound size={14} className="text-primary" strokeWidth={2.5} /> Your Credentials
       </h2>
-      <div className="grid grid-cols-2 gap-5 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
         <CredentialCard
           label="Base URL"
           value={`${baseUrl}/api/command`}
@@ -811,7 +811,7 @@ export default function Integrations() {
       {/* ── CURL TEST ──────────────────────────────── */}
       <GlassCard className="mb-8">
         <div className="flex items-center justify-between mb-3">
-          <div className="font-display text-sm tracking-widest text-white font-bold uppercase flex items-center gap-2">
+          <div className="font-display text-sm text-fg font-medium flex items-center gap-2">
             <Terminal size={14} className="text-accent" strokeWidth={2.5} /> Try It Now — cURL
           </div>
           <CopyPill
@@ -820,10 +820,10 @@ export default function Integrations() {
             onClick={() => void copy("curl", curlExample)}
           />
         </div>
-        <pre className="font-mono text-xs bg-black/60 border border-white/[0.08] rounded-lg p-4 text-white/95 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+        <pre className="font-mono text-xs bg-inset border border-line rounded-lg p-4 text-fg overflow-x-auto whitespace-pre-wrap leading-relaxed">
 {curlExample}
         </pre>
-        <p className="text-xs text-white/70 mt-3 font-medium">
+        <p className="text-xs text-fg2 mt-3 font-medium">
           Run this and watch the <span className="text-primary font-bold">Activity</span> page —
           your event shows up instantly.
         </p>
@@ -833,25 +833,25 @@ export default function Integrations() {
       {fallback && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
           <div
-            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setFallback(null)}
           />
           <div className="relative glass p-6 max-w-3xl w-full">
             <h3 className="font-display text-lg font-bold mb-2">Copy manually</h3>
-            <p className="text-sm text-white/75 font-medium mb-4">
+            <p className="text-sm text-fg2 font-medium mb-4">
               Your browser blocked the automatic copy. Select the text below (Cmd+A / Ctrl+A)
               and copy it (Cmd+C / Ctrl+C).
             </p>
             <textarea
               readOnly
               value={fallback.text}
-              className="w-full h-80 bg-black/60 border border-white/10 rounded-lg p-4 text-xs font-mono text-white/95"
+              className="w-full h-80 bg-inset border border-line rounded-lg p-4 text-xs font-mono text-fg"
               onFocus={(e) => e.currentTarget.select()}
             />
             <div className="flex items-center gap-3 mt-3">
               <button
                 onClick={() => setFallback(null)}
-                className="px-4 py-2.5 rounded-xl bg-primary text-black font-display font-black tracking-widest text-sm uppercase"
+                className="px-4 py-2.5 rounded-xl bg-primary text-on-solid font-display font-black tracking-widest text-sm uppercase"
               >
                 Done
               </button>
@@ -861,25 +861,25 @@ export default function Integrations() {
       )}
 
       {/* ── ACTION CATALOG ──────────────────────────────── */}
-      <h2 className="font-display text-sm tracking-widest text-white font-bold mb-4 uppercase">
+      <h2 className="font-display text-sm text-fg font-medium mb-4">
         Action Catalog
       </h2>
       <div className="flex flex-col gap-5">
         {ACTIONS.map((group) => (
           <GlassCard key={group.group}>
-            <div className="font-display text-sm tracking-widest uppercase text-primary font-bold mb-4">
+            <div className="font-display text-sm text-primary font-medium mb-4">
               {group.group}
             </div>
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-line">
               {group.items.map((a) => (
-                <div key={a.action} className="py-3 flex items-start gap-6">
-                  <code className="font-mono text-sm text-accent font-bold min-w-[200px] shrink-0">
+                <div key={a.action} className="py-3 flex flex-wrap items-start gap-x-6 gap-y-1">
+                  <code className="font-mono text-sm text-accent font-bold min-w-[200px] max-w-full break-all">
                     {a.action}
                   </code>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white font-medium">{a.desc}</div>
+                    <div className="text-sm text-fg font-medium">{a.desc}</div>
                     {a.params && (
-                      <code className="font-mono text-xs text-white/70 block mt-1.5 font-semibold">
+                      <code className="font-mono text-xs text-fg2 block mt-1.5 font-semibold">
                         params: {a.params}
                       </code>
                     )}
@@ -891,7 +891,7 @@ export default function Integrations() {
                         `POST ${baseUrl}/api/command\nX-API-Key: ${displayedKey}\n\n{"action":"${a.action}","params":${a.params ?? "{}"}}`,
                       )
                     }
-                    className="text-white/50 hover:text-primary transition shrink-0"
+                    className="text-muted hover:text-primary transition shrink-0"
                     title="Copy template"
                   >
                     {copied === `act-${a.action}` ? <CheckCheck size={14} /> : <Copy size={14} />}
@@ -925,21 +925,21 @@ function BigCopyCard({
   copied: boolean;
   onCopy: () => void;
 }) {
-  const accentClass = accent === "primary" ? "from-primary/30 to-primary/5 border-primary/40" : "from-purple/30 to-purple/5 border-purple/40";
+  const accentClass = accent === "primary" ? "from-primary/30 to-primary/5 border-primary/40" : "from-primary/30 to-primary/5 border-primary/40";
   const btnClass =
     accent === "primary"
-      ? "bg-primary text-black hover:bg-primary/90 shadow-glow"
-      : "bg-purple text-white hover:bg-purple/90 shadow-[0_0_24px_rgba(168,85,247,0.45)]";
+      ? "bg-primary text-on-solid hover:bg-primary/90"
+      : "bg-primary text-on-solid hover:bg-primary/90";
 
   return (
     <div className={`glass p-6 flex flex-col gap-4 bg-gradient-to-br ${accentClass} border-2`}>
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent === "primary" ? "bg-primary/20" : "bg-purple/20"}`}>
-          <Icon size={22} strokeWidth={2.3} className={accent === "primary" ? "text-primary" : "text-purple"} />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent === "primary" ? "bg-primary/20" : "bg-primary/20"}`}>
+          <Icon size={22} strokeWidth={2.3} className={accent === "primary" ? "text-primary" : "text-primary"} />
         </div>
-        <div className="font-display text-lg tracking-wide text-white font-bold">{title}</div>
+        <div className="font-display text-lg tracking-wide text-fg font-bold">{title}</div>
       </div>
-      <p className="text-sm text-white/85 leading-relaxed font-medium">{desc}</p>
+      <p className="text-sm text-fg2 leading-relaxed font-medium">{desc}</p>
       <button
         onClick={onCopy}
         className={`mt-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-display tracking-widest text-sm uppercase font-black transition ${btnClass}`}
@@ -974,22 +974,22 @@ function CredentialCard({
 }) {
   return (
     <GlassCard>
-      <div className="flex items-center gap-2 font-display text-xs tracking-widest text-white/80 font-bold uppercase mb-3">
+      <div className="flex items-center gap-2 font-display text-xs text-fg2 font-medium mb-3">
         <Icon size={13} strokeWidth={2.5} className="text-primary" />
         {label}
       </div>
-      <div className="flex items-center gap-2 font-mono text-sm bg-black/60 border border-white/[0.08] rounded-lg px-3 py-2.5">
+      <div className="flex items-center gap-2 font-mono text-sm bg-inset border border-line rounded-lg px-3 py-2.5">
         <span className="flex-1 truncate text-primary font-bold">{value}</span>
         {onToggleShow && (
-          <button onClick={onToggleShow} className="text-white/70 hover:text-white shrink-0" title={show ? "Hide" : "Show"}>
+          <button onClick={onToggleShow} className="text-fg2 hover:text-fg shrink-0" title={show ? "Hide" : "Show"}>
             {show ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         )}
-        <button onClick={onCopy} className="text-white/70 hover:text-white shrink-0" title="Copy">
+        <button onClick={onCopy} className="text-fg2 hover:text-fg shrink-0" title="Copy">
           {copied ? <CheckCheck size={15} className="text-success" /> : <Copy size={15} />}
         </button>
       </div>
-      <p className="text-xs text-white/70 mt-3 font-medium">{hint}</p>
+      <p className="text-xs text-fg2 mt-3 font-medium">{hint}</p>
     </GlassCard>
   );
 }
@@ -1009,7 +1009,7 @@ function CopyPill({
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-bold tracking-widest uppercase transition ${
         copied
           ? "bg-success/20 text-success border border-success/40"
-          : "bg-white/5 hover:bg-primary/15 text-white/80 hover:text-primary border border-white/10 hover:border-primary/40"
+          : "bg-fg/5 hover:bg-primary/15 text-fg2 hover:text-primary border border-line hover:border-primary/40"
       }`}
     >
       {copied ? <CheckCheck size={13} strokeWidth={3} /> : <Copy size={13} strokeWidth={2.5} />}
