@@ -1,4 +1,5 @@
 import { scanBanned } from "./lib/messagerules";
+import { nextFollowUp, countDue, gapsOrDefault, type FollowRow, type FollowState, type FollowStepIn, type StoppedReason } from "./lib/followups";
 import { SOCIAL_SEQ_SYSTEM_PROMPT, SOCIAL_SEQ_REVIEW_PROMPT, socialSeqUserPrompt, parseSocialSeq, checkSocialSeq, socialFailureLines, parseSocialReview, mergeSocial, type SeqLeadInfo, type SocialStepCheck } from "./lib/socialseq";
 import type { Handler } from "@netlify/functions";
 import { STATE_TZ, stateFromAddress, validTimeZone, proposeSlots, REPLY_SYSTEM_PROMPT, replyUserPrompt, assembleReply } from "./lib/replydraft";
@@ -85,7 +86,7 @@ const MOVABLE_STORES = [
   "agent-hq-outreach-replies", "agent-hq-outreach-clicks", "agent-hq-outreach-settings",
   "agent-hq-webhooks", "agent-hq-agents", "agent-hq-tasks", "agent-hq-forms", "agent-hq-submissions",
   "agent-hq-pages", "agent-hq-voice-config", "agent-hq-voice-sessions", "agent-hq-voice-invitations",
-  "agent-hq-activity", "agent-hq-outreach-social", "agent-hq-outreach-touches",
+  "agent-hq-activity", "agent-hq-outreach-social", "agent-hq-outreach-touches", "agent-hq-outreach-followups",
 ];
 const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 const LEAD_SCREENSHOTS = "agent-hq-lead-screenshots"; // key: `<campaign_id>/<lead_id>` -> { jpeg_base64, saved_at, bytes } (never inside the lead record)
@@ -2386,6 +2387,7 @@ const partsMap = (parts: SocialPart[]): Record<string, string> => Object.fromEnt
 type SocialPlanItem = { lead: Record<string, unknown> & { id: string }; channel: SocialChannel; url: string; type: SocialType; sentOnChannel: boolean; emailDate?: string | null; earlier?: string | null; earlierList?: EarlierMessage[]; emailList?: EarlierEmail[] };
 type SocialSkip = { lead_id: string; name: string; reason: string; channel?: string };
 
+const OUTREACH_FOLLOWUPS = "agent-hq-outreach-followups"; // key: `<lead_id>/<channel>` and `<lead_id>/all` (batch 8c): skips, notes, moved dates, LinkedIn accepted/withdrawn, "they replied"
 const OUTREACH_TOUCHES = "agent-hq-outreach-touches"; // contact history entries: key `<lead_id>/<sent_at>-<id>` (batch 8b)
 
 /** Stored touches (those added by "Mark as sent" and "Record a message sent by hand"), grouped by lead. */
@@ -5186,6 +5188,99 @@ export const handler: Handler = async (event) => {
           if (rec?.id === id) return ok(rec);
         }
         return fail(404, "reply not found");
+      }
+
+      // ── Follow-up reminders (batch 8c). Read-time: due dates come from what was sent and the Settings gaps; nothing here sends. ──
+      case "followups.list": {
+        const t0 = Date.now();
+        const settings = await readOutreachSettings();
+        const tzName = (settings.time_zone ?? "").trim();
+        const today = new Intl.DateTimeFormat("en-CA", { timeZone: tzName && validTimeZone(tzName) ? tzName : "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+        const [emails, socials, leads, replies, states] = await Promise.all([
+          listJsonFast<Record<string, unknown> & { id: string; lead_id: string; campaign_id: string; status?: string; sent_at?: string; sequence_position?: number; framework?: string; subject?: string; body_text?: string; review_status?: string | null }>(store(OUTREACH_EMAILS)),
+          listJsonFast<SocialRecord>(store(OUTREACH_SOCIAL)),
+          listJsonFast<Record<string, unknown> & { id: string; campaign_id?: string; name?: string; do_not_contact?: boolean; excluded?: boolean }>(store(OUTREACH_LEADS)),
+          listJsonFast<{ lead_id?: string | null; original_email_id?: string | null; is_test?: boolean; from?: string | null; opt_out?: boolean }>(store(OUTREACH_REPLIES)),
+          listJsonFast<FollowState>(store(OUTREACH_FOLLOWUPS)),
+        ]);
+        const stateOf = new Map(states.map((x) => [`${x.lead_id}/${x.channel}`, x]));
+        const leadBy = new Map(leads.map((l) => [`${l.campaign_id}/${l.id}`, l]));
+        const ownOnly = ownReplyEmailIds(replies.filter((r) => r.original_email_id));
+        const repliedIds = new Set<string>([...emails.filter((e) => e.status === "replied" && !ownOnly.has(e.id)).map((e) => e.lead_id), ...replies.filter((r) => r.lead_id && !isTestReply(r)).map((r) => String(r.lead_id)), ...states.filter((x) => x.channel === "all" && x.replied_by_hand).map((x) => x.lead_id)]);
+        const optOutIds = new Set(replies.filter((r) => r.opt_out && r.lead_id).map((r) => String(r.lead_id)));
+        const stoppedFor = (lead: { id: string; do_not_contact?: boolean } | undefined, leadId: string): StoppedReason | null => (optOutIds.has(leadId) ? "opt_out" : lead?.do_not_contact ? "do_not_contact" : repliedIds.has(leadId) ? "replied" : null);
+        const gE = gapsOrDefault(settings.follow_up_gaps_email), gS = gapsOrDefault(settings.follow_up_gaps_social);
+        const rows: FollowRow[] = [];
+        const byLead = new Map<string, typeof emails>();
+        for (const e of emails) { if (e.framework !== "three-step") continue; const k = `${e.campaign_id}/${e.lead_id}`; (byLead.get(k) ?? byLead.set(k, []).get(k)!).push(e); }
+        for (const [k, list] of byLead) {
+          const lead = leadBy.get(k);
+          if (!lead || lead.excluded) continue;
+          list.sort((a, b) => (a.sequence_position ?? 1) - (b.sequence_position ?? 1));
+          const steps: FollowStepIn[] = list.map((e) => ({ key: String(e.sequence_position ?? 1), label: `Email ${e.sequence_position ?? 1}`, text: String(e.body_text ?? ""), sent_at: e.status && e.status !== "drafted" && e.status !== "failed" ? (e.sent_at ?? null) : null, status: (e.review_status as FollowStepIn["status"]) ?? null, id: e.id }));
+          const r = nextFollowUp({ lead_id: lead.id, campaign_id: String(lead.campaign_id), name: String(lead.name ?? lead.id), channel: "email", steps, state: stateOf.get(`${lead.id}/email`), gaps: gE, stopped: stoppedFor(lead, lead.id), today });
+          if (r) rows.push(r);
+        }
+        const extra = new Map<string, { url: string; subject?: string }>();
+        for (const rec of socials) {
+          if (rec.type !== "sequence") continue;
+          const lead = leadBy.get(`${rec.campaign_id}/${rec.lead_id}`);
+          if (!lead || lead.excluded) continue;
+          const steps: FollowStepIn[] = rec.parts.map((p) => ({ key: p.key, label: p.label, text: p.text, sent_at: p.sent_at ?? null, status: p.review_status ?? null }));
+          const r = nextFollowUp({ lead_id: lead.id, campaign_id: String(lead.campaign_id), name: String(lead.name ?? lead.id), channel: rec.channel, steps, state: stateOf.get(`${lead.id}/${rec.channel}`), gaps: gS, stopped: stoppedFor(lead, lead.id), today });
+          if (r) { rows.push(r); extra.set(`${r.lead_id}/${r.channel}`, { url: rec.url }); }
+        }
+        const live = rows.filter((r) => r.bucket !== "stopped");
+        live.sort((a, b) => (a.bucket === "waiting" ? 1 : 0) - (b.bucket === "waiting" ? 1 : 0) || String(a.due_date ?? "9999").localeCompare(String(b.due_date ?? "9999")));
+        const campNames = new Map((await listJson<{ id: string; name?: string }>(store(OUTREACH_CAMPAIGNS))).map((c) => [c.id, c.name ?? c.id]));
+        const out = [...live, ...rows.filter((r) => r.bucket === "stopped")].map((r) => ({ ...r, campaign_name: campNames.get(r.campaign_id) ?? r.campaign_id, page_url: extra.get(`${r.lead_id}/${r.channel}`)?.url ?? null }));
+        return ok({ today, rows: out, counts: countDue(rows), postal_address_set: !!(await readOutreachSettings()).postal_address?.trim(), ms: Date.now() - t0 });
+      }
+
+      case "followups.update": {
+        // One small note per lead, channel and step: skip, move the date, note. Only this store changes.
+        const { lead_id, channel, step_key, op, value } = params as { lead_id?: string; channel?: string; step_key?: string; op?: string; value?: unknown };
+        if (!lead_id || !channel || !step_key || !op) return fail(400, "lead_id, channel, step_key and op required");
+        if (!["email", "facebook", "instagram", "linkedin"].includes(channel)) return fail(400, "unknown channel");
+        const fs2 = store(OUTREACH_FOLLOWUPS);
+        const key = `${lead_id}/${channel}`;
+        const cur = (await readJson<FollowState>(fs2, key)) ?? { lead_id, channel, steps: {} };
+        const stepNow = { ...(cur.steps?.[step_key] ?? {}) };
+        if (op === "skip") stepNow.skipped = true;
+        else if (op === "unskip") delete stepNow.skipped;
+        else if (op === "note") stepNow.note = String(value ?? "").slice(0, 300);
+        else if (op === "move") {
+          const d = String(value ?? "");
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d))) return fail(400, "That date is not valid.");
+          stepNow.moved_to = d;
+        } else if (op === "unmove") delete stepNow.moved_to;
+        else return fail(400, "unknown op");
+        const next: FollowState = { ...cur, steps: { ...(cur.steps ?? {}), [step_key]: stepNow }, updated_at: new Date().toISOString() };
+        await writeJson(fs2, key, next);
+        return ok(next);
+      }
+
+      case "followups.replied": {
+        // "They replied" by hand (a reply that came on Facebook, LinkedIn and so on): stops every channel for this lead. undo:true clears it.
+        const { lead_id, undo } = params as { lead_id?: string; undo?: boolean };
+        if (!lead_id) return fail(400, "lead_id required");
+        const next: FollowState = { lead_id, channel: "all", replied_by_hand: undo ? null : new Date().toISOString(), updated_at: new Date().toISOString() };
+        await writeJson(store(OUTREACH_FOLLOWUPS), `${lead_id}/all`, next);
+        await logActivity({ category: "outreach", summary: `${undo ? "Cleared" : "Marked"} a hand-recorded reply for lead ${lead_id}` });
+        return ok(next);
+      }
+
+      case "followups.linkedin": {
+        const { lead_id, op } = params as { lead_id?: string; op?: string };
+        if (!lead_id || !op) return fail(400, "lead_id and op required");
+        const fs2 = store(OUTREACH_FOLLOWUPS);
+        const key = `${lead_id}/linkedin`;
+        const cur = (await readJson<FollowState>(fs2, key)) ?? { lead_id, channel: "linkedin", steps: {} };
+        const now = new Date().toISOString();
+        const next: FollowState = op === "accepted" ? { ...cur, accepted_at: now, withdrawn_at: null } : op === "withdrawn" ? { ...cur, withdrawn_at: now } : op === "undo" ? { ...cur, accepted_at: null, withdrawn_at: null } : cur;
+        if (!["accepted", "withdrawn", "undo"].includes(op)) return fail(400, "unknown op");
+        await writeJson(fs2, key, { ...next, updated_at: now });
+        return ok(next);
       }
 
       // Draft a reply to an inbound answer: the AI writes two short parts, code adds three call times and the booking link. Never sent.
