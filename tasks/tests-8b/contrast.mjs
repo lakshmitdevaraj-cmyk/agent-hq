@@ -132,6 +132,7 @@ const WIDTHS = [1440, 800, 640];
 // Theme settings: Auto on a dark Mac, Auto on a light Mac, forced Light on a dark Mac, forced Dark on a light Mac.
 const THEMES = [{ os: "dark", pick: "auto" }, { os: "light", pick: "auto" }, { os: "dark", pick: "light" }, { os: "light", pick: "dark" }];
 let total = 0;
+const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null; // e.g. ONLY=Prospects limits the run to those pages
 for (const [th, width] of WIDTHS.flatMap((w) => THEMES.map((t) => [t, w]))) {
   const sch = th.pick === "auto" ? th.os : `${th.pick}(on-${th.os})`;
   scheme = sch + "@" + width;
@@ -149,12 +150,15 @@ for (const [th, width] of WIDTHS.flatMap((w) => THEMES.map((t) => [t, w]))) {
   const closePanel = async () => { await page.keyboard.press("Escape"); await page.waitForTimeout(250); };
 
   for (const [route, name] of [["/", "Office"], ["/tasks", "Tasks"], ["/activity", "Activity"], ["/agents", "Agents"], ["/voice", "Voice"], ["/forms", "Forms"], ["/pages", "Pages"], ["/outreach", "Outreach"], ["/prospects", "Prospects"], ["/inbox", "Inbox"], ["/analytics", "Analytics"], ["/webhooks", "Webhooks"], ["/integrations", "Integrations"], ["/settings", "Settings"]]) {
+    if (ONLY && !ONLY.test(name)) continue;
     await go(route);
     await run(name);
     if (["Outreach", "Inbox", "Prospects", "Office", "Webhooks", "Agents", "Integrations"].includes(name)) await shot(name.toLowerCase());
   }
 
+  if (ONLY) { /* limited run: panels below only for Prospects */ }
   // campaign page + its pop-ups
+  if (!ONLY) {
   await go("/outreach");
   const href = await page.locator("a[href^='/outreach/']").first().getAttribute("href").catch(() => null);
   if (href) {
@@ -165,10 +169,12 @@ for (const [th, width] of WIDTHS.flatMap((w) => THEMES.map((t) => [t, w]))) {
     if (await row.count()) { await row.click().catch(() => {}); await page.waitForTimeout(500); await run("Campaign lead pop-up"); await closePanel(); }
   }
 
+  }
   // panels
   await go("/prospects");
   const prow = page.locator("tbody tr").first();
   if (await prow.count()) { await prow.click().catch(() => {}); await page.waitForTimeout(700); await run("Prospects side panel"); await shot("prospects-panel"); await closePanel(); }
+  if (!ONLY) {
   await go("/inbox");
   const reply = page.locator("button.w-full.text-left").first();
   if (await reply.count()) { await reply.click().catch(() => {}); await page.waitForTimeout(500); await run("Inbox reply open"); await shot("inbox-open"); }
@@ -177,7 +183,9 @@ for (const [th, width] of WIDTHS.flatMap((w) => THEMES.map((t) => [t, w]))) {
     if (await clickText("button, a", re)) { await run(name); await closePanel(); }
   }
 
+  }
   // sign-in screen (no key)
+  if (ONLY) { await ctx.close(); continue; }
   const ctx2 = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: th.os });
   if (th.pick !== "auto") await ctx2.addInitScript((pick) => { try { localStorage.setItem("alcance_theme", pick); } catch { /* */ } }, th.pick);
   const p2 = await ctx2.newPage();

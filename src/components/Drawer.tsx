@@ -18,7 +18,7 @@ export default function Drawer({ open, onClose, title, subtitle, children, width
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-inset" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
       <aside className={`absolute inset-y-0 right-0 w-full ${width} max-w-full bg-card border-l border-line shadow-2xl flex flex-col min-w-0 animate-fade-in`}>
         <header className="flex items-start gap-3 px-5 py-4 border-b border-line shrink-0">
           <div className="min-w-0 flex-1">
