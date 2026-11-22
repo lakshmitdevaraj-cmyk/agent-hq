@@ -6,7 +6,7 @@
 import { nanoid } from "nanoid";
 import { store, readJson, writeJson, listJson } from "./blobs";
 import { isOptOutReply, isAutoReply, newPartOfReply, extractEmailAddress, emailKey } from "./outreach";
-import { buildReplyRecord, replySubject, flagFor, isInboundEvent, type InboundMessage, type ReplyRecord } from "./replies";
+import { buildReplyRecord, replyBodyText, replySubject, flagFor, isInboundEvent, type InboundMessage, type ReplyRecord } from "./replies";
 
 export const OUTREACH_CAMPAIGNS = "agent-hq-outreach-campaigns";
 export const OUTREACH_EMAILS = "agent-hq-outreach-emails";
@@ -106,7 +106,7 @@ async function sendReplyAlert(opts: { message: InboundMessage; business: string;
     }
     const key = (await readJson<{ key?: string }>(store(SERVICE_CONFIG), "agentmail"))?.key;
     if (!key) return null;
-    const body = newPartOfReply(m.text ?? stripTags(m.html)).replace(/\s+\n/g, "\n").trim();
+    const body = newPartOfReply(replyBodyText(m)).replace(/\s+\n/g, "\n").trim();
     const snippet = body.length > 300 ? `${body.slice(0, 300).trimEnd()}...` : body;
     const flagLine = opts.flag ? `This reply was flagged "${opts.flag}" by AgentMail. It is usually still a real person: check before acting.` : "";
     const text = [`${opts.business} replied.`, flagLine, "", snippet || "(no text)", "", opts.baseUrl ? `Open your Inbox: ${opts.baseUrl}/inbox` : ""].filter((x, i, a) => x !== "" || a[i - 1] !== "").join("\n").trim();
@@ -130,7 +130,8 @@ export type IngestResult = { stored: boolean; duplicate: boolean; reply?: ReplyR
  * Duplicates (same AgentMail message id, from either path) are stored once.
  */
 export async function ingestInboundReply(o: { eventType: string; message: InboundMessage; baseUrl?: string; alert: boolean; source?: "webhook" | "sync" }): Promise<IngestResult> {
-  const message = o.message;
+  // Body text for everything below (Inbox, opt-out and auto-reply checks, alert): text, else extracted_text, else the HTML as plain text.
+  const message: InboundMessage = { ...o.message, text: replyBodyText(o.message) };
   if (!isInboundEvent(o.eventType)) return { stored: false, duplicate: false };
   const rs = store(OUTREACH_REPLIES);
   // AgentMail can deliver the same event twice, and the sync can meet a message the webhook already stored.
@@ -142,7 +143,7 @@ export async function ingestInboundReply(o: { eventType: string; message: Inboun
   const campaignId = (match?.record.campaign_id as string) ?? null;
   const replyId = nanoid(12);
   const own = await ownAddressList([match?.record.agentmail_inbox_id as string | undefined]);
-  const text = message.text ?? stripTags(message.html);
+  const text = message.text ?? "";
   const optOut = isOptOutReply(message.subject, text);
   const reply = buildReplyRecord({
     id: replyId, eventType: o.eventType, message, own, optOut, source: o.source ?? "webhook",

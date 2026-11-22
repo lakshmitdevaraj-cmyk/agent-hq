@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   isInboundEvent, flagFor, isOwnAddress, isHealthCheckMessage, isBounceReport, replySubject, buildReplyRecord,
-  ownReplyEmailIds, repliedEmailCount, listedToMessage, isListedInbound, webhookEventsToSend, dryRunWebhookPatch, REQUIRED_WEBHOOK_EVENTS, listMessagesQuery,
+  ownReplyEmailIds, repliedEmailCount, listedToMessage, isListedInbound, webhookEventsToSend, dryRunWebhookPatch, REQUIRED_WEBHOOK_EVENTS, listMessagesQuery, replyBodyText,
 } from "../../netlify/functions/lib/replies";
+import { isOptOutReply, isAutoReply } from "../../netlify/functions/lib/outreach";
+import type { ListedMessage } from "../../netlify/functions/lib/replies";
 
 let n = 0;
 let failed = 0;
@@ -93,7 +95,7 @@ t("AgentMail list items map to messages; inbound only", () => {
   assert.equal(isListedInbound({ ...listed, labels: [] }), false);
   const m = listedToMessage(listed);
   assert.equal(m.message_id, "m9");
-  assert.equal(m.text, "Got it");
+  assert.equal(replyBodyText(m), "Got it", "preview is the last fallback");
   assert.deepEqual(m.labels, ["received", "unauthenticated"]);
 });
 
@@ -121,6 +123,34 @@ t("List Messages asks for spam, blocked and unauthenticated messages, on every p
   const src = fs.readFileSync("netlify/functions/command.ts", "utf8");
   assert.ok(!/\/messages\?limit=/.test(src), "no AgentMail message list may be built without the include_* flags");
   assert.match(src, /\/messages\?\$\{listMessagesQuery\(/);
+});
+
+const IPHONE = (words: string) => `<html><head><style>p{margin:0}</style></head><body dir="auto"><div>${words}</div><div dir="ltr"><br><blockquote type="cite"><div dir="ltr">On Nov 21, 2026, at 5:02 PM, Lakshmi Devaraj &lt;lakshmi@team.shiftforge.ai&gt; wrote:<br><br></div><div>Hi Santhana, quick question.</div></blockquote></div></body></html>`;
+t("reply text: HTML-only reply shows its words (text empty, no extracted_text)", () => {
+  assert.equal(replyBodyText({ text: "", html: IPHONE("Got it") }).split("\n")[0], "Got it");
+  assert.equal(replyBodyText({ html: "<p>Thanks&nbsp;a lot &amp; talk soon</p>" }), "Thanks a lot & talk soon");
+  assert.equal(replyBodyText({ text: "plain wins", html: "<p>html</p>" }), "plain wins");
+  assert.equal(replyBodyText({ text: "", extracted_text: "extracted wins over html", html: "<p>html</p>" }), "extracted wins over html");
+  assert.equal(replyBodyText({ text: "", html: "" }), "");
+});
+
+t("reply text: an HTML-only stop reply is an opt-out, an HTML-only 'Got it' is not; auto-replies are seen", () => {
+  assert.equal(isOptOutReply("Re: Calls", replyBodyText({ text: "", html: IPHONE("Stop. No thanks, please do not email me again.") })), true);
+  assert.equal(isOptOutReply("Re: Calls", replyBodyText({ text: "", html: IPHONE("Got it") })), false);
+  assert.equal(isAutoReply("Automatic reply: Calls", replyBodyText({ text: "", html: "<p>I am out of the office until Monday.</p>" })), true);
+});
+
+t("reply text: webhook and sync both pass through ingestInboundReply, which fills the text before anything else reads it", () => {
+  const ing = fs.readFileSync("netlify/functions/lib/inbound.ts", "utf8");
+  assert.match(ing, /const message: InboundMessage = \{ \.\.\.o\.message, text: replyBodyText\(o\.message\) \}/);
+  assert.match(ing, /newPartOfReply\(replyBodyText\(m\)\)/, "the alert body");
+  assert.ok(!/message\.text \?\? stripTags/.test(ing), "no old nullish fallback (empty string is not nullish)");
+  assert.ok(/ingestInboundReply\(\{ eventType, message, baseUrl, alert: true, source: "webhook" \}\)/.test(fs.readFileSync("netlify/functions/webhook-receive.ts", "utf8")));
+  assert.ok(/source: "sync"/.test(fs.readFileSync("netlify/functions/command.ts", "utf8")));
+  const listed = listedToMessage({ message_id: "m", text: "", html: IPHONE("Got it"), extracted_text: "" } as ListedMessage);
+  assert.equal(replyBodyText(listed).split("\n")[0], "Got it");
+  const rec = buildReplyRecord({ id: "r", eventType: "message.received.unauthenticated", message: { ...listed, text: replyBodyText(listed) }, match: null, own: [], optOut: false });
+  assert.equal(rec.text!.split("\n")[0], "Got it");
 });
 
 console.log(`\n${n} passed, ${failed} failed`);

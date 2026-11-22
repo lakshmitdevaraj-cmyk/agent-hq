@@ -31,7 +31,7 @@ import { nextPacificMidnight, resumeAtFor, fakeQuotaHit, istText, newStats, type
 import { evidenceFor, codeReview, unbackedFactClaims, factsForReviewer, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
 import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, screenshotErrorsByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
-import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, type ListedMessage } from "./lib/replies";
+import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, replyBodyText, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
@@ -4815,9 +4815,10 @@ export const handler: Handler = async (event) => {
         const { campaign_id, limit = 200 } = params as Record<string, unknown>;
         const s = store(OUTREACH_REPLIES);
         const prefix = typeof campaign_id === "string" && campaign_id ? `${campaign_id}/` : undefined;
-        const rows = await listJson<{ received_at?: string }>(s, prefix);
+        const rows = await listJson<{ received_at?: string; text?: string | null; html?: string | null }>(s, prefix);
         rows.sort((a, b) => ((a.received_at ?? "") < (b.received_at ?? "") ? 1 : -1));
-        return ok(rows.slice(0, typeof limit === "number" ? limit : 200));
+        // Replies stored before the HTML fallback have an empty text: fill it from the html when read (no data rewrite).
+        return ok(rows.slice(0, typeof limit === "number" ? limit : 200).map((r) => (r.text && r.text.trim() ? r : { ...r, text: replyBodyText(r) || r.text || null })));
       }
 
       case "outreach.replies.delete": {

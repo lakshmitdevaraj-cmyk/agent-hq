@@ -70,7 +70,7 @@ export function replySubject(business: string, campaignName: string, flag: Reply
 
 export type InboundMessage = {
   message_id?: string; thread_id?: string; inbox_id?: string; subject?: string; from?: string; to?: string[];
-  text?: string; html?: string; timestamp?: string; labels?: string[]; authentication_results?: Record<string, unknown> | null;
+  text?: string; extracted_text?: string; preview?: string; html?: string; timestamp?: string; labels?: string[]; authentication_results?: Record<string, unknown> | null;
 };
 
 export type ReplyRecord = {
@@ -97,7 +97,7 @@ export function buildReplyRecord(o: {
     from: m.from ?? null,
     to: m.to ?? null,
     subject: m.subject ?? null,
-    text: m.text ?? null,
+    text: replyBodyText(m) || null,
     html: m.html ?? null,
     received_at: m.timestamp ?? o.now ?? new Date().toISOString(),
     handled: false,
@@ -129,7 +129,7 @@ export function repliedEmailCount(emails: Array<{ id?: string; status?: string }
 // ── Missed-reply sync (AgentMail list items) ─────────────────────────
 export type ListedMessage = {
   message_id?: string; thread_id?: string; inbox_id?: string; labels?: string[]; from?: string; to?: string[];
-  subject?: string; timestamp?: string; preview?: string; text?: string; html?: string; authentication_results?: Record<string, unknown> | null;
+  subject?: string; timestamp?: string; preview?: string; text?: string; extracted_text?: string; html?: string; authentication_results?: Record<string, unknown> | null;
 };
 
 /** An inbound message in a list: labelled "received" and never one of our own sent messages. */
@@ -141,7 +141,7 @@ export function isListedInbound(m: ListedMessage): boolean {
 export function listedToMessage(m: ListedMessage): InboundMessage {
   return {
     message_id: m.message_id, thread_id: m.thread_id, inbox_id: m.inbox_id, subject: m.subject, from: m.from, to: m.to,
-    text: m.text ?? m.preview ?? "", html: m.html, timestamp: m.timestamp, labels: m.labels ?? [], authentication_results: m.authentication_results ?? null,
+    text: m.text, extracted_text: m.extracted_text, preview: m.preview, html: m.html, timestamp: m.timestamp, labels: m.labels ?? [], authentication_results: m.authentication_results ?? null,
   };
 }
 
@@ -166,4 +166,32 @@ export function listMessagesQuery(pageToken?: string | null, limit = 100): strin
   const q = new URLSearchParams({ limit: String(limit), include_unauthenticated: "true", include_spam: "true", include_blocked: "true" });
   if (pageToken) q.set("page_token", pageToken);
   return q.toString();
+}
+
+// ── Reply body text ──────────────────────────────────────────────────
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", rsquo: "\u2019", lsquo: "\u2018", rdquo: "\u201d", ldquo: "\u201c", ndash: "\u2013", mdash: "\u2014", hellip: "\u2026" };
+
+/** HTML to plain text: drops style/script/head, turns block ends into line breaks, decodes common entities. */
+export function htmlToText(html: string | null | undefined): string {
+  if (!html) return "";
+  return String(html)
+    .replace(/<(head|style|script|title)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h[1-6]|blockquote)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+      if (e[0] === "#") { const n = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10); return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : " "; }
+      return ENTITIES[e.toLowerCase()] ?? m;
+    })
+    .replace(/[ \t\u00a0]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** The reply's words: text, else AgentMail's extracted_text, else the HTML as plain text, else the list preview. */
+export function replyBodyText(m: { text?: string | null; extracted_text?: string | null; html?: string | null; preview?: string | null }): string {
+  for (const t of [m.text, m.extracted_text]) if (t && t.trim()) return t;
+  return htmlToText(m.html) || (m.preview ?? "").trim();
 }

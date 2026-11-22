@@ -48,6 +48,8 @@ type AgentMailEvent = {
     from?: string;
     to?: string[];
     text?: string;
+    extracted_text?: string;
+    preview?: string;
     html?: string;
     timestamp?: string;
   };
