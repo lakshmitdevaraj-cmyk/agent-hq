@@ -145,8 +145,9 @@ export type EarlierEmail = { at: string; subject: string | null };
  * - for "Follow-up (mention my email)" only: the subject and date of every email sent to the lead, so it can refer to the email naturally.
  * A first message gets neither (it must stand alone and never mention an email). Dates are YYYY-MM-DD.
  */
-export function socialContextLines(type: SocialType, earlier: EarlierMessage[], emails: EarlierEmail[]): string[] {
+export function socialContextLines(type: SocialType, earlier: EarlierMessage[], emails: EarlierEmail[], today?: string): string[] {
   const out: string[] = [];
+  if (type !== "first" && today) out.push(`TODAY: ${today.slice(0, 10)} (use it to judge how long ago the earlier messages were; never print the date)`);
   if (type !== "first" && earlier.length > 0) {
     out.push(`EARLIER MESSAGES SENT ON THIS CHANNEL (oldest first). Do not repeat them: say something new and refer back to them naturally. Never write "following up":\n${earlier.slice(-4).map((m, i) => `${i + 1}. [${m.at.slice(0, 10)}] ${m.text.slice(0, 600)}`).join("\n")}`);
   }

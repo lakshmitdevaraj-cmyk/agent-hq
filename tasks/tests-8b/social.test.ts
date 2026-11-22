@@ -89,7 +89,8 @@ t("follow-up writer input: earlier messages on the channel (text and date) and, 
   assert.match(em, /Hi Mike, I set up phone assistants/, "email follow-up also sees what was already sent on the channel");
   assert.match(em, /never write "following up"/i);
   // A first message gets neither: it must stand alone and never mention an email.
-  assert.deepEqual(socialContextLines("first", earlier, emails), []);
+  assert.deepEqual(socialContextLines("first", earlier, emails, "2026-11-22T10:00:00Z"), []);
+  assert.match(socialContextLines("follow_up_email", earlier, emails, "2026-11-22T10:00:00Z").join("\n"), /TODAY: 2026-11-22/, "the writer is told today's date");
 });
 
 t("a lead who replied on any channel is skipped, a Facebook follow-up after a sent first message is not", () => {

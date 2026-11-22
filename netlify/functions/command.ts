@@ -2267,7 +2267,7 @@ async function writeSocialOne(campaign_id: string, item: SocialPlanItem, ctx: So
     `CHANNEL: ${item.channel}`,
     `MESSAGE_TYPE: ${item.type}`,
     ...(item.type === "follow_up_email" && item.emailDate && !(item.emailList ?? []).length ? [`EMAIL SENT ON: ${item.emailDate.slice(0, 10)} (mention it naturally; never write \"following up\")`] : []),
-    ...socialContextLines(item.type, item.earlierList ?? (item.earlier ? [{ at: "", text: item.earlier }] : []), item.emailList ?? []),
+    ...socialContextLines(item.type, item.earlierList ?? (item.earlier ? [{ at: "", text: item.earlier }] : []), item.emailList ?? [], new Date().toISOString()),
     `LIMITS: ${limitsText(item.channel, item.type)}`,
     `BUSINESS: ${lead.name ?? "the business"}`,
     `GREETING: ${greeting}`,
