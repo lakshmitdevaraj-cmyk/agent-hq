@@ -1,0 +1,26 @@
+// Daily send warning against the LOCAL server + mock AgentMail (dev server must run with AGENTMAIL_TEST_BASE_URL). Nothing real is sent.
+import fs from "node:fs";
+const KEY = fs.readFileSync((process.env.TMPDIR || "/tmp") + "/tests-8b-key.txt", "utf8").trim();
+const base = "http://localhost:8890";
+const call = async (action, params = {}) => (await (await fetch(`${base}/api/command`, { method: "POST", headers: { "Content-Type": "application/json", "X-API-Key": KEY }, body: JSON.stringify({ action, params }) })).json());
+const imp = (store, rows) => call("data.import", { store, overwrite: true, records: rows.map(([key, v]) => ({ key, value: JSON.stringify(v) })) });
+let fail = 0; const ok = (c, m) => { console.log((c ? "ok   " : "FAIL ") + m); if (!c) fail++; };
+const s0 = (await call("outreach.settings.get")).data;
+const stamp = Date.now().toString(36), camp = `dl-${stamp}`, t0 = "2026-11-10T10:00:00.000Z";
+await imp("agent-hq-outreach-campaigns", [[camp, { id: camp, name: "Daily limit test", status: "ready", created_at: t0 }]]);
+const ids = [1, 2, 3].map((i) => `l${i}${stamp}`);
+await imp("agent-hq-outreach-leads", ids.map((id) => [`${camp}/${t0}-${id}`, { id, campaign_id: camp, name: id, email: `shiftforge.ai+${id}@gmail.com`, is_test: true, created_at: t0 }]));
+await imp("agent-hq-outreach-emails", ids.map((id, i) => [`${camp}/2026-11-10T10:00:0${i}.000Z-e${id}`, { id: `e${id}`, campaign_id: camp, lead_id: id, to_email: `shiftforge.ai+${id}@gmail.com`, subject: "calls", body_text: "Hi there,\n\nText.", status: "drafted", framework: "one-off", review_status: "ready", created_at: `2026-11-10T10:00:0${i}.000Z` }]));
+let bad = await call("outreach.settings.set", { daily_send_limit: 0 });
+ok(!bad.ok, "limit 0 is refused: " + bad.error);
+await call("outreach.settings.set", { daily_send_limit: 2, time_zone: "America/Chicago" });
+const before = (await call("outreach.send.today")).data;
+ok(before.limit === 2, "limit comes back from Settings (2)");
+const r = await call("outreach.emails.send", { campaign_id: camp, email_ids: ids.map((id) => `e${id}`), limit: 3 });
+ok(r.data?.sent === 3, "sending 3 with a limit of 2 is NOT blocked (sent " + r.data?.sent + ")");
+const after = (await call("outreach.send.today")).data;
+ok(after.sent_today === before.sent_today + 3, `sent today went from ${before.sent_today} to ${after.sent_today}`);
+const line = (x, y, lim) => `Sent today: ${x}. This send: ${y}.${x + y > lim ? `\nThis is above your daily limit of ${lim}. Send anyway?` : ""}`;
+console.log("confirm text for 1 more email:\n" + line(after.sent_today, 1, after.limit).replace(/^/gm, "   | "));
+await call("outreach.settings.set", { daily_send_limit: s0.daily_send_limit, time_zone: s0.time_zone });
+console.log(fail ? `\n${fail} FAILED` : "\nall passed (mock only)"); process.exit(fail ? 1 : 0);

@@ -113,7 +113,7 @@ function FooterSettings() {
 
 
 // What the message writers use (batch 8c): the free things offered, the one honest proof line, a booking link and time zone for the reply helper, and the follow-up gaps.
-type InputsView = { free_asset_1: string; free_asset_2: string; proof_line: string; named_sources: string; booking_link: string; time_zone: string; follow_up_gaps_email: number[]; follow_up_gaps_social: number[]; postal_address: string; default_free_asset_1: string; default_free_asset_2: string; default_proof_line: string };
+type InputsView = { free_asset_1: string; free_asset_2: string; proof_line: string; named_sources: string; booking_link: string; time_zone: string; daily_send_limit: number; follow_up_gaps_email: number[]; follow_up_gaps_social: number[]; postal_address: string; default_free_asset_1: string; default_free_asset_2: string; default_proof_line: string };
 
 function MessageInputs() {
   const [v, setV] = useState<InputsView | null>(null);
@@ -122,7 +122,7 @@ function MessageInputs() {
   const [gS, setGS] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const snap = (x: InputsView, ge: string, gs: string) => JSON.stringify([x.free_asset_1, x.free_asset_2, x.proof_line, x.named_sources, x.booking_link, x.time_zone, ge, gs]);
+  const snap = (x: InputsView, ge: string, gs: string) => JSON.stringify([x.free_asset_1, x.free_asset_2, x.proof_line, x.named_sources, x.booking_link, x.time_zone, x.daily_send_limit, ge, gs]);
 
   useEffect(() => {
     call<InputsView>("outreach.settings.get").then((r) => {
@@ -139,7 +139,7 @@ function MessageInputs() {
     if (!v) return;
     setBusy(true); setMsg(null);
     try {
-      const r = await call<InputsView>("outreach.settings.set", { free_asset_1: v.free_asset_1, free_asset_2: v.free_asset_2, proof_line: v.proof_line, named_sources: v.named_sources, booking_link: v.booking_link, time_zone: v.time_zone, follow_up_gaps_email: gE, follow_up_gaps_social: gS });
+      const r = await call<InputsView>("outreach.settings.set", { free_asset_1: v.free_asset_1, free_asset_2: v.free_asset_2, proof_line: v.proof_line, named_sources: v.named_sources, booking_link: v.booking_link, time_zone: v.time_zone, daily_send_limit: v.daily_send_limit, follow_up_gaps_email: gE, follow_up_gaps_social: gS });
       setV(r);
       const ge = r.follow_up_gaps_email.join(", "), gs = r.follow_up_gaps_social.join(", ");
       setGE(ge); setGS(gs);
@@ -163,6 +163,7 @@ function MessageInputs() {
         <div className="grid sm:grid-cols-2 gap-3">
           <div><label htmlFor="booking" className={lab}>Booking link (reply helper)</label><input id="booking" value={v.booking_link} onChange={(e) => set("booking_link", e.target.value)} placeholder="https://" className={box} /></div>
           <div><label htmlFor="tz" className={lab}>Your time zone (reply helper), e.g. America/Chicago</label><input id="tz" value={v.time_zone} onChange={(e) => set("time_zone", e.target.value)} className={box} /></div>
+          <div><label htmlFor="dlimit" className={lab}>Daily send limit (a warning in the send box, never a block)</label><input id="dlimit" type="number" min={1} value={v.daily_send_limit} onChange={(e) => set("daily_send_limit", Number(e.target.value) as never)} className={box} /></div>
           <div><label htmlFor="gapE" className={lab}>Email follow-up days after the first email</label><input id="gapE" value={gE} onChange={(e) => setGE(e.target.value)} className={box} /></div>
           <div><label htmlFor="gapS" className={lab}>Social follow-up days after the first message</label><input id="gapS" value={gS} onChange={(e) => setGS(e.target.value)} className={box} /></div>
         </div>

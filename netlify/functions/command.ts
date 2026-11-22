@@ -1,4 +1,5 @@
 import { scanBanned } from "./lib/messagerules";
+import { countSentToday, limitOrDefault } from "./lib/sendcount";
 import { nextFollowUp, countDue, gapsOrDefault, type FollowRow, type FollowState, type FollowStepIn, type StoppedReason } from "./lib/followups";
 import { SOCIAL_SEQ_SYSTEM_PROMPT, SOCIAL_SEQ_REVIEW_PROMPT, socialSeqUserPrompt, parseSocialSeq, checkSocialSeq, socialFailureLines, parseSocialReview, mergeSocial, type SeqLeadInfo, type SocialStepCheck } from "./lib/socialseq";
 import type { Handler } from "@netlify/functions";
@@ -159,6 +160,7 @@ type OutreachSettings = {
   proof_line?: string;
   named_sources?: string; // a named source for the demo / statistic figures, if any
   booking_link?: string;
+  daily_send_limit?: number; // a warning in the send confirm boxes, never a block
   time_zone?: string; // the sender's own time zone (IANA), used by the reply helper
   follow_up_gaps_email?: number[];
   follow_up_gaps_social?: number[];
@@ -451,6 +453,7 @@ async function settingsView(rec: OutreachSettings): Promise<Record<string, unkno
     named_sources: rec.named_sources ?? "",
     booking_link: rec.booking_link ?? "",
     time_zone: rec.time_zone ?? "",
+    daily_send_limit: limitOrDefault(rec.daily_send_limit),
     follow_up_gaps_email: parseGaps(rec.follow_up_gaps_email),
     follow_up_gaps_social: parseGaps(rec.follow_up_gaps_social),
     default_free_asset_1: DEFAULT_ASSET_1,
@@ -4864,6 +4867,11 @@ export const handler: Handler = async (event) => {
           if (tz) { try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { return fail(400, `"${tz}" is not a time zone name (for example America/Chicago).`); } }
           next.time_zone = tz;
         }
+        if (p.daily_send_limit !== undefined) {
+          const n = Number(p.daily_send_limit);
+          if (!Number.isInteger(n) || n < 1 || n > 10000) return fail(400, "Daily send limit must be a whole number from 1 to 10000.");
+          next.daily_send_limit = n;
+        }
         for (const k of ["follow_up_gaps_email", "follow_up_gaps_social"] as const) {
           if (p[k] === undefined) continue;
           const g = parseGaps(p[k]);
@@ -5196,6 +5204,14 @@ export const handler: Handler = async (event) => {
       }
 
       // ── Follow-up reminders (batch 8c). Read-time: due dates come from what was sent and the Settings gaps; nothing here sends. ──
+      case "outreach.send.today": {
+        // Emails sent today (all campaigns, in the Settings time zone) and the daily limit. Read-only; used by the send confirm boxes.
+        const st = await readOutreachSettings();
+        const tzs = (st.time_zone ?? "").trim();
+        const rows = await listJsonFast<{ status?: string; sent_at?: string | null }>(store(OUTREACH_EMAILS));
+        return ok({ sent_today: countSentToday(rows, tzs && validTimeZone(tzs) ? tzs : "UTC"), limit: limitOrDefault(st.daily_send_limit) });
+      }
+
       case "followups.list": {
         const t0 = Date.now();
         const settings = await readOutreachSettings();

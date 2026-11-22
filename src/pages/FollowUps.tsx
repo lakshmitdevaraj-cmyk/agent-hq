@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, AlertCircle, CalendarClock } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import { call } from "@/lib/api";
+import { sendTodayText } from "@/lib/sendToday";
 
 // Follow-ups: what is due next for every lead, by channel. Nothing here sends by itself: emails go out only when you press Send and confirm,
 // and social messages are copied and sent by hand, then marked as sent.
@@ -92,7 +93,7 @@ export default function FollowUps() {
     if (sendable.length === 0) return;
     const list = sendable.map((r) => `${r.name}: email ${r.position}`).join("\n");
     const warn = data && !data.postal_address_set ? "\n\nNo postal address in the footer. US law (CAN-SPAM) requires one for commercial email." : "";
-    if (!confirm(`Send ${sendable.length} follow-up email${sendable.length === 1 ? "" : "s"} via AgentMail? Each goes as a reply in the same thread as the email before it, and this will hit real recipients' inboxes.\n\n${list}${warn}`)) return;
+    if (!confirm(`Send ${sendable.length} follow-up email${sendable.length === 1 ? "" : "s"} via AgentMail? Each goes as a reply in the same thread as the email before it, and this will hit real recipients' inboxes.\n\n${list}${warn}${await sendTodayText(sendable.length)}`)) return;
     await act("send", async () => {
       const byCampaign = new Map<string, string[]>();
       for (const r of sendable) byCampaign.set(r.campaign_id, [...(byCampaign.get(r.campaign_id) ?? []), r.email_id!]);

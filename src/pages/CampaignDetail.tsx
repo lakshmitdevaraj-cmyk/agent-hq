@@ -37,6 +37,7 @@ import PageHeader from "@/components/PageHeader";
 import GlassCard from "@/components/GlassCard";
 import Modal, { FormField, PrimaryButton, TextInput, TextArea } from "@/components/Modal";
 import AnimatedNumber from "@/components/AnimatedNumber";
+import { sendTodayText } from "@/lib/sendToday";
 import { call, callBackground, resumeJob } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { mergeRecent, noteCreated, noteDeleted, recentlyCreated, noteExcluded, applyExcluded } from "@/lib/recent";
@@ -397,7 +398,7 @@ export default function CampaignDetail() {
     const list = picked.map((e) => e.to_email).join("\n");
     const needCheck = picked.filter((e) => (e.review_status ?? "check") === "check").length;
     const warn = needCheck > 0 ? `\n\n${needCheck} of these ${needCheck === 1 ? "has" : "have"} NOT passed the AI check yet ("Check this"). Send ${needCheck === 1 ? "it" : "them"} anyway?` : "";
-    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.${warn}\n\n${list}${postalWarn}`)) return;
+    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.${warn}\n\n${list}${postalWarn}${await sendTodayText(picked.length)}`)) return;
     await runSend({ email_ids: picked.map((e) => e.id), ...(needCheck > 0 ? { allow_check: true } : {}) }, picked.length);
     setSelectedIds(new Set());
   }
@@ -410,7 +411,7 @@ export default function CampaignDetail() {
       return;
     }
     const n = batchSize(drafted);
-    if (!confirm(`Send ${n} of ${drafted} ready emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.${postalWarn}${checkDrafts + blockedDrafts > 0 ? `\n\n${checkDrafts + blockedDrafts} draft${checkDrafts + blockedDrafts === 1 ? "" : "s"} that did not pass the AI check will not be sent.` : ""}`)) return;
+    if (!confirm(`Send ${n} of ${drafted} ready emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.${postalWarn}${await sendTodayText(n)}${checkDrafts + blockedDrafts > 0 ? `\n\n${checkDrafts + blockedDrafts} draft${checkDrafts + blockedDrafts === 1 ? "" : "s"} that did not pass the AI check will not be sent.` : ""}`)) return;
     await runSend({}, n);
   }
 
@@ -427,7 +428,7 @@ export default function CampaignDetail() {
     }
     const n = batchSize(draftsAtStep);
     const verb = step === 1 ? "Send step 1" : `Send follow-up step ${step}`;
-    if (!confirm(`${verb} — ${n} of ${draftsAtStep} queued email${draftsAtStep === 1 ? "" : "s"} (oldest first) via AgentMail. Leads who already replied will be skipped automatically.${postalWarn}`))
+    if (!confirm(`${verb} — ${n} of ${draftsAtStep} queued email${draftsAtStep === 1 ? "" : "s"} (oldest first) via AgentMail. Leads who already replied will be skipped automatically.${postalWarn}${await sendTodayText(n)}`))
       return;
     await runSend({ sequence_position: step }, n);
   }
