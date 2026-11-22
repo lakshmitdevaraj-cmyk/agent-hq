@@ -3,6 +3,7 @@
  * Pure helpers only (channels, limits, checks). The app never opens or posts on these sites.
  */
 import { checkSocialBody, wordCount } from "./angle";
+import { leadGenDecision } from "./leadgen";
 import { leadSkipReason, isGovEduEmail } from "./outreach";
 
 export type SocialChannel = "facebook" | "instagram" | "linkedin";
@@ -65,6 +66,8 @@ type SkipLead = Parameters<typeof leadSkipReason>[0] & {
   do_not_contact?: boolean;
   /** The user kept this lead although HQ flagged it (chain, lead-gen, not home service): the flags no longer skip it. */
   not_fit_kept?: boolean;
+  reviews_count?: number | null;
+  phone?: string | null;
   site_check?: { checked_at?: string; error?: string; needs_browser?: boolean; via?: string; lead_gen_listing?: string | null; not_home_service?: string | null } | null;
 };
 
@@ -74,7 +77,7 @@ type SkipLead = Parameters<typeof leadSkipReason>[0] & {
  * franchise, lead-gen flagged, not a home-service business. A bulk run also needs a finished website check (and a browser check when
  * the site needs one), so it never states a guess; `manualStart` (the user starts one Facebook first message by hand) skips only that.
  */
-export function socialSkipReason(lead: SkipLead, ctx: { location: string | null; query: string; anyTrade: boolean }, o: { replied: boolean; manualStart?: boolean }): string | null {
+export function socialSkipReason(lead: SkipLead, ctx: { location: string | null; query: string; anyTrade: boolean }, o: { replied: boolean; manualStart?: boolean; contacted?: boolean }): string | null {
   if (lead.do_not_contact) return "Do not contact";
   if (o.replied) return "Already replied";
   if (isGovEduEmail(lead.email)) return ".gov/.edu address";
@@ -82,7 +85,11 @@ export function socialSkipReason(lead: SkipLead, ctx: { location: string | null;
   const skip = leadSkipReason({ ...lead, email: null }, ctx);
   if (skip) return skip.message.replace(/^Skipped: /, "");
   const sc = lead.site_check;
-  if (!lead.not_fit_kept && sc?.lead_gen_listing) return `Flagged as a lead-gen listing (${sc.lead_gen_listing})`;
+  // Batch 8c: only a lead the Prospects page would hide is skipped; a visible "Possible lead-gen: check" lead gets its messages.
+  if (!lead.not_fit_kept) {
+    const lg = leadGenDecision(lead as Parameters<typeof leadGenDecision>[0], o.contacted === true);
+    if (lg?.hide) return `Flagged as a lead-gen listing (${lg.reasons.join("; ")})`;
+  }
   if (!lead.not_fit_kept && sc?.not_home_service) return `May not be a home-service business (${sc.not_home_service})`;
   if (o.manualStart) return null;
   if (!sc?.checked_at || sc.error) return "Website not checked yet";

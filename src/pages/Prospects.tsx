@@ -10,7 +10,7 @@ import Modal from "@/components/Modal";
 import { SocialMessages } from "@/components/SocialMessages";
 import { call, callBackground } from "@/lib/api";
 import { GapBadge, LinkIcons, leadLinks, reachAnotherWay, shortDate } from "@/lib/leadInfo";
-import { FB_RESULT_LABEL, touchesText, HAS_OPTIONS, LOW_GAP, autoHidden, isNotFit, NOT_FIT_REASONS, REVIEW_LABEL, STATUS_LABEL, areaOf, contactedList, downloadCsv, fitLabels, hasChannel, prospectsToCsv, reasonLabel, type HasKey, type EmailState, type Prospect } from "@/lib/prospects";
+import { FB_RESULT_LABEL, touchesText, HAS_OPTIONS, LOW_GAP, autoHidden, autoFlagLabel, isLeadGenFlagged, isNotFit, NOT_FIT_REASONS, REVIEW_LABEL, STATUS_LABEL, areaOf, contactedList, downloadCsv, fitLabels, hasChannel, prospectsToCsv, reasonLabel, type HasKey, type EmailState, type Prospect } from "@/lib/prospects";
 
 const HIGH_GAP = 60;
 const STATUS_TONE: Record<EmailState, string> = {
@@ -130,6 +130,7 @@ export default function Prospects() {
   const [fbF, setFbF] = useState("");
   const [olderDays, setOlderDays] = useState("");
   const [emailedNoSocial, setEmailedNoSocial] = useState(false);
+  const [leadGenF, setLeadGenF] = useState(false);
   const [batch, setBatch] = useState<BatchStatus | null>(null);
   const [planFor, setPlanFor] = useState<{ plan: SocialPlan | null; rewrite: boolean; err: string | null; starting: boolean } | null>(null);
   const poll = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,6 +161,7 @@ export default function Prospects() {
       if (reachOnly && !(!r.email && reachAnotherWay(r).length > 0)) return false;
       if (highGap && !((r.gap_score ?? -1) >= HIGH_GAP)) return false;
       if (noReply && r.email_status !== "emailed") return false;
+      if (leadGenF && !isLeadGenFlagged(r)) return false;
       if (readyCh && !(r.social_drafts ?? []).some((d) => d.channel === readyCh)) return false;
       if (notOn && (r.touches?.counts[notOn as "email"] ?? 0) > 0) return false;
       if (emailedNoSocial && !((r.touches?.counts.email ?? 0) > 0 && !r.touches?.replied && (r.touches?.counts.facebook ?? 0) + (r.touches?.counts.instagram ?? 0) + (r.touches?.counts.linkedin ?? 0) === 0)) return false;
@@ -178,7 +180,7 @@ export default function Prospects() {
       if (y === null) return -1;
       return asc ? x - y : y - x;
     });
-  }, [base, hasAny, reviewF, reachOnly, highGap, noReply, campaign, niche, area, asc, showNotFit, readyCh, notOn, emailedNoSocial, olderDays, fbF]);
+  }, [base, hasAny, reviewF, reachOnly, highGap, noReply, campaign, niche, area, asc, showNotFit, readyCh, notOn, emailedNoSocial, olderDays, fbF, leadGenF]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
   const patchRow = (id: string, patch: Record<string, unknown>) => setRows((prev) => prev.map((r) => (r.id === id ? ({ ...r, ...patch } as Prospect) : r)));
@@ -286,6 +288,7 @@ export default function Prospects() {
           <button className={chip(highGap)} onClick={() => setHighGap(!highGap)}>High gap ({HIGH_GAP}+)</button>
           <button className={chip(noReply)} onClick={() => setNoReply(!noReply)}>Emailed, no reply</button>
           <button className={chip(emailedNoSocial)} onClick={() => setEmailedNoSocial(!emailedNoSocial)} title="Emailed, no reply, and no Facebook, Instagram or LinkedIn message yet">Emailed, no reply, no social</button>
+          <button className={chip(leadGenF)} onClick={() => setLeadGenF(!leadGenF)} title="Leads with a lead-gen sign that stay visible because they have 10+ reviews or were already contacted">Possible lead-gen (check) ({base.filter(isLeadGenFlagged).length})</button>
           <select className={selectCls} value={readyCh} onChange={(e) => setReadyCh(e.target.value)} aria-label="Has a message ready to send">
             <option value="">Message ready to send: any</option>
             <option value="facebook">Has a Facebook message ready to send</option>
@@ -411,6 +414,8 @@ export default function Prospects() {
                         </select>
                       ) : r.not_fit_kept ? <span className="text-label text-muted">Kept by me</span> : r.auto_not_fit ? (
                         <span title={r.auto_not_fit.detail} className="text-label text-muted">{reasonLabel(r.auto_not_fit.code) || "Other"} <span className="text-muted">(auto)</span></span>
+                      ) : r.auto_flag ? (
+                        <span title={`${r.auto_flag.detail}${r.auto_flag.why === "contacted" ? " (kept visible: already contacted)" : r.auto_flag.why === "reviews" ? " (kept visible: 10 or more reviews)" : ""}`} className="tag tag-warn">{autoFlagLabel(r.auto_flag)}</span>
                       ) : <span className="text-muted">-</span>}
                     </td>
                     <td className="py-2 pr-3">
@@ -460,7 +465,7 @@ export default function Prospects() {
                   </select>
                   <input key={selected.id} defaultValue={selected.excluded_note ?? ""} maxLength={200} placeholder="Optional note" onBlur={(e) => { if (e.target.value !== (selected.excluded_note ?? "")) void setNotFit(selected, true, { note: e.target.value }); }} className="w-full bg-inset border border-line rounded-md px-2 py-1.5 text-xs text-fg" />
                 </div>
-              ) : selected.auto_not_fit ? <p className="text-label text-muted">Alcance's own flag (auto): {reasonLabel(selected.auto_not_fit.code) || "Other"}. {selected.auto_not_fit.detail}{autoHidden(selected) ? " Untick to keep this lead; the next website check will not flag it again." : ""}</p> : selected.not_fit_kept ? <p className="text-label text-muted">Kept by me: HQ's own flags no longer hide or skip this lead.</p> : null}
+              ) : selected.auto_flag && !selected.not_fit_kept ? <p className="text-label text-amber-300 break-words"><span className="font-semibold">{autoFlagLabel(selected.auto_flag)}.</span> {selected.auto_flag.detail}. {selected.auto_flag.why === "contacted" ? "It stays visible because you already contacted it." : "It stays visible because it has 10 or more reviews."}</p> : selected.auto_not_fit ? <p className="text-label text-muted">Alcance's own flag (auto): {reasonLabel(selected.auto_not_fit.code) || "Other"}. {selected.auto_not_fit.detail}{autoHidden(selected) ? " Untick to keep this lead; the next website check will not flag it again." : ""}</p> : selected.not_fit_kept ? <p className="text-label text-muted">Kept by me: HQ's own flags no longer hide or skip this lead.</p> : null}
               <div className="text-label text-muted">Contacted: {touchesText(selected) || "not yet"}{selected.touches?.replied ? " · Replied" : ""}</div>
             </div>
             <OwnerField lead={selected} onSaved={(p) => patchRow(selected.id, p)} />

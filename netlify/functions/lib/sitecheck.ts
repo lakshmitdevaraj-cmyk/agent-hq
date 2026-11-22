@@ -364,20 +364,19 @@ export function leadGenWebsite(pages: Page[], website: string | null | undefined
   if (dm) strong.push(`Site wording looks like a directory: "${dm[0].slice(0, 60)}"`);
   let path = "";
   try { path = website ? new URL(website).pathname.replace(/\/+$/, "") : ""; } catch { /* ignore */ }
-  const fewReviews = typeof ctx.reviews_count !== "number" || ctx.reviews_count < 30;
   const kw = host ? keywordDomain(host, ctx.city ?? "") : false;
   // A page per city on a keyword domain ("hvac-repair-guys.com/Dickinson").
   if (host && path && /^\/[A-Za-z][A-Za-z-]{2,24}$/.test(path) && TRADE_WORDS.some((w) => compact(host).includes(w))) strong.push(`The address ${host}${path} is one city page on a keyword website (a directory page)`);
   if (host && THROWAWAY_TLD.test(host) && TRADE_WORDS.some((w) => compact(host).includes(w))) strong.push(`The website name "${host}" is a trade keyword on a throwaway domain ending`);
-  // A Google Sites page with a keyword-stuffed business name and few reviews.
-  if (/(?:^|\.)sites\.google\.com$/i.test(host) && fewReviews && ctx.name && TRADE_WORDS.some((w) => compact(ctx.name!).includes(w))) strong.push("The website is a free Google Sites page and the business name is only trade keywords");
+  // A free Google Sites page is a sign on its own (batch 8c); the review count decides hiding, not this.
+  if (/(?:^|\.)sites\.google\.com$/i.test(host)) strong.push("The website is a free Google Sites page");
   // A throwaway domain ending whose name has nothing to do with the business ("Oasis System HVAC" on brooksdaniel.site).
   if (host && ctx.name && THROWAWAY_TLD.test(host)) {
     const label = compact(host.replace(/\.[a-z]{2,}$/i, ""));
     const words = (ctx.name ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !FILLER_TOKENS.includes(w) && !TRADE_WORDS.some((t) => w.includes(t)) && !["system", "systems", "heating", "cooling", "comfort", "mechanical", "home"].includes(w));
     if (words.length > 0 && !words.some((w) => label.includes(w)) && !TRADE_WORDS.some((t) => label.includes(t))) strong.push(`The website name "${host}" has nothing to do with the business name, on a throwaway domain ending`);
   }
-  if (ctx.tls_problem) weak.push("The website has an invalid security certificate");
+  // An invalid security certificate is never a lead-gen sign (batch 8c), so ctx.tls_problem is deliberately ignored here.
   // A web address that is only trade words and a town ("plumbingofcypress.com") names no company, however many reviews the listing has.
   if (kw) strong.push(`The website name "${host}" is only trade words and the town, with no company name`);
   // A footer or pages that list many other companies as a network.
@@ -390,20 +389,17 @@ export function leadGenWebsite(pages: Page[], website: string | null | undefined
     }
     if (others.size >= 4) strong.push(`The site links to ${others.size} other companies' websites as a network`);
   }
-  const cityList = (text.match(/\b(?:serving|service areas?|areas? we serve|cities we serve)\b[^.]{0,400}/i)?.[0].match(/[A-Z][a-z]+(?:\s[A-Z][a-z]+)?,/g) ?? []).length;
-  if (cityList >= 8) weak.push(`The site lists ${cityList} towns it serves`);
   const tf = TOLL_FREE.exec(ctx.phone ?? "") ?? TOLL_FREE.exec(text.slice(0, 1500));
-  if (tf) weak.push(`The main phone number is toll-free (${tf[0].trim()})`);
   const nameTokens = compact(ctx.name ?? "");
-  if (ctx.name && TRADE_WORDS.some((w) => compact(ctx.name!).includes(w)) && keywordDomain(compact(ctx.name) + ".com", ctx.city ?? "") && fewReviews) weak.push("The business name is only trade words and a town");
+  // The business name is only trade words and a town (a sign whatever the review count; the review count decides hiding, not this).
+  if (ctx.name && TRADE_WORDS.some((w) => compact(ctx.name!).includes(w)) && keywordDomain(compact(ctx.name) + ".com", ctx.city ?? "")) strong.push("The business name is only trade words and a town");
   const title = (pages[0]?.html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").replace(/\s+/g, " ").trim();
-  if (title && nameTokens) {
+  if (tf && title && nameTokens) {
     const words = (ctx.name ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !FILLER_TOKENS.includes(w) && !TRADE_WORDS.some((t) => w.includes(t)));
-    if (words.length > 0 && !words.some((w) => title.toLowerCase().includes(w)) && /\b(?:repair|service|company|professional|fast)\b/i.test(title)) weak.push(`The page title ("${title.slice(0, 60)}") does not name the business`);
+    if (words.length > 0 && !words.some((w) => title.toLowerCase().includes(w)) && /\b(?:repair|service|company|professional|fast)\b/i.test(title)) strong.push(`The main phone number is toll-free (${tf[0].trim()}) and the page title ("${title.slice(0, 60)}") does not name the business`);
   }
-  if (strong.length > 0) return strong[0] + (strong.length > 1 ? `; ${strong[1]}` : "") + (weak.length ? `; ${weak[0]}` : "");
-  if (weak.length >= 2) return `${weak[0]}; ${weak[1]}`;
-  return null;
+  void weak;
+  return strong.length > 0 ? strong.join("; ") : null;
 }
 
 /** Warning flags: a lead that may not be a home-service company, or is a listing / lead-gen site rather than a business. */

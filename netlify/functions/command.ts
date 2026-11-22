@@ -35,6 +35,7 @@ import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport,
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
+import { leadGenDecision, otherRuleDecision, isContacted, autoFitFields } from "./lib/leadgen";
 import { channelsFor, socialSkipReason, socialTypeFor, precheckSocial, socialContextLines, type EarlierMessage, type EarlierEmail, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart, type SocialType } from "./lib/social";
 import { deriveTouches, summarizeTouches, touchFromSent, parseSentOn, filterMatches, legacySocialRef, type Touch, type TouchChannel } from "./lib/touches";
 
@@ -2037,19 +2038,22 @@ async function planBrowserCheck(campaign_id: string, leadId?: string): Promise<{
 const LOW_GAP = 30;
 const NOT_FIT_REASONS = ["wholesaler", "lead_gen", "not_home_service", "has_chat_booking", "chain", "other"];
 
-/** The reason HQ itself would skip or flag this lead, in the same words as the Not a fit dropdown; null when nothing is off. */
-function autoNotFit(lead: Record<string, unknown>, ctx: ReturnType<typeof campaignSkipCtx>): { code: string; detail: string } | null {
+/**
+ * The reason HQ itself would skip or flag this lead, in the same words as the Not a fit dropdown; null when nothing is off.
+ * `hide` = the Prospects page hides it; false = it stays visible with a "check" flag. Lead-gen follows the batch 8c rule
+ * (under 10 reviews, a sign, not contacted); every other rule hides only a lead nobody has contacted.
+ */
+function autoNotFit(lead: Record<string, unknown>, ctx: ReturnType<typeof campaignSkipCtx>, contacted = false): { code: string; detail: string; hide: boolean; why: "contacted" | "reviews" | null } | null {
   if (lead.not_fit_kept === true) return null;
+  const other = (code: string, detail: string) => ({ code, detail, ...otherRuleDecision({ code, detail }, contacted) });
   const why = leadSkipReason(lead as Parameters<typeof leadSkipReason>[0], { ...ctx });
-  if (why && why.code !== "excluded") return { code: why.code === "chain" ? "chain" : "other", detail: why.message.replace(/^Skipped: /, "") };
+  if (why && why.code !== "excluded") return other(why.code === "chain" ? "chain" : "other", why.message.replace(/^Skipped: /, ""));
   const sc = (lead.site_check ?? {}) as { not_home_service?: string | null; lead_gen_listing?: string | null };
-  if (sc.not_home_service) return { code: /wholesal|distribut|supplier/i.test(sc.not_home_service) ? "wholesaler" : "not_home_service", detail: sc.not_home_service };
-  if (sc.lead_gen_listing) return { code: "lead_gen", detail: sc.lead_gen_listing };
-  // Flags that need no website download, so leads checked before are covered too (a flag only: the lead is never deleted).
-  const dg = domainLeadGenFlag(lead as Parameters<typeof domainLeadGenFlag>[0]);
-  if (dg) return { code: "lead_gen", detail: dg };
+  if (sc.not_home_service) return other(/wholesal|distribut|supplier/i.test(sc.not_home_service) ? "wholesaler" : "not_home_service", sc.not_home_service);
+  const lg = leadGenDecision(lead as Parameters<typeof leadGenDecision>[0], contacted);
+  if (lg) return { code: "lead_gen", detail: lg.reasons.join("; "), hide: lg.hide, why: lg.why };
   const cf = categoryFitFlag(typeof lead.category === "string" ? lead.category : null);
-  if (cf) return { code: "not_home_service", detail: cf };
+  if (cf) return other("not_home_service", cf);
   return null;
 }
 
@@ -2229,11 +2233,12 @@ async function planSocial(campaign_id: string, leadIds?: string[], channels?: st
     const links = channelsFor(lead as Parameters<typeof channelsFor>[0]);
     const chans = links.filter((c) => !wantChannels || wantChannels.has(c.channel));
     if (chans.length === 0) { if (want) skipped.push({ lead_id: lead.id, name, reason: wantChannels ? "No saved page on that channel" : "No saved Facebook, Instagram or LinkedIn page" }); continue; }
-    const reason = socialSkipReason(lead as Parameters<typeof socialSkipReason>[0], ctx, { replied: repliedLeads.has(lead.id), manualStart: !!want && opts.manualStart === true });
+    const touches = deriveTouches({ lead_id: lead.id, campaign_id, emails, socials, stored: stored.get(lead.id) ?? [] });
+    const contacted = isContacted({ emailSent: touches.some((t) => t.channel === "email"), emailDraft: emails.some((e) => e.lead_id === lead.id && (e.status ?? "drafted") === "drafted"), touches: touches.length, replied: repliedLeads.has(lead.id) });
+    const reason = socialSkipReason(lead as Parameters<typeof socialSkipReason>[0], ctx, { replied: repliedLeads.has(lead.id), manualStart: !!want && opts.manualStart === true, contacted });
     if (reason) { skipped.push({ lead_id: lead.id, name, reason }); continue; }
     // The bulk run leaves out low-gap leads (a hint, not a rule: writing for one lead on its own still works).
     if (!want && typeof lead.gap_score === "number" && lead.gap_score < LOW_GAP) { skipped.push({ lead_id: lead.id, name, reason: `low gap (${lead.gap_score}, under ${LOW_GAP})` }); continue; }
-    const touches = deriveTouches({ lead_id: lead.id, campaign_id, emails, socials, stored: stored.get(lead.id) ?? [] });
     const hasEmailSent = touches.some((t) => t.channel === "email");
     for (const c of chans) {
       const have = existing.get(`${lead.id}/${c.channel}`);
@@ -4015,7 +4020,7 @@ export const handler: Handler = async (event) => {
             email_source: (l.email_source as string | undefined) ?? null, email_manual_at: (l.email_manual_at as string | undefined) ?? null,
             not_fit_kept: l.not_fit_kept === true,
             email_typo: possibleTypoDomain(l.email as string | null | undefined),
-            auto_not_fit: l.excluded === true ? null : autoNotFit(l, campCtx.get(l.campaign_id as string) ?? { location: null, query: "", anyTrade: true }),
+            ...autoFitFields(l.excluded === true ? null : autoNotFit(l, campCtx.get(l.campaign_id as string) ?? { location: null, query: "", anyTrade: true }, isContacted({ emailSent: !!(em?.sent || contactedAt), emailDraft: em?.review != null, touches: touches.total, replied: touches.replied }))),
           };
         });
         rows.sort((a, b) => (b.gap_score ?? -1) - (a.gap_score ?? -1) || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));

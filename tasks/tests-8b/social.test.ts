@@ -20,7 +20,7 @@ t("replied, do-not-contact, excluded and not-a-fit stay skipped, with the reason
   assert.match(skip({}, { replied: true }) ?? "", /replied/i);
   assert.match(skip({ do_not_contact: true }) ?? "", /do not contact/i);
   assert.match(skip({ excluded: true }) ?? "", /exclud/i);
-  assert.match(skip({ site_check: { ...base.site_check, lead_gen_listing: "keyword domain" } }) ?? "", /lead-gen/i);
+  assert.match(skip({ site_check: { ...base.site_check, lead_gen_listing: "The website name \"x.com\" is only trade words and the town, with no company name" }, reviews_count: 2 }) ?? "", /lead-gen/i);
   assert.match(skip({ site_check: { ...base.site_check, not_home_service: "rental" } }) ?? "", /home-service/i);
   assert.equal(skip({ site_check: { ...base.site_check, lead_gen_listing: "x" }, not_fit_kept: true }), null, "kept by me");
 });
@@ -32,7 +32,7 @@ t("website check is required in bulk, but a hand-started Facebook first touch ma
   assert.equal(skip({ site_check: { checked_at: "x", needs_browser: true, via: "raw" } }, { manualStart: true }), null);
   // still blocked by flags, DNC and replies even when started by hand
   assert.match(skip({ do_not_contact: true, site_check: null }, { manualStart: true }) ?? "", /do not contact/i);
-  assert.match(skip({ site_check: { lead_gen_listing: "kw" } }, { manualStart: true }) ?? "", /lead-gen/i);
+  assert.match(skip({ site_check: { lead_gen_listing: "The website name \"x.com\" is only trade words and the town, with no company name" }, reviews_count: 2 }, { manualStart: true }) ?? "", /lead-gen/i);
   assert.match(skip({ site_check: null }, { manualStart: true, replied: true }) ?? "", /replied/i);
 });
 

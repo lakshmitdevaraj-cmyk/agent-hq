@@ -25,6 +25,8 @@ export type Prospect = LeadInfo & {
   excluded_reason?: string | null;
   excluded_note?: string | null;
   auto_not_fit?: { code: string; detail: string } | null;
+  /** Batch 8c: HQ's own flag on a lead that stays VISIBLE (many reviews, or already contacted). Not hidden. */
+  auto_flag?: { code: string; detail: string; why: "contacted" | "reviews" | null } | null;
   not_fit_kept?: boolean;
   email_source?: string | null;
   /** A known look-alike of a real mail/ISP domain (consolidate.net for consolidated.net). A flag only. */
@@ -67,6 +69,9 @@ export const NOT_FIT_REASONS: Array<{ code: string; label: string }> = [
   { code: "chain", label: "Chain / franchise" },
   { code: "other", label: "Other" },
 ];
+/** "Possible lead-gen: check" / "Possible wholesaler: check" for a flagged lead that stays visible. */
+export const autoFlagLabel = (f: { code: string }): string => `Possible ${f.code === "lead_gen" ? "lead-gen" : (reasonLabel(f.code) || "not a fit").toLowerCase()}: check`;
+export const isLeadGenFlagged = (r: Prospect): boolean => !r.excluded && !r.not_fit_kept && r.auto_flag?.code === "lead_gen";
 export const reasonLabel = (code: string | null | undefined): string => NOT_FIT_REASONS.find((r) => r.code === code)?.label ?? "";
 
 /** Gap scores under this get a grey "Low gap" hint. A hint only: nothing is skipped because of it, except the bulk social run. */
@@ -153,7 +158,7 @@ export function prospectsToCsv(rows: Prospect[]): string {
     lines.push(
       [
         r.name, r.owner_name, r.owner_confidence, r.campaign_name, r.category, areaOf(r.address), r.address, r.email, r.phone,
-        r.gap_score, (r.gap_reasons ?? []).join("; "), STATUS_LABEL[r.email_status], r.review_status ? REVIEW_LABEL[r.review_status] : "", fitLabels(r).join("; "), isNotFit(r) ? "Yes" : "", r.excluded ? reasonLabel(r.excluded_reason) : (r.auto_not_fit ? `${reasonLabel(r.auto_not_fit.code) || "Other"} (automatic)` : (r.not_fit_kept ? "Kept by me" : "")), r.excluded ? (r.excluded_note ?? "") : "", contactedText(r), ...touchCsv(r), r.fb_checked ? `${FB_RESULT_LABEL[r.fb_checked.result]} ${r.fb_checked.at.slice(0, 10)}${r.fb_checked.note ? ` (${r.fb_checked.note})` : ""}` : "", r.emailed_at ? r.emailed_at.slice(0, 10) : "", (r.social_sent ?? []).map((x) => `${x.channel} ${x.sent_at.slice(0, 10)}`).join("; "), r.website,
+        r.gap_score, (r.gap_reasons ?? []).join("; "), STATUS_LABEL[r.email_status], r.review_status ? REVIEW_LABEL[r.review_status] : "", fitLabels(r).join("; "), isNotFit(r) ? "Yes" : "", r.excluded ? reasonLabel(r.excluded_reason) : (r.auto_not_fit ? `${reasonLabel(r.auto_not_fit.code) || "Other"} (automatic)` : (r.not_fit_kept ? "Kept by me" : (r.auto_flag ? autoFlagLabel(r.auto_flag) : ""))), r.excluded ? (r.excluded_note ?? "") : "", contactedText(r), ...touchCsv(r), r.fb_checked ? `${FB_RESULT_LABEL[r.fb_checked.result]} ${r.fb_checked.at.slice(0, 10)}${r.fb_checked.note ? ` (${r.fb_checked.note})` : ""}` : "", r.emailed_at ? r.emailed_at.slice(0, 10) : "", (r.social_sent ?? []).map((x) => `${x.channel} ${x.sent_at.slice(0, 10)}`).join("; "), r.website,
         ...["not_mobile_friendly", "phone_not_tappable", "no_https", "old_copyright"].map((k) => { const f = r.site_check?.facts?.find((x) => x.key === k); return f ? factResult(f) : ""; }),
         so.linkedin_company, so.linkedin_person, so.facebook, so.instagram, r.site_check?.whatsapp_url, r.site_check?.contact_form_url,
         so.yelp, so.nextdoor, so.google_reviews, r.maps_url,
