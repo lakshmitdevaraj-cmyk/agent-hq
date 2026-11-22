@@ -7,7 +7,7 @@
  *   email 2: a clause pointing back at email 1, the same offer from a new angle, a DIFFERENT free thing
  *   email 3: the shortest; who else is the right person, and permission to say no
  */
-import { checkStep, checkSubject, statusOf, mentionsRating, type Hit, type StepStatus } from "./messagerules";
+import { checkStep, checkSubject, statusOf, mentionsRating, tidySubject, type Hit, type StepStatus } from "./messagerules";
 
 export const DEFAULT_ASSET_1 = "a 2-minute recording of an AI receptionist answering a call for [business name]: taking the job details and booking it";
 export const DEFAULT_ASSET_2 = "a phone number you can call to hear the assistant yourself";
@@ -55,7 +55,7 @@ EMAIL 1 (about 400 characters at most)
 - Use "you" more than "I". No links, no email addresses, no phone numbers.
 
 EMAIL 2 (shorter than email 1)
-- Greeting, then one clause that points back at email 1 without repeating it.
+- Greeting, then open with one short clause that points back at email 1 (for example "I wrote to you earlier about missed calls."), without repeating what it said.
 - The same help seen from a different angle (a different moment in their day when a call is lost; do not repeat a fact from email 1, and do not state their rating again).
 - Close with one yes/no question offering FREE THING 2, which is different from FREE THING 1.
 
@@ -67,7 +67,7 @@ SUBJECT: one or two lowercase words, plain, never a question, never starting wit
 
 WRITING RULES FOR ALL THREE
 - No dashes as punctuation (use commas, full stops or colons), no exclamation marks, no emoji, no brackets, no placeholders.
-- No flattery and no compliments on their logo, branding or website. Never criticise their website: describe the problem as calls or customers lost, never as something wrong with their site.
+- No flattery and no compliments on their logo, branding or website. Do not talk about their website at all (its forms, chat or booking): describe the problem only as calls or customers lost.
 - Never say "following up", "checking in", "circling back", "touching base", "quick question", "quick chat", "hope you are well", "caught my eye", "came across", "let's connect" or "discovery call".
 - Never mention that you are not selling or not pitching. Never apologise for writing.
 - Never quote any figure that is not in TRUE DETAILS or FACTS. Do not mention demo businesses or industry statistics.
@@ -75,7 +75,7 @@ WRITING RULES FOR ALL THREE
 - No signature, no company line, no website, no opt-out line: those are added when the email is sent.
 - Separate short paragraphs with a blank line.`;
 
-export const SEQUENCE_REVIEW_PROMPT = `You check three cold emails written for ShiftForge AI (sender: Lakshmi Devaraj) before a person sends them. You get one LEAD with SAVED_EVIDENCE (the only things we know about the business), the three emails, and CODE_FINDINGS (problems a program already found).
+export const THREE_STEP_REVIEW_PROMPT = `You check three cold emails written for ShiftForge AI (sender: Lakshmi Devaraj) before a person sends them. You get one LEAD with SAVED_EVIDENCE (the only things we know about the business), the three emails, and CODE_FINDINGS (problems a program already found).
 
 For each email answer with a verdict:
 - "ready": nothing to fix.
@@ -119,7 +119,7 @@ export function parseSequence(json: unknown): { steps: SeqStep[]; fact_used: num
   if (!json || typeof json !== "object") return null;
   const o = json as Record<string, unknown>;
   const s = (k: string) => String(o[k] ?? "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").trim();
-  const subject = s("subject").replace(/\s+/g, " ");
+  const subject = tidySubject(s("subject"));
   const e1 = s("email_1") || s("email1"), e2 = s("email_2") || s("email2"), e3 = s("email_3") || s("email3");
   if (!e1 || !e2 || !e3) return null;
   const fu = typeof o.fact_used === "number" && Number.isInteger(o.fact_used) ? o.fact_used : null;

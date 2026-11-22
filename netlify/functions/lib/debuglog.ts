@@ -10,7 +10,7 @@ export function maskSecrets(text: string): string {
   return text.replace(KEYLIKE, "[key]").replace(EMAIL, "[email]");
 }
 
-export function debugLine(kind: "draft" | "rewrite" | "review" | "social" | "social-review", data: Record<string, unknown>): string {
+export function debugLine(kind: "draft" | "rewrite" | "review" | "social" | "social-review" | "three-step" | "three-step-review", data: Record<string, unknown>): string {
   const clean = JSON.parse(maskSecrets(JSON.stringify(data))) as Record<string, unknown>;
   return `[debug:${kind}] ${JSON.stringify(clean)}`;
 }

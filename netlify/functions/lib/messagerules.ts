@@ -80,7 +80,7 @@ const RATING_RE = /\b\d(?:\.\d)?\s*(?:stars?|\/\s*5|rating)\b|\b\d[\d,]*\s+(?:go
 const CRITICISM_RE = /\byour (?:web ?site|site|page)\b[^.?!]{0,60}\b(?:is|looks|seems|feels|has)\b[^.?!]{0,30}\b(?:outdated|old|dated|bad|poor|slow|ugly|broken|confusing|clunky|lacking|weak|missing|terrible)\b|\b(?:your (?:web ?site|site)) (?:doesn(?:'|’)?t|does not|fails to|lacks)\b|\b(?:wrong|bad|poor|broken) with your (?:web ?site|site)\b/i;
 // Figures that belong to a demo or to a chatbot's own statistics: never quoted as results unless a named source is saved in Settings.
 const UNSOURCED_RE = /\bapex cooling\b|\+\s?38\s?%|\b38\s?%|\$\s?30\s?k\b|\$\s?45\s?k\b|\b27\s?%\s+of (?:all )?(?:calls|phone calls)\b|\$\s?81\.9\s?k\b|\b81\.9\s?k\b/i;
-const ASSET_ASK_RE = /\b(?:want me to send|shall i send|would you like me to send|can i send|happy to send|want it|want to hear|want to see|should i send|ok if i send|okay if i send)\b/i;
+const ASSET_ASK_RE = /\b(?:want|would you like|shall i|should i|can i|may i|ok if i|okay if i|happy to|glad to|care to|like me to|up for)\b[^.?!]{0,60}\b(?:send|share|record|recording|number|hear|listen|try|demo|sample)\b/i;
 const REDIRECT_RE = /\b(?:right person|someone else|who (?:else )?(?:handles|looks after|manages|should)|point me to|pass (?:this|it) (?:on|along))\b/i;
 const LAST_RE = /\b(?:last (?:message|note|email|one)|won(?:'|’)?t (?:message|write|email|bother) (?:you )?again|closing (?:the|this) (?:file|loop)|close (?:the|this) (?:file|loop))\b/i;
 
@@ -106,6 +106,7 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
   if (CALL_ASK_RE.test(t)) hits.push(H("call-ask", "hard", "A call, meeting or demo ask", "Before a reply the only ask is a yes or no to receive something free."));
   if (UNSOURCED_RE.test(t) && !(ctx.namedSources ?? "").trim()) hits.push(H("unsourced-figure", "hard", "A demo or statistic figure with no named source", "Demo figures and chatbot statistics are not results. Add a named source in Settings or leave them out."));
   if (CRITICISM_RE.test(t)) hits.push(H("site-criticism", "hard", "Criticises their website", "Describe the problem as lost calls or customers, not as something wrong with their site."));
+  if (/\byour (?:web ?site|site|contact form|online form|call-?back form)\b/i.test(t)) hits.push(H("mentions-site", "soft", "Talks about their website", "Keep to lost calls and customers; leave their website out of it."));
   if ((t.match(/\?/g) ?? []).length > 1) hits.push(H("one-ask", "soft", "More than one question", "One ask only."));
   if (RATING_RE.test(t) && ctx.ratingAlready) hits.push(H("rating-twice", "soft", "Rating or review count repeated", "State the rating at most once across all of a lead's messages."));
 
@@ -183,3 +184,9 @@ export function statusOf(hits: Hit[]): { status: StepStatus; reasons: string[] }
 
 /** Does this text state the rating or the review count? (for the once-per-lead rule) */
 export const mentionsRating = (t: string): boolean => RATING_RE.test(t);
+
+/** Safe repair of an email 1 subject before it is checked: lowercase, no question mark or leading Re:/Fwd:, first two words. */
+export function tidySubject(subject: string): string {
+  const words = subject.replace(/^\s*(?:re|fwd?)\s*:\s*/i, "").replace(/[?!:;"]/g, " ").toLowerCase().split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).join(" ");
+}

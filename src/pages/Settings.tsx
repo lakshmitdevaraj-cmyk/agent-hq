@@ -88,6 +88,7 @@ function FooterSettings() {
       <label htmlFor="postal-address" className="text-xs font-medium text-muted">
         Postal address (optional)
       </label>
+      {!address.trim() && <p role="alert" className="mb-2 text-sm text-amber-300">No postal address in the footer. US law (CAN-SPAM) requires one for commercial email.</p>}
       <textarea
         id="postal-address"
         value={address}
@@ -105,6 +106,70 @@ function FooterSettings() {
           {busy && <Loader2 size={12} className="animate-spin" />} Save
         </button>
         {msg && <span className="text-xs text-muted">{msg}</span>}
+      </div>
+    </GlassCard>
+  );
+}
+
+
+// What the message writers use (batch 8c): the free things offered, the one honest proof line, a booking link and time zone for the reply helper, and the follow-up gaps.
+type InputsView = { free_asset_1: string; free_asset_2: string; proof_line: string; named_sources: string; booking_link: string; time_zone: string; follow_up_gaps_email: number[]; follow_up_gaps_social: number[]; postal_address: string; default_free_asset_1: string; default_free_asset_2: string; default_proof_line: string };
+
+function MessageInputs() {
+  const [v, setV] = useState<InputsView | null>(null);
+  const [saved, setSaved] = useState<string>("");
+  const [gE, setGE] = useState("");
+  const [gS, setGS] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const snap = (x: InputsView, ge: string, gs: string) => JSON.stringify([x.free_asset_1, x.free_asset_2, x.proof_line, x.named_sources, x.booking_link, x.time_zone, ge, gs]);
+
+  useEffect(() => {
+    call<InputsView>("outreach.settings.get").then((r) => {
+      setV(r);
+      const ge = r.follow_up_gaps_email.join(", "), gs = r.follow_up_gaps_social.join(", ");
+      setGE(ge); setGS(gs);
+      setSaved(snap(r, ge, gs));
+    }).catch(() => undefined);
+  }, []);
+  if (!v) return null;
+  const set = (k: keyof InputsView, val: string) => setV({ ...v, [k]: val });
+
+  async function save() {
+    if (!v) return;
+    setBusy(true); setMsg(null);
+    try {
+      const r = await call<InputsView>("outreach.settings.set", { free_asset_1: v.free_asset_1, free_asset_2: v.free_asset_2, proof_line: v.proof_line, named_sources: v.named_sources, booking_link: v.booking_link, time_zone: v.time_zone, follow_up_gaps_email: gE, follow_up_gaps_social: gS });
+      setV(r);
+      const ge = r.follow_up_gaps_email.join(", "), gs = r.follow_up_gaps_social.join(", ");
+      setGE(ge); setGS(gs);
+      setSaved(snap(r, ge, gs));
+      setMsg({ ok: true, text: "Saved" });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Save failed" });
+    } finally { setBusy(false); }
+  }
+  const box = "mt-1 w-full px-3 py-2 rounded-lg bg-inset border border-line text-fg text-sm focus:outline-none focus:border-primary/60";
+  const lab = "text-xs font-medium text-muted";
+  return (
+    <GlassCard className="mt-6">
+      <h3 className="font-display text-lg font-bold text-fg mb-1">Message inputs</h3>
+      <p className="text-sm text-fg2 mb-3">Used by the email and social writers. A message only ever offers to send these (never a link or number before a reply); you send them by hand after a "yes". Leave a field empty and the writer will refuse and say so rather than invent one.</p>
+      <div className="grid gap-3">
+        <div><label htmlFor="asset1" className={lab}>Free asset 1 (offered in email 1 and in the social follow-up)</label><textarea id="asset1" rows={2} value={v.free_asset_1} onChange={(e) => set("free_asset_1", e.target.value)} className={box} /><button type="button" className="text-label text-muted underline" onClick={() => set("free_asset_1", v.default_free_asset_1)}>Use the default</button></div>
+        <div><label htmlFor="asset2" className={lab}>Free asset 2 (offered in email 2)</label><textarea id="asset2" rows={2} value={v.free_asset_2} onChange={(e) => set("free_asset_2", e.target.value)} className={box} /><button type="button" className="text-label text-muted underline" onClick={() => set("free_asset_2", v.default_free_asset_2)}>Use the default</button></div>
+        <div><label htmlFor="proof" className={lab}>Proof line (honest, never an invented client; no web address)</label><textarea id="proof" rows={2} value={v.proof_line} onChange={(e) => set("proof_line", e.target.value)} className={box} /><button type="button" className="text-label text-muted underline" onClick={() => set("proof_line", v.default_proof_line)}>Use the default</button></div>
+        <div><label htmlFor="sources" className={lab}>Named source for any demo or statistic figure (leave empty: those figures are never quoted)</label><input id="sources" value={v.named_sources} onChange={(e) => set("named_sources", e.target.value)} className={box} /></div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div><label htmlFor="booking" className={lab}>Booking link (reply helper)</label><input id="booking" value={v.booking_link} onChange={(e) => set("booking_link", e.target.value)} placeholder="https://" className={box} /></div>
+          <div><label htmlFor="tz" className={lab}>Your time zone (reply helper), e.g. America/Chicago</label><input id="tz" value={v.time_zone} onChange={(e) => set("time_zone", e.target.value)} className={box} /></div>
+          <div><label htmlFor="gapE" className={lab}>Email follow-up days after the first email</label><input id="gapE" value={gE} onChange={(e) => setGE(e.target.value)} className={box} /></div>
+          <div><label htmlFor="gapS" className={lab}>Social follow-up days after the first message</label><input id="gapS" value={gS} onChange={(e) => setGS(e.target.value)} className={box} /></div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mt-3">
+        <button onClick={save} disabled={busy || snap(v, gE, gS) === saved} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-bold tracking-wide transition disabled:opacity-40">{busy && <Loader2 size={12} className="animate-spin" />} Save</button>
+        {msg && <span className={`text-xs ${msg.ok ? "text-muted" : "text-red-300"}`}>{msg.text}</span>}
       </div>
     </GlassCard>
   );
@@ -712,6 +777,7 @@ export default function Settings() {
       <SendingSettings />
       <MoveSiteSettings />
       <FooterSettings />
+      <MessageInputs />
 
       <OnboardingWizard
         open={wizardOpen}

@@ -25,6 +25,10 @@ http.createServer((req, res) => {
     if (m[2]) { const one = list.find((x) => x.message_id === decodeURIComponent(m[2])); return one ? res.end(JSON.stringify({ ...one, text: one.preview, authentication_results: one.labels.includes("unauthenticated") ? { dkim: "none", dmarc: "none", spf: "none" } : null })) : ((res.statusCode = 404), res.end("{}")); }
     return res.end(JSON.stringify({ messages: list }));
   }
+  if (req.method === "POST" && /\/messages\/[^/]+\/reply$/.test(u.pathname)) {
+    let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { fs.appendFileSync(log, `REPLY ${u.pathname} BODY ${b}\n`); res.end(JSON.stringify({ message_id: `mock-reply-${Date.now()}`, thread_id: "mock-thread-reply" })); });
+    return;
+  }
   if (req.method === "POST" && /\/messages\/send$/.test(u.pathname)) {
     let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { fs.appendFileSync(log, `BODY ${b}\n`); res.end(JSON.stringify({ message_id: `mock-out-${Date.now()}`, thread_id: `mock-thread-${Date.now()}` })); });
     return;

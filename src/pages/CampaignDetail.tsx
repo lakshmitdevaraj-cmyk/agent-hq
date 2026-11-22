@@ -121,7 +121,7 @@ type Lead = {
   created_at: string;
 } & LeadInfo;
 
-type Framework = "one-off" | "pas" | "aida" | "sdr";
+type Framework = "one-off" | "pas" | "aida" | "sdr" | "three-step";
 
 type EmailRow = {
   id: string;
@@ -361,6 +361,11 @@ export default function CampaignDetail() {
   const checkDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "check").length;
   const blockedDrafts = emails.filter((e) => e.status === "drafted" && (e.review_status ?? "check") === "blocked").length;
 
+  // Sending stays possible without a postal address, but every confirm box says so.
+  const [noPostal, setNoPostal] = useState(false);
+  useEffect(() => { call<{ postal_address: string }>("outreach.settings.get").then((r) => setNoPostal(!r.postal_address.trim())).catch(() => undefined); }, []);
+  const postalWarn = noPostal ? "\n\nNo postal address in the footer. US law (CAN-SPAM) requires one for commercial email." : "";
+
   async function runSend(params: Record<string, unknown>, limit: number) {
     setBusyAction("send");
     setErr(null);
@@ -392,7 +397,7 @@ export default function CampaignDetail() {
     const list = picked.map((e) => e.to_email).join("\n");
     const needCheck = picked.filter((e) => (e.review_status ?? "check") === "check").length;
     const warn = needCheck > 0 ? `\n\n${needCheck} of these ${needCheck === 1 ? "has" : "have"} NOT passed the AI check yet ("Check this"). Send ${needCheck === 1 ? "it" : "them"} anyway?` : "";
-    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.${warn}\n\n${list}`)) return;
+    if (!confirm(`Send ${picked.length} selected email${picked.length === 1 ? "" : "s"} via AgentMail? This will hit real recipients' inboxes.${warn}\n\n${list}${postalWarn}`)) return;
     await runSend({ email_ids: picked.map((e) => e.id), ...(needCheck > 0 ? { allow_check: true } : {}) }, picked.length);
     setSelectedIds(new Set());
   }
@@ -405,7 +410,7 @@ export default function CampaignDetail() {
       return;
     }
     const n = batchSize(drafted);
-    if (!confirm(`Send ${n} of ${drafted} ready emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.${checkDrafts + blockedDrafts > 0 ? `\n\n${checkDrafts + blockedDrafts} draft${checkDrafts + blockedDrafts === 1 ? "" : "s"} that did not pass the AI check will not be sent.` : ""}`)) return;
+    if (!confirm(`Send ${n} of ${drafted} ready emails (oldest first) via AgentMail? This will hit real recipients' inboxes. The other ${drafted - n} stay queued.${postalWarn}${checkDrafts + blockedDrafts > 0 ? `\n\n${checkDrafts + blockedDrafts} draft${checkDrafts + blockedDrafts === 1 ? "" : "s"} that did not pass the AI check will not be sent.` : ""}`)) return;
     await runSend({}, n);
   }
 
@@ -422,7 +427,7 @@ export default function CampaignDetail() {
     }
     const n = batchSize(draftsAtStep);
     const verb = step === 1 ? "Send step 1" : `Send follow-up step ${step}`;
-    if (!confirm(`${verb} — ${n} of ${draftsAtStep} queued email${draftsAtStep === 1 ? "" : "s"} (oldest first) via AgentMail. Leads who already replied will be skipped automatically.`))
+    if (!confirm(`${verb} — ${n} of ${draftsAtStep} queued email${draftsAtStep === 1 ? "" : "s"} (oldest first) via AgentMail. Leads who already replied will be skipped automatically.${postalWarn}`))
       return;
     await runSend({ sequence_position: step }, n);
   }
@@ -863,7 +868,7 @@ export default function CampaignDetail() {
           label="Generate emails"
           sublabel={
             counters && counters.drafts > 0
-              ? `${counters.drafts} draft${counters.drafts === 1 ? "" : "s"} ready${sequenceInfo.isSequence ? ` · ${sequenceInfo.framework?.toUpperCase()} sequence` : ""}`
+              ? `${counters.drafts} draft${counters.drafts === 1 ? "" : "s"} ready${sequenceInfo.isSequence ? ` · ${fwLabel(sequenceInfo.framework)} sequence` : ""}`
               : "Gemini drafts · pick a framework for a 3-email sequence"
           }
           icon={<Sparkles size={16} />}
@@ -934,7 +939,7 @@ export default function CampaignDetail() {
           <div className="flex items-center gap-2 mb-3">
             <Send size={14} className="text-accent" />
             <h3 className="font-display text-xs text-fg2 font-medium">
-              Sequence · {sequenceInfo.framework?.toUpperCase()}
+              Sequence · {fwLabel(sequenceInfo.framework)}
             </h3>
             <span className="text-label text-muted font-mono">
               {sequenceInfo.maxStep} steps · send each on your own cadence
@@ -1634,7 +1639,16 @@ function AddTestLeadModal({ open, onClose, campaignId, onAdded }: { open: boolea
   );
 }
 
-const FRAMEWORK_OPTIONS: Array<{ value: Framework; label: string; desc: string; stepLabels?: [string, string, string] }> = [
+/** Name shown for a sequence: "Alcance 3-step", or PAS / AIDA / SDR for older ones. */
+const fwLabel = (f: string | null | undefined): string => (f === "three-step" ? "Alcance 3-step" : (f ?? "").toUpperCase());
+
+const FRAMEWORK_OPTIONS: Array<{ value: Framework; label: string; desc: string; stepLabels?: [string, string, string]; hidden?: boolean }> = [
+  {
+    value: "three-step",
+    label: "Alcance 3-step · 3 emails",
+    desc: "Email 1: something true about them and an offer to send something free. Email 2: a new angle and a different free thing. Email 3: who else is the right person. All three are written together; you send each step by hand.",
+    stepLabels: ["Observation + free offer", "New angle + another free thing", "Who else is the right person"],
+  },
   {
     value: "one-off",
     label: "One-off",
@@ -1642,18 +1656,21 @@ const FRAMEWORK_OPTIONS: Array<{ value: Framework; label: string; desc: string; 
   },
   {
     value: "pas",
+    hidden: true,
     label: "PAS · 3 emails",
     desc: "Problem → Agitate → Solution. Classic B2B pattern.",
     stepLabels: ["Name the pain", "Agitate the cost", "Propose solution"],
   },
   {
     value: "aida",
+    hidden: true,
     label: "AIDA · 3 emails",
     desc: "Attention → Interest → Desire + Action. Hook-forward.",
     stepLabels: ["Grab attention", "Build interest", "Desire + CTA"],
   },
   {
     value: "sdr",
+    hidden: true,
     label: "Short SDR · 3 emails",
     desc: "Direct pitch → Value-add → Breakup. Most polite.",
     stepLabels: ["Direct pitch", "Value-add", "Warm breakup"],
@@ -1692,7 +1709,7 @@ function GenerateEmailsModal({
   const [senderName, setSenderName] = useState("");
   const [senderCompany, setSenderCompany] = useState("");
   const [senderOffer, setSenderOffer] = useState("");
-  const [framework, setFramework] = useState<Framework>("one-off");
+  const [framework, setFramework] = useState<Framework>("three-step");
   const [busy, setBusy] = useState(false);
   const [localErr, setLocalErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -1794,7 +1811,7 @@ function GenerateEmailsModal({
             Sequence framework
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {FRAMEWORK_OPTIONS.map((opt) => {
+            {FRAMEWORK_OPTIONS.filter((opt) => !opt.hidden).map((opt) => {
               const active = framework === opt.value;
               return (
                 <button

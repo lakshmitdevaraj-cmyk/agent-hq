@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { resolveInputs, parseGaps, parseSequence, checkSequence, mergeStatus, parseReview, DEFAULT_ASSET_1, DEFAULT_PROOF, sequenceUserPrompt, SEQUENCE_SYSTEM_PROMPT } from "../../netlify/functions/lib/alcance3";
+import { resolveInputs, parseGaps, parseSequence, checkSequence, mergeStatus, parseReview, DEFAULT_ASSET_1, DEFAULT_PROOF, sequenceUserPrompt, SEQUENCE_SYSTEM_PROMPT } from "../../netlify/functions/lib/threestep";
 import { buildFooter, appendFooter } from "../../netlify/functions/lib/outreach";
 
 let n = 0;

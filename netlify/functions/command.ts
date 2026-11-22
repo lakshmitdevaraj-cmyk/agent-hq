@@ -36,6 +36,7 @@ import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
 import { leadGenDecision, otherRuleDecision, isContacted, autoFitFields } from "./lib/leadgen";
+import { DEFAULT_ASSET_1, DEFAULT_ASSET_2, DEFAULT_PROOF, parseGaps, resolveInputs, SEQUENCE_SYSTEM_PROMPT, THREE_STEP_REVIEW_PROMPT, sequenceUserPrompt, parseSequence, checkSequence, failureLines, parseReview, mergeStatus } from "./lib/threestep";
 import { channelsFor, socialSkipReason, socialTypeFor, precheckSocial, socialContextLines, type EarlierMessage, type EarlierEmail, partsFromAnswer, partsToList, limitsText, type SocialChannel, type SocialPart, type SocialType } from "./lib/social";
 import { deriveTouches, summarizeTouches, touchFromSent, parseSentOn, filterMatches, legacySocialRef, type Touch, type TouchChannel } from "./lib/touches";
 
@@ -148,6 +149,15 @@ type OutreachSettings = {
   sending_inbox_id?: string; // AgentMail inbox all NEW sends use (blank = the first inbox, as before)
   browser_check_cap?: number; // most leads per campaign the Apify browser check may open (default 25)
   reply_alert_email?: string; // where a short "new reply" note is sent (blank = off)
+  // Batch 8c drafting inputs (a field never saved uses the default; one saved empty stays empty and the writer refuses).
+  free_asset_1?: string;
+  free_asset_2?: string;
+  proof_line?: string;
+  named_sources?: string; // a named source for the demo / statistic figures, if any
+  booking_link?: string;
+  time_zone?: string; // the sender's own time zone (IANA), used by the reply helper
+  follow_up_gaps_email?: number[];
+  follow_up_gaps_social?: number[];
   updated_at?: string;
 };
 
@@ -431,6 +441,17 @@ async function settingsView(rec: OutreachSettings): Promise<Record<string, unkno
     sending_inbox_id: rec.sending_inbox_id ?? "",
     reply_alert_email: rec.reply_alert_email ?? "",
     browser_check_cap: rec.browser_check_cap ?? BROWSER_DEFAULT_CAP,
+    free_asset_1: rec.free_asset_1 ?? DEFAULT_ASSET_1,
+    free_asset_2: rec.free_asset_2 ?? DEFAULT_ASSET_2,
+    proof_line: rec.proof_line ?? DEFAULT_PROOF,
+    named_sources: rec.named_sources ?? "",
+    booking_link: rec.booking_link ?? "",
+    time_zone: rec.time_zone ?? "",
+    follow_up_gaps_email: parseGaps(rec.follow_up_gaps_email),
+    follow_up_gaps_social: parseGaps(rec.follow_up_gaps_social),
+    default_free_asset_1: DEFAULT_ASSET_1,
+    default_free_asset_2: DEFAULT_ASSET_2,
+    default_proof_line: DEFAULT_PROOF,
   };
 }
 
@@ -1051,6 +1072,140 @@ function reviewFields(o: ReviewOutcome, prevHistory?: unknown): Record<string, u
   return fields;
 }
 
+// ── Alcance 3-step emails (batch 8c) ──────────────────────────────────
+// One model call per lead writes all three emails; each is saved as its own row (sequence_position 1, 2, 3) on the
+// existing sequence machinery, with its own review status. Sending stays manual, one step at a time.
+
+/** Makes the body start with the expected greeting line. */
+function withGreeting(body: string, greeting: string): string {
+  const lines = body.split("\n");
+  const first = lines[0].trim();
+  const g = `${greeting},`;
+  if (first.toLowerCase() === g.toLowerCase()) return body.trim();
+  if (/^(?:hi|hello|hey|dear)\b/i.test(first) && first.length < 40) lines[0] = g;
+  else lines.unshift(g, "");
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function a3Context(lead: Record<string, unknown>) {
+  const plan = pickAngle(lead as Parameters<typeof pickAngle>[0]);
+  const details = leadDetails(lead as Parameters<typeof leadDetails>[0]);
+  const greeting = greetingFor(lead as Parameters<typeof greetingFor>[0]) ?? "Hi there";
+  const real = ((lead.site_check as { real_trade?: string | null } | null | undefined)?.real_trade) ?? realTrade(typeof lead.category === "string" ? lead.category : null, typeof lead.name === "string" ? lead.name : null);
+  const trade = real ?? (typeof lead.category === "string" && lead.category ? lead.category : "home services");
+  return { plan, details, greeting, trade, city: cityOf(typeof lead.address === "string" ? lead.address : undefined) };
+}
+
+/** Writes all three emails and runs the free code checks, with ONE retry that lists the exact failures. Null = a Settings input is empty (refuse, never invent). */
+async function generateThreeStep(lead: Record<string, unknown>, settings: OutreachSettings, offer: string, ai: GeminiAiOpts) {
+  const inp = resolveInputs(settings, String(lead.name ?? ""));
+  if (!inp.freeAsset1 || !inp.freeAsset2) return { refused: "Check this: add a free asset in Settings" as const };
+  const c = a3Context(lead);
+  const sl = { name: typeof lead.name === "string" ? lead.name : undefined, greeting: c.greeting, city: c.city, trade: c.trade, details: c.details.map((d) => d.text), facts: c.plan.facts.map((f) => ({ n: f.n, text: f.text })) };
+  let hint = "";
+  let model = "";
+  let calls = 0;
+  let steps: Array<{ step: 1 | 2 | 3; subject: string; body: string }> = [];
+  let checks = [] as ReturnType<typeof checkSequence>;
+  let factUsed: number | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    calls++;
+    const ans = await aiJson("draft", { system: SEQUENCE_SYSTEM_PROMPT, user: sequenceUserPrompt(sl, inp, offer, hint || undefined), temperature: 0.4 }, ai);
+    model = ans.model;
+    const parsed = parseSequence(ans.json);
+    if (!parsed) { hint = "the answer was not three emails in the JSON shape"; debugLog("three-step", { lead: lead.name, attempt: attempt + 1, failures: [hint] }); continue; }
+    steps = parsed.steps.map((s) => ({ ...s, body: withGreeting(s.body, c.greeting) }));
+    factUsed = parsed.fact_used;
+    checks = checkSequence(steps, inp);
+    const fails = failureLines(checks);
+    debugLog("three-step", { lead: lead.name, attempt: attempt + 1, model, subject: steps[0].subject, code_failures: fails });
+    if (fails.length === 0) break;
+    hint = fails.join("; ");
+  }
+  if (steps.length !== 3) throw new Error("The writer did not return three emails");
+  return { steps, checks, model, calls, factUsed, ctx: c };
+}
+
+/** The AI structure review for one lead's three emails (one call). Returns one verdict per step; any failure of the call but a quota error gives none. */
+async function reviewThreeStepLead(lead: Record<string, unknown>, steps: Array<{ step: number; subject: string; body: string }>, checks: ReturnType<typeof checkSequence>, ai: GeminiAiOpts) {
+  const c = a3Context(lead);
+  const evidence = {
+    business: lead.name ?? null, city: c.city, greeting_expected: c.greeting,
+    owner: { name: lead.owner_name ?? null, confidence: lead.owner_confidence ?? null },
+    google_rating: typeof lead.rating === "number" ? lead.rating : null, google_reviews: typeof lead.reviews_count === "number" ? lead.reviews_count : null,
+    true_details: c.details.map((d) => d.text), facts: c.plan.facts.map((f) => f.text),
+    fit_warnings: [(lead.site_check as { not_home_service?: string | null } | null | undefined)?.not_home_service].filter(Boolean),
+  };
+  const user = JSON.stringify({ LEAD: lead.name ?? "", SAVED_EVIDENCE: evidence, EMAILS: steps.map((s) => ({ step: s.step, subject: s.step === 1 ? s.subject : "(same thread)", body: s.body })), CODE_FINDINGS: checks.map((x) => ({ step: x.step, problems: x.reasons })) });
+  try {
+    const ans = await aiJson("review", { system: THREE_STEP_REVIEW_PROMPT, user, temperature: 0.1 }, ai);
+    debugLog("three-step-review", { lead: lead.name, model: ans.model, verdicts: parseReview(ans.json).map((v) => `${v.step}:${v.verdict}`) });
+    return { verdicts: parseReview(ans.json), model: ans.model };
+  } catch (err) {
+    if (err instanceof GeminiError && (err.kind === "daily_quota" || err.kind === "rate_limited")) throw err;
+    return { verdicts: [], model: null as string | null };
+  }
+}
+
+/** Writes the three rows for one lead (steps that already exist are left alone) and returns all rows of the lead's sequence. */
+async function writeThreeStepRows(a: { campaign_id: string; lead: Record<string, unknown>; sender_name?: string; offer: string; have: Set<number>; ai: GeminiAiOpts }): Promise<Array<Record<string, unknown>>> {
+  const settings = await readOutreachSettings();
+  const gen = await generateThreeStep(a.lead, settings, a.offer, a.ai);
+  if ("refused" in gen) throw new Error(gen.refused);
+  const rv = await reviewThreeStepLead(a.lead, gen.steps, gen.checks, a.ai);
+  const es = store(OUTREACH_EMAILS);
+  const base = Date.now();
+  const out: Array<Record<string, unknown>> = [];
+  for (const s of gen.steps) {
+    if (a.have.has(s.step)) continue;
+    const code = gen.checks.find((x) => x.step === s.step)!;
+    const m = mergeStatus(code, rv.verdicts.find((v) => v.step === s.step));
+    const emailId = nanoid(12);
+    const createdAt = new Date(base + s.step).toISOString();
+    const rec = {
+      id: emailId, campaign_id: a.campaign_id, lead_id: a.lead.id, to_email: a.lead.email, to_name: a.lead.name,
+      subject: s.subject, body_text: s.body, body_html: textToHtml(s.body),
+      sender_name: a.sender_name ?? null, sequence_position: s.step, sequence_total: 3, framework: "three-step", status: "drafted",
+      written_by: gen.model, fact_used: gen.factUsed, angle: gen.ctx.plan.angle.code, draft_facts: gen.ctx.plan.facts,
+      review_status: m.status, review_reasons: m.reasons, reviewed_by: rv.model ?? "code checks", reviewed_at: new Date().toISOString(),
+      created_at: createdAt, updated_at: createdAt,
+    };
+    await writeJson(es, `${a.campaign_id}/${createdAt}-${emailId}`, rec);
+    out.push(rec);
+  }
+  return out;
+}
+
+/** (Re)reviews Alcance 3-step rows. Each lead's three emails are checked together; a row edited meanwhile keeps its newer text. */
+async function reviewThreeStepRows(campaign_id: string, todo: Array<{ key: string; row: Record<string, unknown> & { id: string } }>, ai: GeminiAiOpts, onDone: (n: number) => Promise<void> | void): Promise<void> {
+  const es = store(OUTREACH_EMAILS);
+  const all = await listJson<Record<string, unknown> & { id: string; lead_id: string; sequence_position?: number; created_at?: string; framework?: string }>(es, `${campaign_id}/`);
+  let done = 0;
+  const leads = [...new Set(todo.map((t) => String(t.row.lead_id)))];
+  for (const leadId of leads) {
+    const rows = all.filter((e) => e.lead_id === leadId && e.framework === "three-step").sort((x, y) => (x.sequence_position ?? 1) - (y.sequence_position ?? 1));
+    const found = await findLeadRow(campaign_id, leadId);
+    const mine = todo.filter((t) => String(t.row.lead_id) === leadId);
+    if (!found || rows.length === 0) { done += mine.length; await onDone(done); continue; }
+    const steps = rows.map((r) => ({ step: (r.sequence_position ?? 1) as 1 | 2 | 3, subject: String(r.subject ?? ""), body: String(r.body_text ?? "") }));
+    const inp = resolveInputs(await readOutreachSettings(), String(found.lead.name ?? ""));
+    const checks = checkSequence(steps, inp);
+    const rv = await reviewThreeStepLead(found.lead, steps, checks, ai);
+    for (const t of mine) {
+      const pos = (t.row.sequence_position ?? 1) as number;
+      const code = checks.find((x) => x.step === pos);
+      if (!code) continue;
+      const m = mergeStatus(code, rv.verdicts.find((v) => v.step === pos));
+      const fresh = await readJson<Record<string, unknown>>(es, t.key);
+      if (fresh && fresh.status === "drafted" && fresh.updated_at === t.row.updated_at) {
+        await writeJson(es, t.key, { ...fresh, review_status: m.status, review_reasons: m.reasons, reviewed_by: rv.model ?? "code checks", reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      }
+      done++;
+      await onDone(done);
+    }
+  }
+}
+
 // ── Apify helpers ─────────────────────────────────────────────────────
 
 type ApifyLead = {
@@ -1578,9 +1733,9 @@ export async function draftOne(p: {
   if (!campaign) return draftFail(404, "campaign not found");
 
   // Normalize framework + step inputs. Default = one-off at step 1.
-  const fw = typeof framework === "string" && ["pas", "aida", "sdr"].includes(framework) ? (framework as "pas" | "aida" | "sdr") : "one-off";
+  const fw = typeof framework === "string" && ["pas", "aida", "sdr", "three-step"].includes(framework) ? (framework as "pas" | "aida" | "sdr" | "three-step") : "one-off";
   const stepNum = typeof step === "number" && step >= 1 && step <= 5 ? Math.floor(step) : 1;
-  const totalNum = typeof total_steps === "number" && total_steps >= 1 && total_steps <= 5 ? Math.floor(total_steps) : fw === "one-off" ? 1 : 3;
+  const totalNum = fw === "three-step" ? 3 : typeof total_steps === "number" && total_steps >= 1 && total_steps <= 5 ? Math.floor(total_steps) : fw === "one-off" ? 1 : 3;
 
   // Find the lead (iterate; scale here is in the hundreds).
   const leadsStore = store(OUTREACH_LEADS);
@@ -1623,6 +1778,32 @@ export async function draftOne(p: {
   const existingEmails = await listJson<{ id: string; lead_id: string; sequence_position?: number; subject?: string; body_text?: string }>(es, `${campaign_id}/`);
   const existing = existingEmails.find((e) => e.lead_id === lead_id && (e.sequence_position ?? 1) === stepNum);
   if (existing) return { ok: true, data: { ...existing, skipped: true } };
+
+  // Alcance 3-step: one call writes all three emails (the other steps are saved now, so later steps find them here).
+  if (fw === "three-step") {
+    try {
+      const have = new Set(existingEmails.filter((e) => e.lead_id === lead_id).map((e) => e.sequence_position ?? 1));
+      const rows = await writeThreeStepRows({ campaign_id, lead, sender_name: typeof sender_name === "string" ? sender_name : undefined, offer: (typeof sender_offer === "string" && sender_offer.trim()) || DEFAULT_OFFER, have, ai: p.ai ?? {} });
+      const rec = rows.find((r) => r.sequence_position === stepNum) ?? rows[0];
+      if (!rec) return draftFail(500, "No email was written");
+      const prev = await readState(campaign_id);
+      await patchState(campaign_id, {
+        default_sender_name: (typeof sender_name === "string" && sender_name) || (prev.default_sender_name as string | undefined) || (campaign.default_sender_name as string | undefined) || null,
+        default_sender_company: (typeof sender_company === "string" && sender_company) || (prev.default_sender_company as string | undefined) || (campaign.default_sender_company as string | undefined) || null,
+        default_sender_offer: (typeof sender_offer === "string" && sender_offer) || (prev.default_sender_offer as string | undefined) || (campaign.default_sender_offer as string | undefined) || null,
+        default_framework: fw,
+        default_sequence_total: 3,
+      });
+      return { ok: true, data: rec };
+    } catch (err) {
+      if (err instanceof GeminiError) {
+        const status = err.kind === "daily_quota" || err.kind === "rate_limited" ? 429 : err.kind === "unavailable" ? 503 : err.kind === "timeout" ? 504 : 502;
+        return draftFail(status, err.message, err.kind, err.retryAfterS);
+      }
+      const msg = err instanceof Error ? err.message : "Draft failed";
+      return draftFail(/add a free asset/.test(msg) ? 400 : 500, msg, /add a free asset/.test(msg) ? "settings_missing" : undefined);
+    }
+  }
 
   // For steps >1, pull prior steps for this lead so Gemini can reference them implicitly.
   const previousSteps = existingEmails
@@ -1746,10 +1927,10 @@ const JOB_MAX_MS = 13 * 60_000; // stay well inside the 15-minute background lim
 type PlannedPair = { lead: Record<string, unknown> & { id: string; name?: string }; step: number };
 
 /** Which (lead, step) drafts a run would create: leads with a real address that are not skipped, excluded, contacted elsewhere or already drafted. */
-async function planDraftPairs(campaign_id: string, framework: unknown, hints?: unknown): Promise<{ pairs: PlannedPair[]; totalSteps: number; fw: "one-off" | "pas" | "aida" | "sdr" }> {
+async function planDraftPairs(campaign_id: string, framework: unknown, hints?: unknown): Promise<{ pairs: PlannedPair[]; totalSteps: number; fw: "one-off" | "pas" | "aida" | "sdr" | "three-step" }> {
   const campaign = await readCampaign<CampaignRecord>(campaign_id);
   if (!campaign) throw new Error("campaign not found");
-  const fw = typeof framework === "string" && ["pas", "aida", "sdr"].includes(framework) ? (framework as "pas" | "aida" | "sdr") : "one-off";
+  const fw = typeof framework === "string" && ["pas", "aida", "sdr", "three-step"].includes(framework) ? (framework as "pas" | "aida" | "sdr" | "three-step") : "one-off";
   const totalSteps = fw === "one-off" ? 1 : 3;
   const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
   // Leads added seconds ago may not be in the list yet: the page sends the ones it already has.
@@ -1864,6 +2045,16 @@ async function pauseJobForQuota(campaign_id: string, resumeParams: Record<string
  */
 async function reviewRows(campaign_id: string, todo: Array<{ key: string; row: Record<string, unknown> & { id: string } }>, ai: GeminiAiOpts, onDone: (n: number) => Promise<void> | void): Promise<void> {
   if (todo.length === 0) return;
+  let onDoneBase = 0;
+  // Alcance 3-step rows are checked per lead (all three emails together) by their own reviewer.
+  const a3 = todo.filter((t) => t.row.framework === "three-step");
+  if (a3.length > 0) {
+    let a3done = 0;
+    await reviewThreeStepRows(campaign_id, a3, ai, async (n) => { a3done = n; await onDone(n); });
+    todo = todo.filter((t) => t.row.framework !== "three-step");
+    if (todo.length === 0) return;
+    onDoneBase = a3done;
+  }
   const es = store(OUTREACH_EMAILS);
   const campaign = await readCampaign<CampaignRecord & Record<string, unknown>>(campaign_id);
   const offer = ((await readState(campaign_id)).default_sender_offer as string | undefined)?.trim() || (await readOutreachSettings()).default_sender_offer?.trim() || DEFAULT_OFFER;
@@ -1885,7 +2076,7 @@ async function reviewRows(campaign_id: string, todo: Array<{ key: string; row: R
       : undefined;
     items.push({ id: row.id, email: row as unknown as ReviewableEmail, lead, rctx: { offer, others: earlier, redraft } });
   }
-  let done = skipped;
+  let done = onDoneBase + skipped;
   if (skipped) await onDone(done);
   await reviewMany(items, ai, async (id, outcome) => {
     const t = byId.get(id);
@@ -1954,8 +2145,8 @@ export async function runDraftJob(p: DraftJobParams & { resume?: boolean }): Pro
         });
         if (r.ok) {
           made++;
-          const rec = r.data as Record<string, unknown> & { id: string; created_at?: string; status?: string; skipped?: boolean };
-          if (rec && !rec.skipped && rec.created_at) pending.push({ key: `${campaign_id}/${rec.created_at}-${rec.id}`, row: rec });
+          const rec = r.data as Record<string, unknown> & { id: string; created_at?: string; status?: string; skipped?: boolean; framework?: string };
+          if (rec && !rec.skipped && rec.created_at && rec.framework !== "three-step") pending.push({ key: `${campaign_id}/${rec.created_at}-${rec.id}`, row: rec });
           break;
         }
         if (r.code === "daily_quota") { paused = true; break; }
@@ -4544,10 +4735,29 @@ export const handler: Handler = async (event) => {
           if (typeof p[k] !== "string") return null;
           return (p[k] as string).trim().slice(0, max);
         };
-        for (const [k, max] of [["postal_address", 300], ["default_sender_name", 120], ["default_sender_company", 120], ["default_sender_offer", 600]] as const) {
+        for (const [k, max] of [["postal_address", 300], ["default_sender_name", 120], ["default_sender_company", 120], ["default_sender_offer", 600], ["free_asset_1", 400], ["free_asset_2", 400], ["proof_line", 500], ["named_sources", 400]] as const) {
           const v = text(k, max);
           if (v === null) return fail(400, `${k} must be a string`);
           if (v !== undefined) next[k] = v;
+        }
+        const booking = text("booking_link", 300);
+        if (booking === null) return fail(400, "booking_link must be text");
+        if (booking !== undefined) {
+          if (booking && !/^https?:\/\/[^\s]+$/i.test(booking)) return fail(400, "The booking link must start with https://");
+          next.booking_link = booking;
+        }
+        const tz = text("time_zone", 60);
+        if (tz === null) return fail(400, "time_zone must be text");
+        if (tz !== undefined) {
+          if (tz) { try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { return fail(400, `"${tz}" is not a time zone name (for example America/Chicago).`); } }
+          next.time_zone = tz;
+        }
+        for (const k of ["follow_up_gaps_email", "follow_up_gaps_social"] as const) {
+          if (p[k] === undefined) continue;
+          const g = parseGaps(p[k]);
+          const raw = Array.isArray(p[k]) ? (p[k] as unknown[]).map(Number) : String(p[k]).split(/[,\s]+/).filter(Boolean).map(Number);
+          if (raw.length === 0 || raw.some((x) => !Number.isInteger(x) || x < 1 || x > 120)) return fail(400, `${k}: use whole days, like 3, 8, 15`);
+          next[k] = g;
         }
         const alertEmail = text("reply_alert_email", 200);
         if (alertEmail === null) return fail(400, "reply_alert_email must be text");
@@ -4656,7 +4866,7 @@ export const handler: Handler = async (event) => {
 
         // ── Decide what to send BEFORE touching AgentMail or campaign status ──
         const es = store(OUTREACH_EMAILS);
-        const allEmails = await listJson<{ id: string; campaign_id: string; lead_id: string; to_email: string; subject: string; body_text: string; body_html: string; status: string; sender_name?: string | null; sequence_position?: number; created_at?: string; review_status?: string }>(
+        const allEmails = await listJson<{ id: string; campaign_id: string; lead_id: string; to_email: string; subject: string; body_text: string; body_html: string; status: string; sender_name?: string | null; sequence_position?: number; created_at?: string; review_status?: string; framework?: string; sent_at?: string; agentmail_message_id?: string | null; agentmail_inbox_id?: string | null }>(
           es,
           `${campaign_id}/`,
         );
@@ -4697,6 +4907,8 @@ export const handler: Handler = async (event) => {
           if (excludedLeadIds.has(e.lead_id)) return false;
           if (contactBlocked(e)) return false;
           if (!passesReview(e)) return false;
+          // A later step never goes to a lead that already replied, whether ticked by hand or sent by step.
+          if ((e.sequence_position ?? 1) > 1 && repliedLeadIds.has(e.lead_id)) return false;
           if (selectedIds) return selectedIds.has(e.id);
           if (targetStep !== null) {
             if ((e.sequence_position ?? 1) !== targetStep) return false;
@@ -4745,13 +4957,24 @@ export const handler: Handler = async (event) => {
             const trackedHtml = rewriteLinksForTracking(em.body_html || textToHtml(em.body_text || ""), baseUrl, campaign_id, em.lead_id, em.id);
             // Footer goes on AFTER link tracking so the shiftforge.ai link stays direct.
             const withFooter = appendFooter(em.body_text || "", trackedHtml, postalAddress, em.sender_name || campaignSenderName);
-            const sendBody: Record<string, unknown> = {
+            let sendBody: Record<string, unknown> = {
               to: [em.to_email],
               subject: em.subject,
               text: withFooter.text,
               html: withFooter.html,
             };
-            const r = await agentmailFetch(agentmailKey, `/inboxes/${inbox.inbox_id}/messages/send`, {
+            let sendPath = `/inboxes/${inbox.inbox_id}/messages/send`;
+            // Alcance 3-step emails 2 and 3 go as a real reply in the same thread as the email before them (no made-up "Re:" subject).
+            const pos = em.sequence_position ?? 1;
+            if (em.framework === "three-step" && pos > 1) {
+              const before = allEmails
+                .filter((x) => x.lead_id === em.lead_id && x.status !== "drafted" && x.agentmail_message_id && (x.sequence_position ?? 1) < pos)
+                .sort((a, b) => String(b.sent_at ?? "").localeCompare(String(a.sent_at ?? "")))[0];
+              if (!before) { errors.push({ email_id: em.id, error: "Send the earlier email first: this one goes as a reply in the same thread." }); continue; }
+              sendPath = `/inboxes/${encodeURIComponent(before.agentmail_inbox_id || inbox.inbox_id)}/messages/${encodeURIComponent(String(before.agentmail_message_id))}/reply`;
+              sendBody = { text: withFooter.text, html: withFooter.html };
+            }
+            const r = await agentmailFetch(agentmailKey, sendPath, {
               method: "POST",
               body: JSON.stringify(sendBody),
             });

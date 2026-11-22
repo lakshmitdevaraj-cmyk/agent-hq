@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { scanBanned, checkStep, checkSubject, statusOf, BANNED } from "../../netlify/functions/lib/messagerules";
+import { scanBanned, checkStep, checkSubject, statusOf, BANNED, tidySubject } from "../../netlify/functions/lib/messagerules";
 
 let n = 0;
 let failed = 0;
@@ -89,6 +89,16 @@ t("LinkedIn note: max 200 characters, observation only", () => {
   assert.equal(statusOf(checkStep("linkedin_note", "Thanks for accepting.", { channel: "linkedin" })).status, "blocked");
 });
 t("an empty message is blocked", () => assert.equal(statusOf(checkStep("email1", "  ", { freeAsset: ASSET })).status, "blocked"));
+
+t("subject repair: lowercase, first two words, no Re:/question mark", () => {
+  assert.equal(tidySubject("Katy Plumbing Calls"), "katy plumbing");
+  assert.equal(tidySubject("Re: Missed calls?"), "missed calls");
+  assert.deepEqual(checkSubject(tidySubject("Katy Plumbing Calls")), []);
+});
+t("asks to send a free thing in several natural wordings; talking about their website is a soft Check", () => {
+  for (const x of ["Would you like a 2-minute recording of it?", "Want me to send a number?", "Happy to send a sample.", "Should I send the recording?"]) assert.equal(statusOf(checkStep("email1", "You have 4.8 stars from 210 reviews. I help plumbers keep calls. " + x, { freeAsset: "a" })).reasons.join().includes("yes/no offer"), false, x);
+  assert.ok(checkStep("email2", "Your contact form is slow. Want me to send a number?", { freeAsset: "a" }).some((h) => h.id === "mentions-site" && h.level === "soft"));
+});
 
 console.log(`\n${n} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
