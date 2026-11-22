@@ -100,5 +100,7 @@ t("asks to send a free thing in several natural wordings; talking about their we
   assert.ok(checkStep("email2", "Your contact form is slow. Want me to send a number?", { freeAsset: "a" }).some((h) => h.id === "mentions-site" && h.level === "soft"));
 });
 
+t("praise of the rating is flattery", () => { for (const x of ["a great 4.8 rating", "which is great to see", "a solid rating", "an impressive record"]) has(x, "flattery"); not("has a 4.8 rating from 210 reviews", "flattery"); });
+
 console.log(`\n${n} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

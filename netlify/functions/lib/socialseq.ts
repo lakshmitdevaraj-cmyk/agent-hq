@@ -24,25 +24,25 @@ Answer with JSON only. Keys depend on the channel:
 - linkedin: {"connection_note": "...", "first": "...", "follow_up": "...", "last": "...", "fact_used": <fact number or null>}
 
 CONNECTION NOTE (linkedin only; 200 characters at most, hard limit)
-- One true thing you noticed about their business and why you are adding them. It goes out BEFORE they accept: no pitch, no offer, no thanks for accepting, no question about a call.
+- One true thing you noticed about their business (not their rating or review count: those go in the first message) and why you are adding them. It goes out BEFORE they accept: no pitch, no offer, no thanks for accepting, no question about a call.
 
 FIRST MESSAGE
 - Start with the GREETING and a comma (Facebook: use "Hi there" unless the GREETING names the owner).
-- One specific true observation about them from TRUE DETAILS or FACTS. If you state a rating, state it plainly with no praise.
+- One specific true observation about them from TRUE DETAILS or FACTS: their rating and reviews, their trade, their town, their hours, their crews or services. Never anything about their website, contact form, live chat or online booking. If you state a rating, state it plainly with no praise words (no "great", "impressive").
 - Then ONE problem that is common for businesses like theirs, about calls or customers they lose when nobody picks up.
 - End on one easy question that takes one word to answer. Do not describe what you sell, do not offer anything, do not mention a call or a meeting, no link.
-- Length: Facebook up to about 80 words; Instagram 25 to 50 words; LinkedIn under 100 words.
+- Length: Facebook 40 to 60 words; Instagram 30 to 45 words; LinkedIn 40 to 70 words. Exactly one question mark in the whole message.
 
-FOLLOW-UP (shorter than the first message)
-- Greeting, then one clause that points back to your earlier message without repeating it. Never write "following up", "checking in" or "circling back".
+FOLLOW-UP (clearly shorter than the first message: 20 to 35 words, and fewer words than your first message)
+- Greeting, then one clause that points back to your earlier message without repeating it. Never write "following up", "checking in" or "circling back", and never call your earlier message a chat, a conversation or a talk: it was a message.
 - ONE supporting line from PROOF LINE in your own words (skip it if the PROOF LINE is empty). Never invent a client, a result or a number.
 - Close with one yes/no question offering FREE THING. No call, no meeting, no link.
 - Do not state their rating again.
 
-LAST MESSAGE (the shortest)
-- Say plainly that this is your last message. Ask who the right person is for new customer calls, and say that a simple no is fine. Give them an easy way out in one or two words. No new offer, no new argument, no link.
+LAST MESSAGE (the shortest, under 30 words, exactly one question mark)
+- Say plainly that this is your last message. Ask in ONE question who looks after new customer calls, then add a plain statement (not a question) that a simple no is fine. Never use the words "talk to", "discuss" or "speak with". No new offer, no new argument, no link.
 
-For all messages: no emoji, no exclamation marks, no dashes used as punctuation, no hype, no flattery, no apology, no sign-off or signature, no merge fields. Never say anything about their website. Never claim they said anything to you.`;
+For all messages: no emoji, no exclamation marks, no dashes used as punctuation, no hype, no flattery or praise words (never "great", "solid", "impressive" about their rating or anything else), no apology, no sign-off or signature, no merge fields. Never say anything about their website. Never claim they said anything to you.`;
 
 export const SOCIAL_SEQ_REVIEW_PROMPT = `You check a run of direct messages written for ShiftForge AI (sender: Lakshmi Devaraj) before a person sends them one by one. You get CHANNEL, SAVED_EVIDENCE (the only things we know about the business), the messages with their step keys, and CODE_FINDINGS (problems a program already found).
 For each message answer "ready", "check" or "blocked":
@@ -102,7 +102,7 @@ export function checkSocialSeq(channel: SocialChannel, texts: Record<string, str
 }
 
 export function socialFailureLines(checks: SocialStepCheck[]): string[] {
-  return checks.flatMap((c) => c.hits.filter((h) => h.level === "hard" || /too-long|too-short|not-shorter|no-redirect|not-last|no-asset-ask/.test(h.id)).map((h) => `${WRITER_KEY[c.key]}: ${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}`));
+  return checks.flatMap((c) => c.hits.filter((h) => h.level === "hard" || /too-long|too-short|not-shorter|no-redirect|not-last|no-asset-ask|one-ask|mentions-site/.test(h.id)).map((h) => `${WRITER_KEY[c.key]}: ${h.label}${h.excerpt ? ` ("${h.excerpt}")` : ""}`));
 }
 
 export type SocialVerdict = { key: string; verdict: StepStatus; reasons: string[] };

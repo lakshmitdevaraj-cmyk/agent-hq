@@ -26,7 +26,7 @@ export const BANNED: Rule[] = [
   R("apology", "hard", "Apologising for writing", "Apologising hands the reader a reason to stop.", /\bsorry (?:to|for) (?:bother|bothering|interrupt|interrupting|the (?:random|cold|unsolicited))\b|\bapologi[sz]e for the (?:cold|random|unsolicited|intrusion)\b/i),
   R("design-compliment", "hard", "Compliment on their logo, branding or website design", "Judging their marketing is not an observation about their business.", /\b(?:love|like|admire|great|nice|beautiful|impressive|clean)\s+(?:your|the)\s+(?:new\s+)?(?:logo|brand(?:ing)?|web ?site(?: design)?|web design|site design)\b/i),
   R("hype", "hard", "Hype with nothing behind it", "Every claim needs a plain fact behind it.", /\b(?:cutting[- ]edge|game[- ]?chang\w*|skyrocket\w*|guaranteed (?:results|roi)|revolutioni[sz]\w*|world[- ]class|best[- ]in[- ]class|state[- ]of[- ]the[- ]art|supercharge\w*|no[- ]brainer|10x)\b/i),
-  R("flattery", "hard", "Flattery", "Plain facts only; flattery reads as a template.", /\b(?:amazing|awesome|fantastic|incredible|stellar|outstanding|impressive|wonderful|phenomenal)\b/i),
+  R("flattery", "hard", "Flattery", "Plain facts only; flattery reads as a template.", /\b(?:amazing|awesome|fantastic|incredible|stellar|outstanding|impressive|wonderful|phenomenal|(?:a |an )?(?:great|solid|strong|stellar|excellent|terrific|fabulous) (?:\d(?:\.\d)? )?(?:rating|reviews?|reputation|stars?|job|work)|great to see|good to see)\b/i),
   R("exclamation", "hard", "Exclamation mark", "Keep the tone flat and plain.", /!/),
   R("dash", "hard", "Dash used as punctuation", "Use a comma, a full stop or a colon.", /[—–]|\s-\s|--/),
   R("merge-field", "hard", "Unfilled placeholder", "A visible placeholder shows nobody wrote this.", /\{\{[^}]*\}\}|\[(?:first ?name|last ?name|name|business|company|city|owner)[^\]]*\]|\{(?:first ?name|last ?name|name|business|company|city|owner)\}|%(?:first ?name|name|business|company)%|<<[^>]*>>/i),
@@ -80,7 +80,7 @@ const RATING_RE = /\b\d(?:\.\d)?\s*(?:stars?|\/\s*5|rating)\b|\b\d[\d,]*\s+(?:go
 const CRITICISM_RE = /\byour (?:web ?site|site|page)\b[^.?!]{0,60}\b(?:is|looks|seems|feels|has)\b[^.?!]{0,30}\b(?:outdated|old|dated|bad|poor|slow|ugly|broken|confusing|clunky|lacking|weak|missing|terrible)\b|\b(?:your (?:web ?site|site)) (?:doesn(?:'|’)?t|does not|fails to|lacks)\b|\b(?:wrong|bad|poor|broken) with your (?:web ?site|site)\b/i;
 // Figures that belong to a demo or to a chatbot's own statistics: never quoted as results unless a named source is saved in Settings.
 const UNSOURCED_RE = /\bapex cooling\b|\+\s?38\s?%|\b38\s?%|\$\s?30\s?k\b|\$\s?45\s?k\b|\b27\s?%\s+of (?:all )?(?:calls|phone calls)\b|\$\s?81\.9\s?k\b|\b81\.9\s?k\b/i;
-const ASSET_ASK_RE = /\b(?:want|would you like|shall i|should i|can i|may i|ok if i|okay if i|happy to|glad to|care to|like me to|up for)\b[^.?!]{0,60}\b(?:send|share|record|recording|number|hear|listen|try|demo|sample)\b/i;
+const ASSET_ASK_RE = /\b(?:want|would you like|would you (?:be )?interested|are you interested|shall i|should i|can i|may i|ok if i|okay if i|happy to|glad to|care to|like me to|up for)\b[^.?!]{0,60}\b(?:send|share|record|recording|number|hear|listen|try|demo|sample)\b/i;
 const REDIRECT_RE = /\b(?:right person|someone else|who (?:else )?(?:handles|looks after|manages|should)|point me to|pass (?:this|it) (?:on|along))\b/i;
 const LAST_RE = /\b(?:last (?:message|note|email|one)|won(?:'|’)?t (?:message|write|email|bother) (?:you )?again|closing (?:the|this) (?:file|loop)|close (?:the|this) (?:file|loop))\b/i;
 
