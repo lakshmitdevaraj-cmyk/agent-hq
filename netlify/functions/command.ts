@@ -1108,8 +1108,13 @@ async function generateFourStep(lead: Record<string, unknown>, settings: Outreac
   const inp = resolveInputs(settings, String(lead.name ?? ""));
   if (!inp.freeAsset1 || !inp.freeAsset2) return { refused: "Check this: add a free asset in Settings" as const };
   const c = a3Context(lead);
+  if (c.plan.facts.length === 0 && c.details.length === 0) {
+    const missing = [typeof lead.rating !== "number" ? "rating" : "", lead.website ? "" : "website", cityOf(typeof lead.address === "string" ? lead.address : undefined) ? "" : "address"].filter(Boolean);
+    return { refused: `Not enough facts about this lead: no ${missing.join(", no ") || "saved details"}. Run the website check or add a rating or website, then try again.` };
+  }
   const sl = { name: typeof lead.name === "string" ? lead.name : undefined, greeting: c.greeting, city: c.city, trade: c.trade, details: c.details.map((d) => d.text), facts: c.plan.facts.map((f) => ({ n: f.n, text: f.text })) };
   let hint = "";
+  let problem = "";
   let model = "";
   let calls = 0;
   let steps: Array<{ step: 1 | 2 | 3 | 4; subject: string; body: string }> = [];
@@ -1120,7 +1125,11 @@ async function generateFourStep(lead: Record<string, unknown>, settings: Outreac
     const ans = await aiJson("draft", { system: SEQUENCE_SYSTEM_PROMPT, user: sequenceUserPrompt(sl, inp, offer, hint || undefined), temperature: 0.4 }, ai);
     model = ans.model;
     const parsed = parseSequence(ans.json);
-    if (!parsed) { hint = "the answer was not four emails in the JSON shape"; debugLog("four-step", { lead: lead.name, attempt: attempt + 1, failures: [hint] }); continue; }
+    if (!parsed) {
+      const o = (ans.json && typeof ans.json === "object" ? ans.json : {}) as Record<string, unknown>;
+      const lacking = ["email_1", "email_2", "email_3", "email_4"].filter((k) => !String(o[k] ?? "").trim());
+      problem = lacking.length ? `the answer had no ${lacking.join(", ")}` : "the answer was not in the expected shape";
+      hint = `${problem} (JSON with subject, email_1, email_2, email_3, email_4)`; debugLog("four-step", { lead: lead.name, attempt: attempt + 1, failures: [hint] }); continue; }
     steps = parsed.steps.map((s) => ({ ...s, body: withGreeting(s.body, c.greeting) }));
     factUsed = parsed.fact_used;
     checks = checkSequence(steps, inp);
@@ -1129,7 +1138,7 @@ async function generateFourStep(lead: Record<string, unknown>, settings: Outreac
     if (fails.length === 0) break;
     hint = fails.join("; ");
   }
-  if (steps.length !== 4) throw new Error("The writer did not return four emails");
+  if (steps.length !== 4) throw new Error(`The writer did not return four emails: ${problem || "no usable answer"}.`);
   return { steps, checks, model, calls, factUsed, ctx: c };
 }
 
@@ -1939,7 +1948,7 @@ async function planDraftPairs(campaign_id: string, framework: unknown, hints?: u
   const campaign = await readCampaign<CampaignRecord>(campaign_id);
   if (!campaign) throw new Error("campaign not found");
   const fw = typeof framework === "string" && ["pas", "aida", "sdr", "four-step"].includes(framework) ? (framework as "pas" | "aida" | "sdr" | "four-step") : "one-off";
-  const totalSteps = fw === "one-off" ? 1 : 3;
+  const totalSteps = fw === "one-off" ? 1 : fw === "four-step" ? 4 : 3;
   const leads = await listJson<Record<string, unknown> & { id: string }>(store(OUTREACH_LEADS), `${campaign_id}/`);
   // Leads added seconds ago may not be in the list yet: the page sends the ones it already has.
   if (Array.isArray(hints)) {
@@ -1960,9 +1969,15 @@ async function planDraftPairs(campaign_id: string, framework: unknown, hints?: u
     const email = l.email as string | null | undefined;
     if (!email || isJunkEmail(email) || l.do_not_contact) continue;
     if (leadSkipReason(l as Parameters<typeof leadSkipReason>[0], ctx) || contactBlock(contacts, email, campaign_id, { isTest: l.is_test === true })) continue;
+    if (fw === "four-step") {
+      // ONE writer call per lead writes all four emails: one pair per lead that still lacks any of them.
+      const first = [1, 2, 3, 4].find((st) => !have.has(`${l.id}__${st}`));
+      if (first) pairs.push({ lead: l, step: first });
+      continue;
+    }
     for (let step = 1; step <= totalSteps; step++) if (!have.has(`${l.id}__${step}`)) pairs.push({ lead: l, step });
   }
-  // All step 1 first, then step 2, then step 3: later steps refer back to earlier ones.
+  // All step 1 first, then step 2, then step 3 (PAS, AIDA, SDR): later steps refer back to earlier ones.
   pairs.sort((a, b) => a.step - b.step || a.lead.id.localeCompare(b.lead.id));
   return { pairs, totalSteps, fw };
 }
@@ -2152,8 +2167,8 @@ export async function runDraftJob(p: DraftJobParams & { resume?: boolean }): Pro
           review: false, // reviewed in groups below
         });
         if (r.ok) {
-          made++;
           const rec = r.data as Record<string, unknown> & { id: string; created_at?: string; status?: string; skipped?: boolean; framework?: string };
+          made += fw === "four-step" ? (rec.skipped ? 0 : 4) : 1; // for 4-step, "made" counts emails (4 per lead)
           if (rec && !rec.skipped && rec.created_at && rec.framework !== "four-step") pending.push({ key: `${campaign_id}/${rec.created_at}-${rec.id}`, row: rec });
           break;
         }
@@ -3823,7 +3838,7 @@ export const handler: Handler = async (event) => {
         const plan = await planDraftPairs(campaign_id, framework, leads);
         if (plan.pairs.length === 0) return fail(400, "Nothing to draft: every eligible lead already has a draft, or all were skipped.");
         const now = new Date().toISOString();
-        await patchState(campaign_id, { job: { kind: "generate", status: "running", total: plan.pairs.length, done: 0, made: 0, started_at: now, progress_at: now } });
+        await patchState(campaign_id, { job: { kind: "generate", status: "running", total: plan.pairs.length, done: 0, made: 0, started_at: now, progress_at: now, ...(plan.fw === "four-step" ? { unit: "leads", emails_per_lead: 4 } : {}) } });
         return ok({ total: plan.pairs.length, started_at: now });
       }
 
@@ -4539,8 +4554,8 @@ export const handler: Handler = async (event) => {
         if (!lead.email) return fail(400, "lead has no email address");
 
         const stepNum = typeof sequence_position === "number" && sequence_position >= 1 ? Math.floor(sequence_position) : 1;
-        const totalNum = typeof sequence_total === "number" && sequence_total >= 1 ? Math.floor(sequence_total) : stepNum;
-        const fw = typeof framework === "string" && ["pas", "aida", "sdr", "one-off"].includes(framework) ? framework : "one-off";
+        const fw = typeof framework === "string" && ["pas", "aida", "sdr", "four-step", "one-off"].includes(framework) ? framework : "one-off";
+        const totalNum = typeof sequence_total === "number" && sequence_total >= 1 ? Math.floor(sequence_total) : fw === "four-step" ? 4 : stepNum;
 
         // Dedupe on (lead, step) — same rule as generate_one.
         const es = store(OUTREACH_EMAILS);

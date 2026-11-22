@@ -77,10 +77,27 @@ export default function FollowUps() {
       weekCount: live.filter((r) => r.bucket === "week").length,
     };
   }, [data, tab, scope]);
-  const tabCount = (t: "email" | "social") => (data?.rows ?? []).filter((r) => (t === "email" ? r.channel === "email" : r.channel !== "email") && (r.bucket === "overdue" || r.bucket === "today")).length;
+  const tabCounts = (t: "email" | "social") => {
+    const mine = (data?.rows ?? []).filter((r) => (t === "email" ? r.channel === "email" : r.channel !== "email"));
+    return { today: mine.filter((r) => r.bucket === "overdue" || r.bucket === "today").length, week: mine.filter((r) => r.bucket === "week").length };
+  };
 
   const toggle = (k: string) => { const n = new Set(ticked); if (n.has(k)) n.delete(k); else n.add(k); setTick(n); };
   const pickedRows = rows.shown.filter((r) => ticked.has(rowKey(r)));
+  // Rows the bulk buttons can act on: due today or overdue, and Ready (email) or markable (social).
+  const bulkable = rows.shown.filter((r) => (r.bucket === "overdue" || r.bucket === "today") && (tab === "email" ? r.channel === "email" && !!r.email_id && r.review_status === "ready" : r.channel !== "email" && r.can_mark));
+  const allBulkTicked = bulkable.length > 0 && bulkable.every((r) => ticked.has(rowKey(r)));
+  const selectAll = () => { const n = new Set(ticked); for (const r of bulkable) n.add(rowKey(r)); setTick(n); };
+  const clearTicks = () => { const n = new Set(ticked); for (const r of rows.shown) n.delete(rowKey(r)); setTick(n); };
+  const selectControls = (
+    <>
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-fg2 cursor-pointer">
+        <input type="checkbox" checked={allBulkTicked} disabled={bulkable.length === 0} onChange={() => (allBulkTicked ? clearTicks() : selectAll())} aria-label="Select all that can be sent" />
+        Select all ({bulkable.length})
+      </label>
+      <button onClick={clearTicks} disabled={pickedRows.length === 0} className="px-2 py-1 rounded-lg border border-line text-xs font-semibold text-fg2 disabled:opacity-50">Clear</button>
+    </>
+  );
 
   async function act(label: string, fn: () => Promise<unknown>) {
     setBusy(label); setErr(null); setMsg(null);
@@ -93,7 +110,7 @@ export default function FollowUps() {
     if (sendable.length === 0) return;
     const list = sendable.map((r) => `${r.name}: email ${r.position}`).join("\n");
     const warn = data && !data.postal_address_set ? "\n\nNo postal address in the footer. US law (CAN-SPAM) requires one for commercial email." : "";
-    if (!confirm(`Send ${sendable.length} follow-up email${sendable.length === 1 ? "" : "s"} via AgentMail? Each goes as a reply in the same thread as the email before it, and this will hit real recipients' inboxes.\n\n${list}${warn}${await sendTodayText(sendable.length)}`)) return;
+    if (!confirm(`Send ${sendable.length} follow-up email${sendable.length === 1 ? "" : "s"} via AgentMail? Each goes as a reply under email 1 in the same thread, and this will hit real recipients' inboxes.\n\n${list}${warn}${await sendTodayText(sendable.length)}`)) return;
     await act("send", async () => {
       const byCampaign = new Map<string, string[]>();
       for (const r of sendable) byCampaign.set(r.campaign_id, [...(byCampaign.get(r.campaign_id) ?? []), r.email_id!]);
@@ -128,7 +145,7 @@ export default function FollowUps() {
       <div className="flex items-center gap-2 flex-wrap mb-3">
         {(["email", "social"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg border text-sm font-semibold ${tab === t ? "bg-primary/20 border-primary/50 text-primary" : "bg-fg/[0.04] border-line text-fg2"}`}>
-            {t === "email" ? "Email" : "Social"} ({tabCount(t)})
+            {t === "email" ? "Email" : "Social"} ({tabCounts(t).today} today · {tabCounts(t).week} this week)
           </button>
         ))}
         <div className="flex-1" />
@@ -140,10 +157,13 @@ export default function FollowUps() {
       </div>
       {msg && <p className="text-sm text-green-300 mb-2">{msg}</p>}
 
-      {tab === "email" && pickedRows.length > 0 && (
-        <div className="flex items-center gap-2 mb-3 text-sm">
-          <span className="text-fg2">{pickedRows.length} ticked ({pickedRows.filter((r) => r.review_status === "ready").length} Ready)</span>
-          <button onClick={() => void sendEmails()} disabled={busy === "send" || !pickedRows.some((r) => r.review_status === "ready")} className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/50 text-primary text-xs font-bold disabled:opacity-50">{busy === "send" ? "Sending…" : "Send the Ready ones"}</button>
+      {tab === "email" && rows.shown.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 text-sm flex-wrap">
+          {selectControls}
+          {pickedRows.length > 0 && <>
+            <span className="text-fg2">{pickedRows.length} ticked ({pickedRows.filter((r) => r.review_status === "ready").length} Ready)</span>
+            <button onClick={() => void sendEmails()} disabled={busy === "send" || !pickedRows.some((r) => r.review_status === "ready")} className="px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/50 text-primary text-xs font-bold disabled:opacity-50">{busy === "send" ? "Sending…" : "Send the Ready ones"}</button>
+          </>}
           <span className="text-label text-muted">Only emails marked Ready can be sent from here. Check this and Blocked ones are opened from their campaign.</span>
         </div>
       )}
@@ -151,6 +171,7 @@ export default function FollowUps() {
         <div className="flex items-center gap-2 mb-3 text-sm flex-wrap">
           <label className="text-label text-muted">Date sent</label>
           <input type="date" max={data?.today} value={sentOn} onChange={(e) => setSentOn(e.target.value)} className="bg-inset border border-line rounded-md px-1.5 py-1 text-label text-fg" />
+          {rows.shown.length > 0 && selectControls}
           {pickedRows.length > 0 && <button onClick={() => void markMany()} disabled={busy === "bulk"} className="px-3 py-1.5 rounded-lg bg-green-500/15 border border-green-500/40 text-green-200 text-xs font-bold disabled:opacity-50">Mark {pickedRows.length} ticked as sent</button>}
         </div>
       )}

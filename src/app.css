@@ -21,7 +21,7 @@
   /* Text colours for use on tinted backgrounds: a little darker than the solid colours so they pass 4.5:1 */
   --primary-ink: 36 70 168;
   --ok-ink: 23 99 59;
-  --warn-ink: 137 80 10;
+  --warn-ink: 120 68 6;
   --bad-ink: 155 28 18;
   --flag-ink: 75 56 168;
   --ok: 30 122 74;         /* #1E7A4A */
