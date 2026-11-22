@@ -22,6 +22,7 @@ type Reply = {
   opt_out?: boolean; // reply said no/stop/unsubscribe → lead marked do-not-contact
   flag?: "unauthenticated" | "spam" | "blocked" | null; // how AgentMail filed it (usually still a real person)
   is_test?: boolean; // sent from Lakshmi's own address
+  system?: boolean; // our own webhook health check or a delivery failure report: not a person answering
 };
 
 const FLAG_TEXT = { unauthenticated: "Unauthenticated", spam: "Spam", blocked: "Blocked" } as const;
@@ -52,6 +53,7 @@ export default function Inbox() {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [showSystem, setShowSystem] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
@@ -131,7 +133,10 @@ export default function Inbox() {
     }
   }
 
-  const selected = replies.find((r) => r.id === selectedId) ?? null;
+  const sysCount = replies.filter((r) => r.system).length;
+  const people = replies.filter((r) => !r.system);
+  const visible = showSystem ? replies.filter((r) => r.system) : people;
+  const selected = visible.find((r) => r.id === selectedId) ?? visible[0] ?? null;
 
   return (
     <>
@@ -187,10 +192,15 @@ export default function Inbox() {
             <div className="px-4 py-3 border-b border-line flex items-center gap-2">
               <InboxIcon size={14} className="text-primary" />
               <span className="font-display text-xs text-fg2 font-medium">Inbound</span>
-              <span className="text-xs font-mono text-muted ml-1">({replies.length})</span>
+              <span className="text-xs font-mono text-muted ml-1">({people.length})</span>
+              <div className="flex-1" />
+              {sysCount > 0 && (
+                <button onClick={() => setShowSystem(!showSystem)} className={`px-2 py-0.5 rounded-md border text-label ${showSystem ? "bg-primary/20 border-primary/50 text-primary" : "border-line text-fg2"}`} title="Our own health checks and delivery failure reports">System messages ({sysCount})</button>
+              )}
             </div>
             <div className="max-h-[70vh] overflow-y-auto">
-              {replies.map((r) => (
+              {visible.length === 0 && <p className="px-4 py-6 text-sm text-muted">{showSystem ? "No system messages." : "No replies from people yet."}</p>}
+              {visible.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => setSelectedId(r.id)}

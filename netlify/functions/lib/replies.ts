@@ -49,6 +49,13 @@ export function isOwnAddress(from: string | null | undefined, extra: string[] = 
 export const HEALTH_CHECK_SUBJECT = "ShiftForge HQ webhook health check";
 export const isHealthCheckMessage = (subject: string | null | undefined) => /ShiftForge HQ webhook health check/i.test(subject ?? "");
 
+/** A message that is not a person answering: our own webhook health check (sent from our own inbox) or a delivery failure report. Decided when read; nothing is rewritten. */
+export function isSystemReply(r: { from?: string | null; subject?: string | null; to?: string[] | null }): boolean {
+  const a = (extractEmailAddress(r.from ?? "") ?? "").toLowerCase();
+  const toSelf = !!a && (r.to ?? []).some((x) => (extractEmailAddress(x) ?? "").toLowerCase() === a); // sent from the inbox to itself
+  return (isHealthCheckMessage(r.subject) && (isOwnAddress(r.from) || toSelf)) || isBounceReport(r.from, r.subject);
+}
+
 /** Delivery failure reports keep their existing bounce handling; they are not replies. */
 export function isBounceReport(from: string | null | undefined, subject: string | null | undefined): boolean {
   return /mailer-daemon|postmaster@/i.test(from ?? "") || /^\s*(?:delivery status notification|undeliverable|mail delivery (?:failed|subsystem))/i.test(subject ?? "");
