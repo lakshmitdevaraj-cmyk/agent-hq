@@ -1,5 +1,5 @@
 import { scanBanned } from "./lib/messagerules";
-import { countSentToday, limitOrDefault } from "./lib/sendcount";
+import { countSentToday, limitOrDefault, DEFAULT_COUNT_TZ, type SentRow } from "./lib/sendcount";
 import { nextFollowUp, countDue, gapsOrDefault, type FollowRow, type FollowState, type FollowStepIn, type StoppedReason } from "./lib/followups";
 import { SOCIAL_SEQ_SYSTEM_PROMPT, SOCIAL_SEQ_REVIEW_PROMPT, socialSeqUserPrompt, parseSocialSeq, checkSocialSeq, socialFailureLines, parseSocialReview, mergeSocial, type SeqLeadInfo, type SocialStepCheck } from "./lib/socialseq";
 import type { Handler } from "@netlify/functions";
@@ -1669,7 +1669,7 @@ function deriveCampaign<T extends Record<string, unknown>>(c: T, emails: Array<{
     emails_generated: emails.length,
     emails_sent: sent,
     emails_delivered: emails.filter((e) => ["delivered", "clicked", "replied"].includes(e.status ?? "")).length,
-    emails_clicked: emails.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
+    emails_clicked: emails.filter((e) => e.status === "clicked" || (e.click_count ?? 0) > 0).length, // a reply is not a click
     // A reply that only came from Lakshmi's own address (a test) does not count.
     emails_replied: emails.filter((e) => e.status === "replied" && !e.own_reply_only).length,
     emails_bounced: emails.filter((e) => ["bounced", "complained", "failed"].includes(e.status ?? "")).length,
@@ -5223,11 +5223,12 @@ export const handler: Handler = async (event) => {
 
       // ── Follow-up reminders (batch 8c). Read-time: due dates come from what was sent and the Settings gaps; nothing here sends. ──
       case "outreach.send.today": {
-        // Emails sent today (all campaigns, in the Settings time zone) and the daily limit. Read-only; used by the send confirm boxes.
+        // Real emails sent today (all campaigns; the day is in the Settings time zone, India when blank; mock, test-lead and own-address sends excluded) and the daily limit. Read-only; used by the send confirm boxes.
         const st = await readOutreachSettings();
         const tzs = (st.time_zone ?? "").trim();
-        const rows = await listJsonFast<{ status?: string; sent_at?: string | null }>(store(OUTREACH_EMAILS));
-        return ok({ sent_today: countSentToday(rows, tzs && validTimeZone(tzs) ? tzs : "UTC"), limit: limitOrDefault(st.daily_send_limit) });
+        const [rows, leadRows] = await Promise.all([listJsonFast<SentRow>(store(OUTREACH_EMAILS)), listJsonFast<{ id?: string; is_test?: boolean }>(store(OUTREACH_LEADS))]);
+        const testLeadIds = new Set(leadRows.filter((l) => l.is_test && l.id).map((l) => String(l.id)));
+        return ok({ sent_today: countSentToday(rows, tzs && validTimeZone(tzs) ? tzs : DEFAULT_COUNT_TZ, new Date(), { testLeadIds, isOwn: (a) => isOwnAddress(a) }), limit: limitOrDefault(st.daily_send_limit) });
       }
 
       case "followups.list": {
@@ -5437,7 +5438,7 @@ export const handler: Handler = async (event) => {
           const emails = await campaignEmails(c.id);
           const sent = emails.filter((e) => e.status && e.status !== "drafted").length;
           const delivered = emails.filter((e) => ["delivered", "clicked", "replied"].includes(e.status ?? "")).length;
-          const clicked = emails.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length;
+          const clicked = emails.filter((e) => e.status === "clicked" || (e.click_count ?? 0) > 0).length;
           const replied = emails.filter((e) => e.status === "replied" && !e.own_reply_only).length;
           const bounced = emails.filter((e) => ["bounced", "complained", "failed"].includes(e.status ?? "")).length;
           totals.leads += c.leads_imported ?? 0;

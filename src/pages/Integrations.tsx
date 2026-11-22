@@ -642,7 +642,7 @@ THE FLOW:
                             auto-skipped. Omit everything to send
                             all drafts (legacy).
 
-FRAMEWORKS (3-email sequences):
+FRAMEWORKS (older three-step sequences, still accepted):
   pas  — Problem → Agitate → Solution.
          Step 1: name the pain, no pitch.
          Step 2: agitate the cost of leaving it unaddressed.

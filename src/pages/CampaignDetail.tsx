@@ -364,10 +364,13 @@ export default function CampaignDetail() {
   }
 
   const unsendable = (e: EmailRow) => !!(e.blocked_do_not_contact || e.blocked_contact || e.blocked_lead_skipped || (e.review_status ?? "check") === "blocked");
+  // A lead who replied to an earlier step gets nothing more: the server skips their later drafts, so the cards and the send box leave them out too.
+  const repliedLeadIds = new Set(emails.filter((e) => e.status === "replied").map((e) => e.lead_id));
+  const replySkipped = (e: EmailRow) => e.status === "drafted" && repliedLeadIds.has(e.lead_id);
   const selectedDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && selectedIds.has(e.id)).length;
-  const readyDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "ready").length;
-  const checkDrafts = emails.filter((e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "check").length;
-  const blockedDrafts = emails.filter((e) => e.status === "drafted" && (e.review_status ?? "check") === "blocked").length;
+  const readyDrafts = emails.filter((e) => e.status === "drafted" && !replySkipped(e) && !unsendable(e) && (e.review_status ?? "check") === "ready").length;
+  const checkDrafts = emails.filter((e) => e.status === "drafted" && !replySkipped(e) && !unsendable(e) && (e.review_status ?? "check") === "check").length;
+  const blockedDrafts = emails.filter((e) => e.status === "drafted" && !replySkipped(e) && (e.review_status ?? "check") === "blocked").length;
 
   // Sending stays possible without a postal address, but every confirm box says so.
   const [noPostal, setNoPostal] = useState(false);
@@ -443,7 +446,7 @@ export default function CampaignDetail() {
   async function sendStep(step: number) {
     if (!id) return;
     const ready = emails.filter(
-      (e) => e.status === "drafted" && !unsendable(e) && (e.review_status ?? "check") === "ready" && (e.sequence_position ?? 1) === step,
+      (e) => e.status === "drafted" && !unsendable(e) && !replySkipped(e) && (e.review_status ?? "check") === "ready" && (e.sequence_position ?? 1) === step,
     );
     if (ready.length === 0) {
       alert(`No ready drafts at step ${step}. Only drafts that passed the AI check are sent; use "Review all" or "Mark ready" in the Emails list.`);
@@ -644,20 +647,22 @@ export default function CampaignDetail() {
   }, [emails]);
 
   const counters = useMemo(() => {
-    const drafts = emails.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length;
+    const replied$ = new Set(emails.filter((e) => e.status === "replied").map((e) => e.lead_id));
+    // A lead who replied gets nothing more: their unsent drafts are "skipped", not drafts, ready or queued.
+    const skipped = emails.filter((e) => e.status === "drafted" && replied$.has(e.lead_id)).length;
+    const drafts = emails.filter((e) => e.status === "drafted" && !replied$.has(e.lead_id) && !e.blocked_do_not_contact && !e.blocked_contact).length;
     const postSend = emails.filter((e) => e.status !== "drafted" && !e.blocked_do_not_contact);
     const delivered = emails.filter((e) =>
       ["delivered", "clicked", "replied"].includes(e.status),
     ).length;
-    const clicked = emails.filter(
-      (e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0,
-    ).length;
+    const clicked = emails.filter((e) => e.status === "clicked" || (e.click_count ?? 0) > 0).length; // a reply is not a click
     const replied = emails.filter((e) => e.status === "replied").length;
     const bounced = emails.filter((e) => e.status === "bounced" || e.status === "complained" || e.status === "failed").length;
     return {
       leads: leads.length,
       leadsWithEmail: leads.filter((l) => l.email).length,
       drafts,
+      skipped,
       sent: postSend.length,
       delivered,
       bounced,
@@ -673,18 +678,19 @@ export default function CampaignDetail() {
     const four = emails.some((e) => e.framework === "four-step");
     const maxStep = four ? 4 : emails.reduce((m, e) => Math.max(m, e.sequence_position ?? 1), 1);
     const isSequence = maxStep > 1;
-    const stats: Array<{ step: number; drafted: number; ready: number; check: number; blocked: number; sent: number; delivered: number; clicked: number; replied: number; framework: Framework | null }> = [];
+    const stats: Array<{ step: number; drafted: number; skipped: number; ready: number; check: number; blocked: number; sent: number; delivered: number; clicked: number; replied: number; framework: Framework | null }> = [];
     for (let s = 1; s <= maxStep; s++) {
       const emailsAtStep = emails.filter((e) => (e.sequence_position ?? 1) === s);
       stats.push({
         step: s,
-        drafted: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact).length,
-        ready: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && !e.blocked_lead_skipped && (e.review_status ?? "check") === "ready").length,
-        check: emailsAtStep.filter((e) => e.status === "drafted" && !e.blocked_do_not_contact && !e.blocked_contact && !e.blocked_lead_skipped && (e.review_status ?? "check") === "check").length,
-        blocked: emailsAtStep.filter((e) => e.status === "drafted" && (e.review_status ?? "check") === "blocked").length,
+        drafted: emailsAtStep.filter((e) => e.status === "drafted" && !replySkipped(e) && !e.blocked_do_not_contact && !e.blocked_contact).length,
+        skipped: emailsAtStep.filter((e) => replySkipped(e)).length,
+        ready: emailsAtStep.filter((e) => e.status === "drafted" && !replySkipped(e) && !e.blocked_do_not_contact && !e.blocked_contact && !e.blocked_lead_skipped && (e.review_status ?? "check") === "ready").length,
+        check: emailsAtStep.filter((e) => e.status === "drafted" && !replySkipped(e) && !e.blocked_do_not_contact && !e.blocked_contact && !e.blocked_lead_skipped && (e.review_status ?? "check") === "check").length,
+        blocked: emailsAtStep.filter((e) => e.status === "drafted" && !replySkipped(e) && (e.review_status ?? "check") === "blocked").length,
         sent: emailsAtStep.filter((e) => e.status !== "drafted").length,
         delivered: emailsAtStep.filter((e) => ["delivered", "clicked", "replied"].includes(e.status)).length,
-        clicked: emailsAtStep.filter((e) => e.status === "clicked" || e.status === "replied" || (e.click_count ?? 0) > 0).length,
+        clicked: emailsAtStep.filter((e) => e.status === "clicked" || (e.click_count ?? 0) > 0).length,
         replied: emailsAtStep.filter((e) => e.status === "replied").length,
         framework: (emailsAtStep[0]?.framework ?? null) as Framework | null,
       });
@@ -902,8 +908,8 @@ export default function CampaignDetail() {
           busy={busyAction === "generate"}
           label="Generate emails"
           sublabel={
-            counters && counters.drafts > 0
-              ? `${counters.drafts} draft${counters.drafts === 1 ? "" : "s"} ready${sequenceInfo.isSequence ? ` · ${fwLabel(sequenceInfo.framework)} sequence` : ""}`
+            counters && (counters.drafts > 0 || counters.skipped > 0)
+              ? `${counters.drafts} draft${counters.drafts === 1 ? "" : "s"} ready${sequenceInfo.isSequence ? ` · ${fwLabel(sequenceInfo.framework)} sequence` : ""}${counters.skipped > 0 ? ` · ${counters.skipped} skipped (replied)` : ""}`
               : "Gemini drafts · Alcance 4-step writes 4 emails per lead"
           }
           icon={<Sparkles size={16} />}
@@ -923,10 +929,10 @@ export default function CampaignDetail() {
       </div>
 
       {/* Alcance 4-step: the Step cards are the send control */}
-      {isFour && ((counters?.drafts ?? 0) > 0 || (counters?.sent ?? 0) > 0) && (
+      {isFour && ((counters?.drafts ?? 0) > 0 || (counters?.sent ?? 0) > 0 || (counters?.skipped ?? 0) > 0) && (
         <div className="mb-5 rounded-xl bg-fg/[0.03] border border-line px-4 py-3 text-sm text-fg2" data-testid="four-step-send-line">
           Send each step with the Step buttons below, or from the Follow-ups page.
-          <span className="text-muted font-mono text-xs ml-2">{counters?.sent ?? 0} sent, {counters?.drafts ?? 0} still queued</span>
+          <span className="text-muted font-mono text-xs ml-2">{counters?.sent ?? 0} sent, {counters?.drafts ?? 0} to send{(counters?.skipped ?? 0) > 0 ? `, ${counters?.skipped} skipped (replied)` : ""}</span>
         </div>
       )}
 
@@ -994,10 +1000,11 @@ export default function CampaignDetail() {
               const canSend = step.ready > 0;
               const disabled = busyAction !== null || !canSend || !prevSent;
               const willSend = isFour ? step.ready : batchSize(step.ready);
-              const readyIds = emails.filter((e) => e.status === "drafted" && (e.sequence_position ?? 1) === step.step && (e.review_status ?? "check") === "ready" && !unsendable(e));
-              const dues = step.step > 1 ? readyIds.map((e) => dueTime(e.lead_id, step.step)).filter((d): d is number => d !== null) : [];
+              const readyIds = emails.filter((e) => e.status === "drafted" && (e.sequence_position ?? 1) === step.step && (e.review_status ?? "check") === "ready" && !unsendable(e) && !replySkipped(e));
+              const activeIds = emails.filter((e) => e.status === "drafted" && (e.sequence_position ?? 1) === step.step && !replySkipped(e) && !unsendable(e));
+              const dues = step.step > 1 ? activeIds.map((e) => dueTime(e.lead_id, step.step)).filter((d): d is number => d !== null) : [];
               const dueFrom = dues.length ? Math.min(...dues) : null;
-              const reason = busyAction !== null ? "" : !prevSent ? `Send step ${step.step - 1} first` : step.drafted === 0 ? (step.sent > 0 ? "Everything at this step is sent" : "No drafts at this step") : step.ready === 0 ? `Nothing is ready: ${step.check} check this, ${step.blocked} blocked. Mark ready or review first` : "";
+              const reason = busyAction !== null ? "" : !prevSent ? `Send step ${step.step - 1} first` : step.drafted === 0 ? (step.sent > 0 || step.skipped > 0 ? "Everything at this step is sent or skipped" : "No drafts at this step") : step.ready === 0 ? `Nothing is ready: ${step.check} check this, ${step.blocked} blocked. Mark ready or review first` : "";
               return (
                 <div
                   key={step.step}
@@ -1016,13 +1023,13 @@ export default function CampaignDetail() {
                     </div>
                   </div>
                   <div className="text-label font-mono">
-                    <span className="text-green-300">{step.ready} ready</span> · <span className="text-amber-300">{step.check} check this</span> · <span className="text-red-300">{step.blocked} blocked</span>
+                    <span className="text-green-300">{step.ready} ready</span> · <span className="text-amber-300">{step.check} check this</span> · <span className="text-red-300">{step.blocked} blocked</span>{step.skipped > 0 && <> · <span className="text-muted">{step.skipped} skipped (replied)</span></>}
                   </div>
                   <div className="flex items-center gap-3 text-label text-muted font-mono flex-wrap">
                     <span>{canSend ? (willSend < step.ready ? `sends ${willSend} of ${step.ready}` : `sends ${willSend}`) : "sends 0"}</span>
-                    {step.step > 1 && step.drafted > 0 && <span>{dueFrom !== null ? `due from ${niceDate(dueFrom)}` : "due after step 1 is sent"}</span>}
+                    {step.step > 1 && step.drafted > 0 && <span>{dueFrom !== null ? `due from ${niceDate(dueFrom)}` : `due after step ${step.step - 1} is sent`}</span>}
                     {step.replied > 0 && <span className="text-green-300">{step.replied} replied</span>}
-                    {step.clicked > 0 && <span className="text-accent">{step.clicked} clicks</span>}
+                    {step.clicked > 0 && <span className="text-accent">{step.clicked} click{step.clicked === 1 ? "" : "s"}</span>}
                   </div>
                   <button
                     onClick={() => sendStep(step.step)}
@@ -1213,7 +1220,7 @@ export default function CampaignDetail() {
                       )}
                       {l.contacted_at && (
                         <span className="text-label font-mono px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-300">
-                          contacted
+                          {repliedLeadIds.has(l.id) ? "replied" : "contacted"}
                         </span>
                       )}
                       {l.skip_reason && (
@@ -1492,7 +1499,8 @@ export default function CampaignDetail() {
                   if (!e) return { text: "-", cls: "text-muted" };
                   if (e.status === "replied") return { text: "Replied", cls: "text-green-300" };
                   if (e.status !== "drafted") return { text: "Sent", cls: "text-fg2" };
-                  const r = unsendable(e) && (e.review_status ?? "check") !== "blocked" ? "blocked" : (e.review_status ?? "check");
+                  if (replySkipped(e)) return { text: "Skipped (replied)", cls: "text-muted" };
+                  const r =unsendable(e) && (e.review_status ?? "check") !== "blocked" ? "blocked" : (e.review_status ?? "check");
                   return r === "ready" ? { text: "Ready", cls: "text-green-300" } : r === "blocked" ? { text: "Blocked", cls: "text-red-300" } : { text: "Check", cls: "text-amber-300" };
                 };
                 const byLead = new Map<string, EmailRow[]>();

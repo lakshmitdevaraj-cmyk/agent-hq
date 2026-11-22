@@ -110,7 +110,9 @@ export default function FollowUps() {
     if (sendable.length === 0) return;
     const list = sendable.map((r) => `${r.name}: email ${r.position}`).join("\n");
     const warn = data && !data.postal_address_set ? "\n\nNo postal address in the footer. US law (CAN-SPAM) requires one for commercial email." : "";
-    if (!confirm(`Send ${sendable.length} follow-up email${sendable.length === 1 ? "" : "s"} via AgentMail? Each goes as a reply under email 1 in the same thread, and this will hit real recipients' inboxes.\n\n${list}${warn}${await sendTodayText(sendable.length)}`)) return;
+    const early = sendable.filter((r) => r.due_date && data?.today && r.due_date > data.today);
+    const earlyText = early.length ? `\n\n${early.map((r) => `Email ${r.position} for ${r.name} is not due until ${shortDate(r.due_date)}.`).join("\n")}\nYou can still send it now.` : "";
+    if (!confirm(`Send ${sendable.length} follow-up email${sendable.length === 1 ? "" : "s"} via AgentMail? Each goes as a reply under email 1 in the same thread, and this will hit real recipients' inboxes.\n\n${list}${earlyText}${warn}${await sendTodayText(sendable.length)}`)) return;
     await act("send", async () => {
       const byCampaign = new Map<string, string[]>();
       for (const r of sendable) byCampaign.set(r.campaign_id, [...(byCampaign.get(r.campaign_id) ?? []), r.email_id!]);
