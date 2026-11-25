@@ -1,0 +1,262 @@
+{
+ "limit 1|d25": {
+  "size": 25,
+  "limit": 1,
+  "sent_ok": 4,
+  "cut": 0,
+  "cpu_median": 33,
+  "cpu_worst": 42,
+  "calls": [
+   {
+    "status": 200,
+    "sent": 1,
+    "queries": 19,
+    "outbound": {
+     "api.agentmail.to": 2
+    },
+    "cpu_ms": 39,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "sent": 1,
+    "queries": 19,
+    "outbound": {
+     "api.agentmail.to": 2
+    },
+    "cpu_ms": 42,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "sent": 1,
+    "queries": 19,
+    "outbound": {
+     "api.agentmail.to": 2
+    },
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "sent": 1,
+    "queries": 19,
+    "outbound": {
+     "api.agentmail.to": 2
+    },
+    "cpu_ms": 33,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "limit 10|d25": {
+  "size": 25,
+  "limit": 10,
+  "sent_ok": 0,
+  "cut": 4,
+  "cpu_median": null,
+  "cpu_worst": null,
+  "calls": [
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 28,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   }
+  ]
+ },
+ "limit 1|d100": {
+  "size": 100,
+  "limit": 1,
+  "sent_ok": 0,
+  "cut": 4,
+  "cpu_median": null,
+  "cpu_worst": null,
+  "calls": [
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   }
+  ]
+ },
+ "limit 10|d100": {
+  "size": 100,
+  "limit": 10,
+  "sent_ok": 0,
+  "cut": 4,
+  "cpu_median": null,
+  "cpu_worst": null,
+  "calls": [
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   }
+  ]
+ },
+ "limit 1|d500": {
+  "size": 500,
+  "limit": 1,
+  "sent_ok": 0,
+  "cut": 4,
+  "cpu_median": null,
+  "cpu_worst": null,
+  "calls": [
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   }
+  ]
+ },
+ "limit 10|d500": {
+  "size": 500,
+  "limit": 10,
+  "sent_ok": 0,
+  "cut": 4,
+  "cpu_median": null,
+  "cpu_worst": null,
+  "calls": [
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu"
+   },
+   {
+    "status": 503,
+    "sent": null,
+    "queries": null,
+    "outbound": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu"
+   }
+  ]
+ }
+}

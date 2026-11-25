@@ -1,0 +1,4719 @@
+{
+ "outreach.campaign.delete|d500|batched": {
+  "name": "outreach.campaign.delete",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 14,
+  "cpu_worst": 609,
+  "wall_median": 464,
+  "queries": 1858,
+  "rows": 2602,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 15751,
+    "bytes": 105,
+    "items": null,
+    "queries": 1858,
+    "rows": 2602,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 1577,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 448,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 14,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 464,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 13927,
+    "bytes": 105,
+    "items": null,
+    "queries": 1858,
+    "rows": 2602,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 609,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.campaign.delete|d100|batched": {
+  "name": "outreach.campaign.delete",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 193,
+  "cpu_worst": 201,
+  "wall_median": 2736,
+  "queries": 378,
+  "rows": 522,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 803,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 17,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 3052,
+    "bytes": 104,
+    "items": null,
+    "queries": 378,
+    "rows": 522,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 193,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 2736,
+    "bytes": 104,
+    "items": null,
+    "queries": 378,
+    "rows": 522,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 142,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 2323,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 201,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.campaign.delete|d25|batched": {
+  "name": "outreach.campaign.delete",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 10,
+  "cpu_worst": 43,
+  "wall_median": 358,
+  "queries": 101,
+  "rows": 132,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 769,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 289,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 926,
+    "bytes": 101,
+    "items": null,
+    "queries": 101,
+    "rows": 132,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 43,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 358,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.campaign.delete|d1500|batched": {
+  "name": "outreach.campaign.delete",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 100,
+  "cpu_worst": 1809,
+  "wall_median": 1433,
+  "queries": 0,
+  "rows": 0,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 33673,
+    "bytes": 107,
+    "items": null,
+    "queries": 5558,
+    "rows": 7802,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 1883,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 33467,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 1809,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 372,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 1433,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 100,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.prospects.list|d500|batched": {
+  "name": "outreach.prospects.list",
+  "size": 500,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 12,
+  "cpu_worst": 84,
+  "wall_median": 300,
+  "queries": 7,
+  "rows": 2692,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1265,
+    "bytes": 1207766,
+    "items": 513,
+    "queries": 7,
+    "rows": 2692,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 146,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 517,
+    "bytes": 1207766,
+    "items": 513,
+    "queries": 7,
+    "rows": 2692,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 84,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 300,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 296,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 12,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.prospects.list|d100|batched": {
+  "name": "outreach.prospects.list",
+  "size": 100,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 13,
+  "cpu_worst": 66,
+  "wall_median": 456,
+  "queries": 7,
+  "rows": 552,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 773,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1128,
+    "bytes": 261617,
+    "items": 113,
+    "queries": 7,
+    "rows": 552,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 66,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 456,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 13,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 452,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.prospects.list|d25|batched": {
+  "name": "outreach.prospects.list",
+  "size": 25,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 48,
+  "cpu_worst": 57,
+  "wall_median": 355,
+  "queries": 7,
+  "rows": 150,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 801,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 385,
+    "bytes": 85152,
+    "items": 38,
+    "queries": 7,
+    "rows": 150,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 48,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 288,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 355,
+    "bytes": 85152,
+    "items": 38,
+    "queries": 7,
+    "rows": 150,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 57,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.prospects.list|d1500|batched": {
+  "name": "outreach.prospects.list",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 10,
+  "cpu_worst": 345,
+  "wall_median": 284,
+  "queries": 7,
+  "rows": 8042,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 726,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1034,
+    "bytes": 3580906,
+    "items": 1513,
+    "queries": 7,
+    "rows": 8042,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 345,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 284,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 284,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.leads.check_site|d500|batched": {
+  "name": "outreach.leads.check_site",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "synthetic 100 KB pages",
+  "cpu_median": 10,
+  "cpu_worst": 316,
+  "wall_median": 329,
+  "queries": 7,
+  "rows": 17,
+  "outbound": 10,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 931,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 705,
+    "bytes": 3830,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 316,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 295,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 329,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.leads.check_site|d100|batched": {
+  "name": "outreach.leads.check_site",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "note": "synthetic 100 KB pages",
+  "cpu_median": 10,
+  "cpu_worst": 238,
+  "wall_median": 314,
+  "queries": 7,
+  "rows": 17,
+  "outbound": 10,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1395,
+    "bytes": 3830,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 478,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 720,
+    "bytes": 3830,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 238,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 314,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 296,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.leads.check_site|d25|batched": {
+  "name": "outreach.leads.check_site",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "note": "synthetic 100 KB pages",
+  "cpu_median": 164,
+  "cpu_worst": 331,
+  "wall_median": 662,
+  "queries": 7,
+  "rows": 17,
+  "outbound": 10,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 946,
+    "bytes": 3830,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 226,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 628,
+    "bytes": 3830,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 164,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 803,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 331,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 662,
+    "bytes": 3830,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 157,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.leads.check_site (300 KB pages)|d500|batched": {
+  "name": "outreach.leads.check_site (300 KB pages)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "synthetic 100 KB pages",
+  "cpu_median": 10,
+  "cpu_worst": 883,
+  "wall_median": 323,
+  "queries": 7,
+  "rows": 17,
+  "outbound": 10,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 774,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 317,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 323,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1310,
+    "bytes": 3864,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 883,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.leads.check_site (1 MB pages)|d500|batched": {
+  "name": "outreach.leads.check_site (1 MB pages)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "synthetic 100 KB pages",
+  "cpu_median": 10,
+  "cpu_worst": 1519,
+  "wall_median": 615,
+  "queries": 7,
+  "rows": 17,
+  "outbound": 10,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1778,
+    "bytes": 3903,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 974,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 615,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 381,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 2257,
+    "bytes": 3903,
+    "items": null,
+    "queries": 7,
+    "rows": 17,
+    "outbound": {
+     "lead-website": 9,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 1519,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.generate|d500|batched": {
+  "name": "outreach.emails.generate",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "10 leads, 4.5 s pacing between them",
+  "cpu_median": 39,
+  "cpu_worst": 58,
+  "wall_median": 9473,
+  "queries": 14,
+  "rows": 401,
+  "outbound": 3,
+  "ok": true,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 746,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9484,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 401,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 58,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9411,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 401,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9473,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 401,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 39,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.generate|d100|batched": {
+  "name": "outreach.emails.generate",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "note": "10 leads, 4.5 s pacing between them",
+  "cpu_median": 40,
+  "cpu_worst": 41,
+  "wall_median": 9563,
+  "queries": 14,
+  "rows": 95,
+  "outbound": 3,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9669,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 95,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9563,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 95,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 40,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9610,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 95,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 41,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9479,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 95,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.generate|d25|batched": {
+  "name": "outreach.emails.generate",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "note": "10 leads, 4.5 s pacing between them",
+  "cpu_median": 16,
+  "cpu_worst": 22,
+  "wall_median": 9374,
+  "queries": 14,
+  "rows": 38,
+  "outbound": 3,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9775,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 38,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9374,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 38,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9362,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 38,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9387,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 38,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.generate|d1500|batched": {
+  "name": "outreach.emails.generate",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "10 leads, 4.5 s pacing between them",
+  "cpu_median": 46,
+  "cpu_worst": 58,
+  "wall_median": 9572,
+  "queries": 14,
+  "rows": 1165,
+  "outbound": 3,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9862,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 1165,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 38,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9631,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 1165,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 46,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 643,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 9572,
+    "bytes": 75,
+    "items": null,
+    "queries": 14,
+    "rows": 1165,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 58,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.list|d500|batched": {
+  "name": "outreach.emails.list",
+  "size": 500,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 9,
+  "cpu_worst": 52,
+  "wall_median": 449,
+  "queries": 5,
+  "rows": 2898,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 698,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 449,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 395,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1122,
+    "bytes": 381558,
+    "items": 500,
+    "queries": 5,
+    "rows": 2898,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 52,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.list|d100|batched": {
+  "name": "outreach.emails.list",
+  "size": 100,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 23,
+  "cpu_worst": 40,
+  "wall_median": 1506,
+  "queries": 5,
+  "rows": 592,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1244,
+    "bytes": 302382,
+    "items": 400,
+    "queries": 5,
+    "rows": 592,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1541,
+    "bytes": 302382,
+    "items": 400,
+    "queries": 5,
+    "rows": 592,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1506,
+    "bytes": 302382,
+    "items": 400,
+    "queries": 5,
+    "rows": 592,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 40,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 614,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.emails.list|d25|batched": {
+  "name": "outreach.emails.list",
+  "size": 25,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 15,
+  "cpu_worst": 19,
+  "wall_median": 614,
+  "queries": 5,
+  "rows": 160,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 761,
+    "bytes": 75256,
+    "items": 100,
+    "queries": 5,
+    "rows": 160,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 614,
+    "bytes": 75256,
+    "items": 100,
+    "queries": 5,
+    "rows": 160,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 614,
+    "bytes": 75256,
+    "items": 100,
+    "queries": 5,
+    "rows": 160,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 533,
+    "bytes": 75256,
+    "items": 100,
+    "queries": 5,
+    "rows": 160,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.send|d500|batched": {
+  "name": "outreach.emails.send",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "limit 10, AgentMail faked",
+  "cpu_median": 1971,
+  "cpu_worst": 1972,
+  "wall_median": 4860,
+  "queries": 0,
+  "rows": 0,
+  "outbound": 0,
+  "ok": false,
+  "killed": 4,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 4767,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 2010,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 5011,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 1972,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 324,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 4860,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 1971,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.emails.send|d100|batched": {
+  "name": "outreach.emails.send",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "note": "limit 10, AgentMail faked",
+  "cpu_median": 221,
+  "cpu_worst": 399,
+  "wall_median": 1545,
+  "queries": 184,
+  "rows": 601,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 1047,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1545,
+    "bytes": 31327,
+    "items": null,
+    "queries": 184,
+    "rows": 601,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 221,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 322,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1847,
+    "bytes": 31327,
+    "items": null,
+    "queries": 184,
+    "rows": 601,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 399,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.emails.send|d25|batched": {
+  "name": "outreach.emails.send",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "note": "limit 10, AgentMail faked",
+  "cpu_median": 9,
+  "cpu_worst": 61,
+  "wall_median": 500,
+  "queries": 52,
+  "rows": 164,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 845,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 481,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 500,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 874,
+    "bytes": 8291,
+    "items": null,
+    "queries": 52,
+    "rows": 164,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 61,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "followups.list|d500|batched": {
+  "name": "followups.list",
+  "size": 500,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 10,
+  "cpu_worst": 93,
+  "wall_median": 474,
+  "queries": 8,
+  "rows": 2688,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 653,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 3171,
+    "bytes": 284913,
+    "items": 459,
+    "queries": 8,
+    "rows": 2688,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 93,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 455,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 474,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "followups.list|d100|batched": {
+  "name": "followups.list",
+  "size": 100,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 10,
+  "cpu_worst": 22,
+  "wall_median": 468,
+  "queries": 8,
+  "rows": 552,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 800,
+    "bytes": 56811,
+    "items": 92,
+    "queries": 8,
+    "rows": 552,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 468,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 447,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 568,
+    "bytes": 56811,
+    "items": 92,
+    "queries": 8,
+    "rows": 552,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "followups.list|d25|batched": {
+  "name": "followups.list",
+  "size": 25,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 17,
+  "cpu_worst": 45,
+  "wall_median": 624,
+  "queries": 8,
+  "rows": 151,
+  "outbound": 0,
+  "ok": true,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 674,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 624,
+    "bytes": 14907,
+    "items": 24,
+    "queries": 8,
+    "rows": 151,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 45,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 479,
+    "bytes": 14907,
+    "items": 24,
+    "queries": 8,
+    "rows": 151,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 658,
+    "bytes": 14907,
+    "items": 24,
+    "queries": 8,
+    "rows": 151,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.analytics.summary|d500|batched": {
+  "name": "outreach.analytics.summary",
+  "size": 500,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 46,
+  "cpu_worst": 53,
+  "wall_median": 606,
+  "queries": 8,
+  "rows": 2004,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1026,
+    "bytes": 748,
+    "items": null,
+    "queries": 8,
+    "rows": 2004,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 117,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1722,
+    "bytes": 748,
+    "items": null,
+    "queries": 8,
+    "rows": 2004,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 46,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 472,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 606,
+    "bytes": 748,
+    "items": null,
+    "queries": 8,
+    "rows": 2004,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 53,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.analytics.summary|d100|batched": {
+  "name": "outreach.analytics.summary",
+  "size": 100,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 10,
+  "cpu_worst": 30,
+  "wall_median": 342,
+  "queries": 8,
+  "rows": 404,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 779,
+    "bytes": 746,
+    "items": null,
+    "queries": 8,
+    "rows": 404,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 320,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 372,
+    "bytes": 746,
+    "items": null,
+    "queries": 8,
+    "rows": 404,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 342,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.analytics.summary|d25|batched": {
+  "name": "outreach.analytics.summary",
+  "size": 25,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 10,
+  "cpu_worst": 30,
+  "wall_median": 488,
+  "queries": 8,
+  "rows": 104,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 628,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 488,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 512,
+    "bytes": 737,
+    "items": null,
+    "queries": 8,
+    "rows": 104,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 415,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.analytics.summary|d1500|batched": {
+  "name": "outreach.analytics.summary",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "read",
+  "cpu_median": 122,
+  "cpu_worst": 161,
+  "wall_median": 510,
+  "queries": 8,
+  "rows": 6004,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 964,
+    "bytes": 757,
+    "items": null,
+    "queries": 8,
+    "rows": 6004,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 108,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 632,
+    "bytes": 757,
+    "items": null,
+    "queries": 8,
+    "rows": 6004,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 161,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 293,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 510,
+    "bytes": 757,
+    "items": null,
+    "queries": 8,
+    "rows": 6004,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 122,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.replies.sync|d500|batched": {
+  "name": "outreach.replies.sync",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "20 fake inbound messages",
+  "cpu_median": 59,
+  "cpu_worst": 151,
+  "wall_median": 651,
+  "queries": 8,
+  "rows": 2053,
+  "outbound": 22,
+  "ok": true,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 632,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 651,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 2053,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": true,
+    "cpu_ms": 59,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 751,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 2053,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": true,
+    "cpu_ms": 151,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 532,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 2053,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.replies.sync|d100|batched": {
+  "name": "outreach.replies.sync",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "note": "20 fake inbound messages",
+  "cpu_median": 22,
+  "cpu_worst": 26,
+  "wall_median": 494,
+  "queries": 8,
+  "rows": 413,
+  "outbound": 22,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 689,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 413,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 50,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 494,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 515,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 413,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 437,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 413,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "outreach.replies.sync|d25|batched": {
+  "name": "outreach.replies.sync",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "note": "20 fake inbound messages",
+  "cpu_median": 10,
+  "cpu_worst": 69,
+  "wall_median": 325,
+  "queries": 8,
+  "rows": 105,
+  "outbound": 22,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 796,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 105,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 305,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 585,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 105,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": true,
+    "cpu_ms": 69,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 325,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "outreach.replies.sync|d1500|batched": {
+  "name": "outreach.replies.sync",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "20 fake inbound messages",
+  "cpu_median": 73,
+  "cpu_worst": 160,
+  "wall_median": 645,
+  "queries": 8,
+  "rows": 6153,
+  "outbound": 22,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 835,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 6153,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 72,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 757,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 6153,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 160,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 645,
+    "bytes": 389,
+    "items": null,
+    "queries": 8,
+    "rows": 6153,
+    "outbound": {
+     "api.agentmail.to": 22
+    },
+    "cold": false,
+    "cpu_ms": 73,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 482,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "webhook-receive message.delivered|d500|batched": {
+  "name": "webhook-receive message.delivered",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 40,
+  "cpu_worst": 69,
+  "wall_median": 437,
+  "queries": 6,
+  "rows": 2001,
+  "outbound": 0,
+  "ok": true,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 776,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 437,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 2001,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 40,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 491,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 2001,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 69,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 2001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.delivered|d100|batched": {
+  "name": "webhook-receive message.delivered",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 10,
+  "cpu_worst": 29,
+  "wall_median": 516,
+  "queries": 6,
+  "rows": 401,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 663,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 401,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 495,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 555,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 401,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 516,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "webhook-receive message.delivered|d25|batched": {
+  "name": "webhook-receive message.delivered",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 17,
+  "cpu_worst": 20,
+  "wall_median": 368,
+  "queries": 6,
+  "rows": 101,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 2037,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 101,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 350,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 368,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 101,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 412,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 101,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.delivered|d1500|batched": {
+  "name": "webhook-receive message.delivered",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 63,
+  "cpu_worst": 124,
+  "wall_median": 514,
+  "queries": 6,
+  "rows": 6001,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1038,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 6001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 135,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 630,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 6001,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 124,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 479,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 6001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 58,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 514,
+    "bytes": 37,
+    "items": null,
+    "queries": 6,
+    "rows": 6001,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 63,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.bounced|d500|batched": {
+  "name": "webhook-receive message.bounced",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 25,
+  "cpu_worst": 27,
+  "wall_median": 561,
+  "queries": 7,
+  "rows": 2001,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 696,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 2001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 526,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 561,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 2001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 569,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 2001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.bounced|d100|batched": {
+  "name": "webhook-receive message.bounced",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 28,
+  "cpu_worst": 31,
+  "wall_median": 383,
+  "queries": 7,
+  "rows": 401,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1146,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 401,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 383,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 401,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 425,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 401,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 336,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "webhook-receive message.bounced|d25|batched": {
+  "name": "webhook-receive message.bounced",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 9,
+  "cpu_worst": 10,
+  "wall_median": 338,
+  "queries": 7,
+  "rows": 101,
+  "outbound": 0,
+  "ok": false,
+  "killed": 3,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 818,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 338,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 101,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 310,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 345,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "webhook-receive message.bounced|d1500|batched": {
+  "name": "webhook-receive message.bounced",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 100,
+  "cpu_worst": 102,
+  "wall_median": 717,
+  "queries": 7,
+  "rows": 6001,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1119,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 6001,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 112,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 708,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 6001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 100,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 732,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 6001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 102,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 717,
+    "bytes": 37,
+    "items": null,
+    "queries": 7,
+    "rows": 6001,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 94,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.received|d500|batched": {
+  "name": "webhook-receive message.received",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 52,
+  "cpu_worst": 93,
+  "wall_median": 462,
+  "queries": 12,
+  "rows": 2056,
+  "outbound": 1,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1034,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 2054,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": true,
+    "cpu_ms": 94,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 460,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 2055,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 462,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 2056,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 52,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 523,
+    "bytes": 37,
+    "items": null,
+    "queries": 9,
+    "rows": 2055,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 93,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.received|d100|batched": {
+  "name": "webhook-receive message.received",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 26,
+  "cpu_worst": 42,
+  "wall_median": 522,
+  "queries": 12,
+  "rows": 415,
+  "outbound": 1,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 904,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 414,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": true,
+    "cpu_ms": 36,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 494,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 641,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 415,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 42,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 37,
+    "items": null,
+    "queries": 9,
+    "rows": 414,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.received|d25|batched": {
+  "name": "webhook-receive message.received",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 8,
+  "cpu_worst": 29,
+  "wall_median": 384,
+  "queries": 12,
+  "rows": 108,
+  "outbound": 1,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 838,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 106,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 498,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 107,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": true,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 108,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 37,
+    "items": null,
+    "queries": 9,
+    "rows": 107,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "webhook-receive message.received|d1500|batched": {
+  "name": "webhook-receive message.received",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 56,
+  "cpu_worst": 82,
+  "wall_median": 630,
+  "queries": 12,
+  "rows": 6155,
+  "outbound": 1,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 902,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 6154,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 100,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 493,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 630,
+    "bytes": 37,
+    "items": null,
+    "queries": 12,
+    "rows": 6155,
+    "outbound": {
+     "api.agentmail.to": 1
+    },
+    "cold": false,
+    "cpu_ms": 56,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 758,
+    "bytes": 37,
+    "items": null,
+    "queries": 9,
+    "rows": 6154,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 82,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background draft (10 leads)|d100|batched": {
+  "name": "ai-background draft (10 leads)",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "note": "job drafts the 10 undrafted leads of cnew",
+  "cpu_median": 225,
+  "cpu_worst": 227,
+  "wall_median": 41677,
+  "queries": 102,
+  "rows": 209,
+  "outbound": 30,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 30288,
+    "bytes": 0,
+    "items": null,
+    "queries": 3,
+    "rows": 2,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41591,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 209,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 227,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41750,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 209,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 225,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41677,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 209,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 153,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background draft (10 leads)|d25|batched": {
+  "name": "ai-background draft (10 leads)",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "note": "job drafts the 10 undrafted leads of cnew",
+  "cpu_median": 153,
+  "cpu_worst": 176,
+  "wall_median": 41700,
+  "queries": 102,
+  "rows": 77,
+  "outbound": 30,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41801,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 77,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 149,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41536,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 77,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 153,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41778,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 77,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": true,
+    "cpu_ms": 113,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41700,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 77,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 176,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background draft (10 leads)|d1500|batched": {
+  "name": "ai-background draft (10 leads)",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "job drafts the 10 undrafted leads of cnew",
+  "cpu_median": 287,
+  "cpu_worst": 418,
+  "wall_median": 41601,
+  "queries": 102,
+  "rows": 2679,
+  "outbound": 30,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41666,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 2679,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": true,
+    "cpu_ms": 279,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41846,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 2679,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 418,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41592,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 2679,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": false,
+    "cpu_ms": 260,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 41601,
+    "bytes": 0,
+    "items": null,
+    "queries": 102,
+    "rows": 2679,
+    "outbound": {
+     "generativelanguage.googleapis.com": 30
+    },
+    "cold": true,
+    "cpu_ms": 287,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background review (3 drafts)|d500|batched": {
+  "name": "ai-background review (3 drafts)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 62,
+  "cpu_worst": 132,
+  "wall_median": 937,
+  "queries": 24,
+  "rows": 2505,
+  "outbound": 3,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 918,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 2505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 109,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 743,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 2505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 62,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 937,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 2505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 132,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 30448,
+    "bytes": 0,
+    "items": null,
+    "queries": 3,
+    "rows": 2,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background review (3 drafts)|d100|batched": {
+  "name": "ai-background review (3 drafts)",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 51,
+  "cpu_worst": 99,
+  "wall_median": 725,
+  "queries": 24,
+  "rows": 505,
+  "outbound": 3,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 612,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 34,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 715,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 35,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 806,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 99,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 725,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 51,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background review (3 drafts)|d25|batched": {
+  "name": "ai-background review (3 drafts)",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 40,
+  "cpu_worst": 49,
+  "wall_median": 622,
+  "queries": 24,
+  "rows": 130,
+  "outbound": 3,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 624,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 130,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 567,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 130,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 645,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 130,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 49,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 622,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 130,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 40,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background review (3 drafts)|d1500|batched": {
+  "name": "ai-background review (3 drafts)",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 194,
+  "cpu_worst": 364,
+  "wall_median": 880,
+  "queries": 24,
+  "rows": 7505,
+  "outbound": 3,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 30321,
+    "bytes": 0,
+    "items": null,
+    "queries": 3,
+    "rows": 2,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 784,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 7505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 185,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 1015,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 7505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": false,
+    "cpu_ms": 364,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 880,
+    "bytes": 0,
+    "items": null,
+    "queries": 24,
+    "rows": 7505,
+    "outbound": {
+     "generativelanguage.googleapis.com": 3
+    },
+    "cold": true,
+    "cpu_ms": 194,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social (3 leads)|d500|batched": {
+  "name": "ai-background social (3 leads)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 56,
+  "cpu_worst": 61,
+  "wall_median": 9646,
+  "queries": 27,
+  "rows": 93,
+  "outbound": 9,
+  "ok": true,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 424,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9646,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 93,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 56,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 30437,
+    "bytes": 0,
+    "items": null,
+    "queries": 3,
+    "rows": 2,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9642,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 93,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 61,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social (3 leads)|d100|batched": {
+  "name": "ai-background social (3 leads)",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 46,
+  "cpu_worst": 71,
+  "wall_median": 9547,
+  "queries": 27,
+  "rows": 33,
+  "outbound": 9,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9588,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 52,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9549,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 71,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9513,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": true,
+    "cpu_ms": 46,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9547,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social (3 leads)|d25|batched": {
+  "name": "ai-background social (3 leads)",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 55,
+  "cpu_worst": 77,
+  "wall_median": 9694,
+  "queries": 27,
+  "rows": 21,
+  "outbound": 9,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9664,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 70,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9726,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 77,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9550,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 55,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9694,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 45,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social (3 leads)|d1500|batched": {
+  "name": "ai-background social (3 leads)",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 47,
+  "cpu_worst": 56,
+  "wall_median": 9483,
+  "queries": 27,
+  "rows": 243,
+  "outbound": 9,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 30284,
+    "bytes": 0,
+    "items": null,
+    "queries": 3,
+    "rows": 2,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9469,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 38,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9483,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 47,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9531,
+    "bytes": 0,
+    "items": null,
+    "queries": 27,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": true,
+    "cpu_ms": 56,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social_batch (3 leads)|d500|batched": {
+  "name": "ai-background social_batch (3 leads)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 37,
+  "cpu_worst": 38,
+  "wall_median": 9595,
+  "queries": 31,
+  "rows": 93,
+  "outbound": 9,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9617,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 93,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": true,
+    "cpu_ms": 69,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9595,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 93,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 538,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9600,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 93,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 38,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social_batch (3 leads)|d100|batched": {
+  "name": "ai-background social_batch (3 leads)",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 34,
+  "cpu_worst": 63,
+  "wall_median": 9597,
+  "queries": 31,
+  "rows": 33,
+  "outbound": 9,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9553,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 78,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9627,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 34,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9597,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 63,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9517,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 33,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social_batch (3 leads)|d25|batched": {
+  "name": "ai-background social_batch (3 leads)",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 31,
+  "cpu_worst": 61,
+  "wall_median": 9629,
+  "queries": 31,
+  "rows": 21,
+  "outbound": 9,
+  "ok": true,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 459,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9696,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9606,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 61,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9629,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 21,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background social_batch (3 leads)|d1500|batched": {
+  "name": "ai-background social_batch (3 leads)",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 65,
+  "cpu_worst": 70,
+  "wall_median": 9608,
+  "queries": 31,
+  "rows": 243,
+  "outbound": 9,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9832,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 85,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9608,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 70,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9680,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 65,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 9590,
+    "bytes": 0,
+    "items": null,
+    "queries": 31,
+    "rows": 243,
+    "outbound": {
+     "generativelanguage.googleapis.com": 9
+    },
+    "cold": false,
+    "cpu_ms": 54,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background browsercheck (1 lead)|d500|batched": {
+  "name": "ai-background browsercheck (1 lead)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "fake Apify returns 100 KB pages",
+  "cpu_median": 169,
+  "cpu_worst": 173,
+  "wall_median": 7624,
+  "queries": 14,
+  "rows": 19,
+  "outbound": 7,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 30316,
+    "bytes": 0,
+    "items": null,
+    "queries": 3,
+    "rows": 2,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7624,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 169,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7496,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 82,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7669,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 173,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background browsercheck (1 lead)|d100|batched": {
+  "name": "ai-background browsercheck (1 lead)",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "note": "fake Apify returns 100 KB pages",
+  "cpu_median": 133,
+  "cpu_worst": 269,
+  "wall_median": 7681,
+  "queries": 14,
+  "rows": 19,
+  "outbound": 7,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7582,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 89,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7838,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 269,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 463,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 10,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7681,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 133,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background browsercheck (1 lead)|d25|batched": {
+  "name": "ai-background browsercheck (1 lead)",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "note": "fake Apify returns 100 KB pages",
+  "cpu_median": 165,
+  "cpu_worst": 166,
+  "wall_median": 7661,
+  "queries": 14,
+  "rows": 19,
+  "outbound": 7,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7673,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 199,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7651,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 166,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7661,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": true,
+    "cpu_ms": 118,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7679,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 165,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background browsercheck (1 lead)|d1500|batched": {
+  "name": "ai-background browsercheck (1 lead)",
+  "size": 1500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "fake Apify returns 100 KB pages",
+  "cpu_median": 81,
+  "cpu_worst": 118,
+  "wall_median": 7552,
+  "queries": 14,
+  "rows": 19,
+  "outbound": 7,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7639,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 150,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7552,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 118,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7563,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 81,
+    "outcome": "ok"
+   },
+   {
+    "status": 202,
+    "ok": true,
+    "wall_ms": 7452,
+    "bytes": 0,
+    "items": null,
+    "queries": 14,
+    "rows": 19,
+    "outbound": {
+     "api.apify.com": 6,
+     "generativelanguage.googleapis.com": 1
+    },
+    "cold": false,
+    "cpu_ms": 65,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "ai-background draft (10 leads)|d500|batched": {
+  "name": "ai-background draft (10 leads)",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "note": "job drafts the 10 undrafted leads of cnew",
+  "cpu_median": 9,
+  "cpu_worst": 9,
+  "wall_median": 19796,
+  "queries": 0,
+  "rows": 0,
+  "outbound": 0,
+  "ok": false,
+  "killed": 4,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 28779,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 24289,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 19796,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 7780,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,506 @@
+{
+ "d25": {
+  "records": 403,
+  "kb": 280,
+  "stores": {
+   "agent-hq-config": {
+    "records": 1,
+    "bytes": 86,
+    "avg_bytes": 86
+   },
+   "agent-hq-service-config": {
+    "records": 3,
+    "bytes": 224,
+    "avg_bytes": 75
+   },
+   "agent-hq-outreach-settings": {
+    "records": 2,
+    "bytes": 456,
+    "avg_bytes": 228
+   },
+   "agent-hq-outreach-contacts": {
+    "records": 20,
+    "bytes": 83,
+    "avg_bytes": 4
+   },
+   "agent-hq-voice-config": {
+    "records": 1,
+    "bytes": 81,
+    "avg_bytes": 81
+   },
+   "agent-hq-outreach-campaigns": {
+    "records": 3,
+    "bytes": 1010,
+    "avg_bytes": 337
+   },
+   "agent-hq-outreach-leads": {
+    "records": 38,
+    "bytes": 86300,
+    "avg_bytes": 2271
+   },
+   "agent-hq-outreach-emails": {
+    "records": 100,
+    "bytes": 75136,
+    "avg_bytes": 751
+   },
+   "agent-hq-outreach-social": {
+    "records": 5,
+    "bytes": 4672,
+    "avg_bytes": 934
+   },
+   "agent-hq-outreach-replies": {
+    "records": 2,
+    "bytes": 1342,
+    "avg_bytes": 671
+   },
+   "agent-hq-outreach-clicks": {
+    "records": 2,
+    "bytes": 296,
+    "avg_bytes": 148
+   },
+   "agent-hq-outreach-touches": {
+    "records": 1,
+    "bytes": 155,
+    "avg_bytes": 155
+   },
+   "agent-hq-outreach-followups": {
+    "records": 1,
+    "bytes": 111,
+    "avg_bytes": 111
+   },
+   "agent-hq-agents": {
+    "records": 20,
+    "bytes": 3293,
+    "avg_bytes": 165
+   },
+   "agent-hq-tasks": {
+    "records": 20,
+    "bytes": 3322,
+    "avg_bytes": 166
+   },
+   "agent-hq-voice-sessions": {
+    "records": 20,
+    "bytes": 8451,
+    "avg_bytes": 423
+   },
+   "agent-hq-voice-invitations": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-submissions": {
+    "records": 20,
+    "bytes": 1951,
+    "avg_bytes": 98
+   },
+   "agent-hq-webhook-events": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-activity": {
+    "records": 100,
+    "bytes": 12984,
+    "avg_bytes": 130
+   },
+   "agent-hq-forms": {
+    "records": 1,
+    "bytes": 169,
+    "avg_bytes": 169
+   },
+   "agent-hq-pages": {
+    "records": 1,
+    "bytes": 2193,
+    "avg_bytes": 2193
+   },
+   "agent-hq-webhooks": {
+    "records": 1,
+    "bytes": 133,
+    "avg_bytes": 133
+   },
+   "agent-hq-lead-screenshots": {
+    "records": 1,
+    "bytes": 80070,
+    "avg_bytes": 80070
+   }
+  }
+ },
+ "d100": {
+  "records": 873,
+  "kb": 696,
+  "stores": {
+   "agent-hq-config": {
+    "records": 1,
+    "bytes": 86,
+    "avg_bytes": 86
+   },
+   "agent-hq-service-config": {
+    "records": 3,
+    "bytes": 224,
+    "avg_bytes": 75
+   },
+   "agent-hq-outreach-settings": {
+    "records": 2,
+    "bytes": 456,
+    "avg_bytes": 228
+   },
+   "agent-hq-outreach-contacts": {
+    "records": 77,
+    "bytes": 254,
+    "avg_bytes": 3
+   },
+   "agent-hq-voice-config": {
+    "records": 1,
+    "bytes": 81,
+    "avg_bytes": 81
+   },
+   "agent-hq-outreach-campaigns": {
+    "records": 3,
+    "bytes": 1012,
+    "avg_bytes": 337
+   },
+   "agent-hq-outreach-leads": {
+    "records": 113,
+    "bytes": 264369,
+    "avg_bytes": 2340
+   },
+   "agent-hq-outreach-emails": {
+    "records": 400,
+    "bytes": 301536,
+    "avg_bytes": 754
+   },
+   "agent-hq-outreach-social": {
+    "records": 20,
+    "bytes": 18700,
+    "avg_bytes": 935
+   },
+   "agent-hq-outreach-replies": {
+    "records": 10,
+    "bytes": 6717,
+    "avg_bytes": 672
+   },
+   "agent-hq-outreach-clicks": {
+    "records": 10,
+    "bytes": 1483,
+    "avg_bytes": 148
+   },
+   "agent-hq-outreach-touches": {
+    "records": 5,
+    "bytes": 777,
+    "avg_bytes": 155
+   },
+   "agent-hq-outreach-followups": {
+    "records": 4,
+    "bytes": 445,
+    "avg_bytes": 111
+   },
+   "agent-hq-agents": {
+    "records": 20,
+    "bytes": 3293,
+    "avg_bytes": 165
+   },
+   "agent-hq-tasks": {
+    "records": 20,
+    "bytes": 3322,
+    "avg_bytes": 166
+   },
+   "agent-hq-voice-sessions": {
+    "records": 20,
+    "bytes": 8451,
+    "avg_bytes": 423
+   },
+   "agent-hq-voice-invitations": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-submissions": {
+    "records": 20,
+    "bytes": 1951,
+    "avg_bytes": 98
+   },
+   "agent-hq-webhook-events": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-activity": {
+    "records": 100,
+    "bytes": 12984,
+    "avg_bytes": 130
+   },
+   "agent-hq-forms": {
+    "records": 1,
+    "bytes": 169,
+    "avg_bytes": 169
+   },
+   "agent-hq-pages": {
+    "records": 1,
+    "bytes": 2193,
+    "avg_bytes": 2193
+   },
+   "agent-hq-webhooks": {
+    "records": 1,
+    "bytes": 133,
+    "avg_bytes": 133
+   },
+   "agent-hq-lead-screenshots": {
+    "records": 1,
+    "bytes": 80070,
+    "avg_bytes": 80070
+   }
+  }
+ },
+ "d500": {
+  "records": 3775,
+  "kb": 2981,
+  "stores": {
+   "agent-hq-config": {
+    "records": 1,
+    "bytes": 86,
+    "avg_bytes": 86
+   },
+   "agent-hq-service-config": {
+    "records": 3,
+    "bytes": 224,
+    "avg_bytes": 75
+   },
+   "agent-hq-outreach-settings": {
+    "records": 2,
+    "bytes": 456,
+    "avg_bytes": 228
+   },
+   "agent-hq-outreach-contacts": {
+    "records": 383,
+    "bytes": 1172,
+    "avg_bytes": 3
+   },
+   "agent-hq-voice-config": {
+    "records": 1,
+    "bytes": 81,
+    "avg_bytes": 81
+   },
+   "agent-hq-outreach-campaigns": {
+    "records": 3,
+    "bytes": 1012,
+    "avg_bytes": 337
+   },
+   "agent-hq-outreach-leads": {
+    "records": 513,
+    "bytes": 1219262,
+    "avg_bytes": 2377
+   },
+   "agent-hq-outreach-emails": {
+    "records": 2000,
+    "bytes": 1519290,
+    "avg_bytes": 760
+   },
+   "agent-hq-outreach-social": {
+    "records": 100,
+    "bytes": 93740,
+    "avg_bytes": 937
+   },
+   "agent-hq-outreach-replies": {
+    "records": 50,
+    "bytes": 33837,
+    "avg_bytes": 677
+   },
+   "agent-hq-outreach-clicks": {
+    "records": 50,
+    "bytes": 7523,
+    "avg_bytes": 150
+   },
+   "agent-hq-outreach-touches": {
+    "records": 25,
+    "bytes": 3917,
+    "avg_bytes": 157
+   },
+   "agent-hq-outreach-followups": {
+    "records": 20,
+    "bytes": 2237,
+    "avg_bytes": 112
+   },
+   "agent-hq-agents": {
+    "records": 20,
+    "bytes": 3293,
+    "avg_bytes": 165
+   },
+   "agent-hq-tasks": {
+    "records": 20,
+    "bytes": 3322,
+    "avg_bytes": 166
+   },
+   "agent-hq-voice-sessions": {
+    "records": 20,
+    "bytes": 8451,
+    "avg_bytes": 423
+   },
+   "agent-hq-voice-invitations": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-submissions": {
+    "records": 20,
+    "bytes": 1951,
+    "avg_bytes": 98
+   },
+   "agent-hq-webhook-events": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-activity": {
+    "records": 500,
+    "bytes": 65784,
+    "avg_bytes": 132
+   },
+   "agent-hq-forms": {
+    "records": 1,
+    "bytes": 169,
+    "avg_bytes": 169
+   },
+   "agent-hq-pages": {
+    "records": 1,
+    "bytes": 2193,
+    "avg_bytes": 2193
+   },
+   "agent-hq-webhooks": {
+    "records": 1,
+    "bytes": 133,
+    "avg_bytes": 133
+   },
+   "agent-hq-lead-screenshots": {
+    "records": 1,
+    "bytes": 80070,
+    "avg_bytes": 80070
+   }
+  }
+ },
+ "d1500": {
+  "records": 11029,
+  "kb": 8714,
+  "stores": {
+   "agent-hq-config": {
+    "records": 1,
+    "bytes": 86,
+    "avg_bytes": 86
+   },
+   "agent-hq-service-config": {
+    "records": 3,
+    "bytes": 224,
+    "avg_bytes": 75
+   },
+   "agent-hq-outreach-settings": {
+    "records": 2,
+    "bytes": 456,
+    "avg_bytes": 228
+   },
+   "agent-hq-outreach-contacts": {
+    "records": 1147,
+    "bytes": 3464,
+    "avg_bytes": 3
+   },
+   "agent-hq-voice-config": {
+    "records": 1,
+    "bytes": 81,
+    "avg_bytes": 81
+   },
+   "agent-hq-outreach-campaigns": {
+    "records": 3,
+    "bytes": 1014,
+    "avg_bytes": 338
+   },
+   "agent-hq-outreach-leads": {
+    "records": 1513,
+    "bytes": 3612768,
+    "avg_bytes": 2388
+   },
+   "agent-hq-outreach-emails": {
+    "records": 6000,
+    "bytes": 4577064,
+    "avg_bytes": 763
+   },
+   "agent-hq-outreach-social": {
+    "records": 300,
+    "bytes": 281643,
+    "avg_bytes": 939
+   },
+   "agent-hq-outreach-replies": {
+    "records": 150,
+    "bytes": 101994,
+    "avg_bytes": 680
+   },
+   "agent-hq-outreach-clicks": {
+    "records": 150,
+    "bytes": 22776,
+    "avg_bytes": 152
+   },
+   "agent-hq-outreach-touches": {
+    "records": 75,
+    "bytes": 11819,
+    "avg_bytes": 158
+   },
+   "agent-hq-outreach-followups": {
+    "records": 60,
+    "bytes": 6738,
+    "avg_bytes": 112
+   },
+   "agent-hq-agents": {
+    "records": 20,
+    "bytes": 3293,
+    "avg_bytes": 165
+   },
+   "agent-hq-tasks": {
+    "records": 20,
+    "bytes": 3322,
+    "avg_bytes": 166
+   },
+   "agent-hq-voice-sessions": {
+    "records": 20,
+    "bytes": 8451,
+    "avg_bytes": 423
+   },
+   "agent-hq-voice-invitations": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-submissions": {
+    "records": 20,
+    "bytes": 1951,
+    "avg_bytes": 98
+   },
+   "agent-hq-webhook-events": {
+    "records": 20,
+    "bytes": 2151,
+    "avg_bytes": 108
+   },
+   "agent-hq-activity": {
+    "records": 1500,
+    "bytes": 198786,
+    "avg_bytes": 133
+   },
+   "agent-hq-forms": {
+    "records": 1,
+    "bytes": 169,
+    "avg_bytes": 169
+   },
+   "agent-hq-pages": {
+    "records": 1,
+    "bytes": 2193,
+    "avg_bytes": 2193
+   },
+   "agent-hq-webhooks": {
+    "records": 1,
+    "bytes": 133,
+    "avg_bytes": 133
+   },
+   "agent-hq-lead-screenshots": {
+    "records": 1,
+    "bytes": 80070,
+    "avg_bytes": 80070
+   }
+  }
+ }
+}

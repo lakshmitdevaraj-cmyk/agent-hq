@@ -1,0 +1,462 @@
+{
+ "machine": "Mac, Node v26.8.1",
+ "note": "process CPU time, 3 calls, handlers only",
+ "results": [
+  {
+   "name": "outreach.campaign.get",
+   "size": 25,
+   "mac_cpu_ms_median": 13.2,
+   "mac_cpu_ms_worst": 58.9,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "outreach.campaign.get",
+   "size": 100,
+   "mac_cpu_ms_median": 14.2,
+   "mac_cpu_ms_worst": 32.4,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "outreach.campaign.get",
+   "size": 500,
+   "mac_cpu_ms_median": 60.6,
+   "mac_cpu_ms_worst": 65.4,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "outreach.campaign.get",
+   "size": 1500,
+   "mac_cpu_ms_median": 109.7,
+   "mac_cpu_ms_worst": 147.3,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "outreach.campaign.list",
+   "size": 25,
+   "mac_cpu_ms_median": 6.8,
+   "mac_cpu_ms_worst": 20.8,
+   "status": 200,
+   "queries": 14
+  },
+  {
+   "name": "outreach.campaign.list",
+   "size": 100,
+   "mac_cpu_ms_median": 14.3,
+   "mac_cpu_ms_worst": 14.3,
+   "status": 200,
+   "queries": 14
+  },
+  {
+   "name": "outreach.campaign.list",
+   "size": 500,
+   "mac_cpu_ms_median": 40.2,
+   "mac_cpu_ms_worst": 52.9,
+   "status": 200,
+   "queries": 14
+  },
+  {
+   "name": "outreach.campaign.list",
+   "size": 1500,
+   "mac_cpu_ms_median": 96.3,
+   "mac_cpu_ms_worst": 115.6,
+   "status": 200,
+   "queries": 14
+  },
+  {
+   "name": "outreach.leads.list",
+   "size": 25,
+   "mac_cpu_ms_median": 7.5,
+   "mac_cpu_ms_worst": 26.2,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.leads.list",
+   "size": 100,
+   "mac_cpu_ms_median": 14.6,
+   "mac_cpu_ms_worst": 14.7,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.leads.list",
+   "size": 500,
+   "mac_cpu_ms_median": 37.5,
+   "mac_cpu_ms_worst": 50.3,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.leads.list",
+   "size": 1500,
+   "mac_cpu_ms_median": 97.2,
+   "mac_cpu_ms_worst": 106.7,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.emails.list",
+   "size": 25,
+   "mac_cpu_ms_median": 5.9,
+   "mac_cpu_ms_worst": 7.2,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.emails.list",
+   "size": 100,
+   "mac_cpu_ms_median": 12.5,
+   "mac_cpu_ms_worst": 15.2,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.emails.list",
+   "size": 500,
+   "mac_cpu_ms_median": 38.6,
+   "mac_cpu_ms_worst": 51,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.emails.list",
+   "size": 1500,
+   "mac_cpu_ms_median": 125.9,
+   "mac_cpu_ms_worst": 133,
+   "status": 200,
+   "queries": 5
+  },
+  {
+   "name": "outreach.prospects.list",
+   "size": 25,
+   "mac_cpu_ms_median": 12.6,
+   "mac_cpu_ms_worst": 37.3,
+   "status": 200,
+   "queries": 7
+  },
+  {
+   "name": "outreach.prospects.list",
+   "size": 100,
+   "mac_cpu_ms_median": 21.5,
+   "mac_cpu_ms_worst": 63,
+   "status": 200,
+   "queries": 7
+  },
+  {
+   "name": "outreach.prospects.list",
+   "size": 500,
+   "mac_cpu_ms_median": 59.2,
+   "mac_cpu_ms_worst": 69,
+   "status": 200,
+   "queries": 7
+  },
+  {
+   "name": "outreach.prospects.list",
+   "size": 1500,
+   "mac_cpu_ms_median": 172.9,
+   "mac_cpu_ms_worst": 182.2,
+   "status": 200,
+   "queries": 7
+  },
+  {
+   "name": "followups.list",
+   "size": 25,
+   "mac_cpu_ms_median": 8.8,
+   "mac_cpu_ms_worst": 27.2,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "followups.list",
+   "size": 100,
+   "mac_cpu_ms_median": 14.9,
+   "mac_cpu_ms_worst": 25.7,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "followups.list",
+   "size": 500,
+   "mac_cpu_ms_median": 50.4,
+   "mac_cpu_ms_worst": 56.5,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "followups.list",
+   "size": 1500,
+   "mac_cpu_ms_median": 145.4,
+   "mac_cpu_ms_worst": 158.5,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "outreach.analytics.summary",
+   "size": 25,
+   "mac_cpu_ms_median": 5.2,
+   "mac_cpu_ms_worst": 6.1,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "outreach.analytics.summary",
+   "size": 100,
+   "mac_cpu_ms_median": 10.2,
+   "mac_cpu_ms_worst": 14.1,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "outreach.analytics.summary",
+   "size": 500,
+   "mac_cpu_ms_median": 24.6,
+   "mac_cpu_ms_worst": 25.6,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "outreach.analytics.summary",
+   "size": 1500,
+   "mac_cpu_ms_median": 85.3,
+   "mac_cpu_ms_worst": 87.8,
+   "status": 200,
+   "queries": 8
+  },
+  {
+   "name": "outreach.send.today",
+   "size": 25,
+   "mac_cpu_ms_median": 9.3,
+   "mac_cpu_ms_worst": 9.3,
+   "status": 200,
+   "queries": 4
+  },
+  {
+   "name": "outreach.send.today",
+   "size": 100,
+   "mac_cpu_ms_median": 17.7,
+   "mac_cpu_ms_worst": 18.3,
+   "status": 200,
+   "queries": 4
+  },
+  {
+   "name": "outreach.send.today",
+   "size": 500,
+   "mac_cpu_ms_median": 79.2,
+   "mac_cpu_ms_worst": 90.2,
+   "status": 200,
+   "queries": 4
+  },
+  {
+   "name": "outreach.send.today",
+   "size": 1500,
+   "mac_cpu_ms_median": 167.5,
+   "mac_cpu_ms_worst": 172.9,
+   "status": 200,
+   "queries": 4
+  },
+  {
+   "name": "data.counts",
+   "size": 25,
+   "mac_cpu_ms_median": 15.7,
+   "mac_cpu_ms_worst": 28.7,
+   "status": 200,
+   "queries": 20
+  },
+  {
+   "name": "data.counts",
+   "size": 100,
+   "mac_cpu_ms_median": 17.8,
+   "mac_cpu_ms_worst": 20,
+   "status": 200,
+   "queries": 20
+  },
+  {
+   "name": "data.counts",
+   "size": 500,
+   "mac_cpu_ms_median": 41.7,
+   "mac_cpu_ms_worst": 49.3,
+   "status": 200,
+   "queries": 20
+  },
+  {
+   "name": "data.counts",
+   "size": 1500,
+   "mac_cpu_ms_median": 115,
+   "mac_cpu_ms_worst": 117.9,
+   "status": 200,
+   "queries": 20
+  },
+  {
+   "name": "data.export",
+   "size": 25,
+   "mac_cpu_ms_median": 1.9,
+   "mac_cpu_ms_worst": 3,
+   "status": 200,
+   "queries": 2
+  },
+  {
+   "name": "data.export",
+   "size": 100,
+   "mac_cpu_ms_median": 4.3,
+   "mac_cpu_ms_worst": 5.3,
+   "status": 200,
+   "queries": 2
+  },
+  {
+   "name": "data.export",
+   "size": 500,
+   "mac_cpu_ms_median": 15.9,
+   "mac_cpu_ms_worst": 19.2,
+   "status": 200,
+   "queries": 2
+  },
+  {
+   "name": "data.export",
+   "size": 1500,
+   "mac_cpu_ms_median": 41,
+   "mac_cpu_ms_worst": 53.4,
+   "status": 200,
+   "queries": 2
+  },
+  {
+   "name": "data.import",
+   "size": 25,
+   "mac_cpu_ms_median": 63.3,
+   "mac_cpu_ms_worst": 67.8,
+   "status": 200,
+   "queries": 101
+  },
+  {
+   "name": "data.import",
+   "size": 100,
+   "mac_cpu_ms_median": 64.6,
+   "mac_cpu_ms_worst": 99.3,
+   "status": 200,
+   "queries": 101
+  },
+  {
+   "name": "outreach.leads.check_site",
+   "size": 25,
+   "mac_cpu_ms_median": 129.7,
+   "mac_cpu_ms_worst": 164.9,
+   "status": 200,
+   "queries": 7
+  },
+  {
+   "name": "track-click GET /t/:token",
+   "size": 25,
+   "mac_cpu_ms_median": 8.1,
+   "mac_cpu_ms_worst": 9.3,
+   "status": 302,
+   "queries": 6
+  },
+  {
+   "name": "track-click GET /t/:token",
+   "size": 100,
+   "mac_cpu_ms_median": 12.5,
+   "mac_cpu_ms_worst": 16.1,
+   "status": 302,
+   "queries": 6
+  },
+  {
+   "name": "track-click GET /t/:token",
+   "size": 500,
+   "mac_cpu_ms_median": 30.2,
+   "mac_cpu_ms_worst": 44.3,
+   "status": 302,
+   "queries": 6
+  },
+  {
+   "name": "track-click GET /t/:token",
+   "size": 1500,
+   "mac_cpu_ms_median": 72.9,
+   "mac_cpu_ms_worst": 87.7,
+   "status": 302,
+   "queries": 6
+  },
+  {
+   "name": "webhook-receive message.delivered",
+   "size": 25,
+   "mac_cpu_ms_median": 5.2,
+   "mac_cpu_ms_worst": 6.4,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "webhook-receive message.delivered",
+   "size": 100,
+   "mac_cpu_ms_median": 7,
+   "mac_cpu_ms_worst": 7.6,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "webhook-receive message.delivered",
+   "size": 500,
+   "mac_cpu_ms_median": 18.1,
+   "mac_cpu_ms_worst": 19.6,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "webhook-receive message.delivered",
+   "size": 1500,
+   "mac_cpu_ms_median": 44.6,
+   "mac_cpu_ms_worst": 55.6,
+   "status": 200,
+   "queries": 6
+  },
+  {
+   "name": "webhook-receive message.received",
+   "size": 25,
+   "mac_cpu_ms_median": 10.9,
+   "mac_cpu_ms_worst": 13.3,
+   "status": 200,
+   "queries": 12
+  },
+  {
+   "name": "webhook-receive message.received",
+   "size": 100,
+   "mac_cpu_ms_median": 15.1,
+   "mac_cpu_ms_worst": 23.9,
+   "status": 200,
+   "queries": 12
+  },
+  {
+   "name": "webhook-receive message.received",
+   "size": 500,
+   "mac_cpu_ms_median": 30.6,
+   "mac_cpu_ms_worst": 44.6,
+   "status": 200,
+   "queries": 12
+  },
+  {
+   "name": "webhook-receive message.received",
+   "size": 1500,
+   "mac_cpu_ms_median": 41.7,
+   "mac_cpu_ms_worst": 48.5,
+   "status": 200,
+   "queries": 12
+  },
+  {
+   "name": "outreach.leads.check_site (300 KB pages)",
+   "size": 25,
+   "mac_cpu_ms_median": 206.5,
+   "mac_cpu_ms_worst": 215.9,
+   "status": 200,
+   "queries": 7
+  },
+  {
+   "name": "outreach.leads.check_site (1 MB pages)",
+   "size": 25,
+   "mac_cpu_ms_median": 379.6,
+   "mac_cpu_ms_worst": 380.4,
+   "status": 200,
+   "queries": 7
+  }
+ ]
+}

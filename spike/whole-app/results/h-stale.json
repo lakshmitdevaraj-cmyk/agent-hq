@@ -1,0 +1,530 @@
+{
+ "re-check old drafts: outreach.emails.list|d25|batched": {
+  "name": "re-check old drafts: outreach.emails.list",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 130,
+  "cpu_worst": 138,
+  "wall_median": 1278,
+  "queries": 144,
+  "rows": 166,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1923,
+    "bytes": 112585,
+    "items": 100,
+    "queries": 144,
+    "rows": 166,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 277,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1094,
+    "bytes": 112585,
+    "items": 100,
+    "queries": 144,
+    "rows": 166,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 130,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1401,
+    "bytes": 112585,
+    "items": 100,
+    "queries": 144,
+    "rows": 166,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 126,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1278,
+    "bytes": 112585,
+    "items": 100,
+    "queries": 144,
+    "rows": 166,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 138,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "re-check old drafts: outreach.emails.list|d100|batched": {
+  "name": "re-check old drafts: outreach.emails.list",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 1435,
+  "cpu_worst": 1488,
+  "wall_median": 6008,
+  "queries": 556,
+  "rows": 613,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 6638,
+    "bytes": 450907,
+    "items": 400,
+    "queries": 556,
+    "rows": 613,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 1121,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 6008,
+    "bytes": 450907,
+    "items": 400,
+    "queries": 556,
+    "rows": 613,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 1435,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 5585,
+    "bytes": 450907,
+    "items": 400,
+    "queries": 556,
+    "rows": 613,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 677,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 7386,
+    "bytes": 450907,
+    "items": 400,
+    "queries": 556,
+    "rows": 613,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 1488,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "re-check old drafts: outreach.emails.list|d500|batched": {
+  "name": "re-check old drafts: outreach.emails.list",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 1944,
+  "cpu_worst": 1944,
+  "wall_median": 4141,
+  "queries": 0,
+  "rows": 0,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 851,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 11,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 4141,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 1944,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "re-check old drafts: followups.list|d25|batched": {
+  "name": "re-check old drafts: followups.list",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 144,
+  "cpu_worst": 287,
+  "wall_median": 1400,
+  "queries": 142,
+  "rows": 251,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 2349,
+    "bytes": 14935,
+    "items": 24,
+    "queries": 142,
+    "rows": 251,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 307,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1234,
+    "bytes": 14934,
+    "items": 24,
+    "queries": 142,
+    "rows": 251,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 122,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1688,
+    "bytes": 14935,
+    "items": 24,
+    "queries": 142,
+    "rows": 251,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 287,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1400,
+    "bytes": 14935,
+    "items": 24,
+    "queries": 142,
+    "rows": 251,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 144,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "re-check old drafts: followups.list|d100|batched": {
+  "name": "re-check old drafts: followups.list",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 832,
+  "cpu_worst": 860,
+  "wall_median": 4030,
+  "queries": 539,
+  "rows": 952,
+  "outbound": 0,
+  "ok": false,
+  "killed": 1,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 5947,
+    "bytes": 56909,
+    "items": 92,
+    "queries": 539,
+    "rows": 952,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 1564,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 5132,
+    "bytes": 56909,
+    "items": 92,
+    "queries": 539,
+    "rows": 952,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 860,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 2510,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 456,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 4030,
+    "bytes": 56909,
+    "items": 92,
+    "queries": 539,
+    "rows": 952,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 832,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "re-check old drafts: followups.list|d500|batched": {
+  "name": "re-check old drafts: followups.list",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 9,
+  "cpu_worst": 9,
+  "wall_median": 331,
+  "queries": 0,
+  "rows": 0,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 2876,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 836,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 331,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ },
+ "re-check old drafts: outreach.prospects.list|d25|batched": {
+  "name": "re-check old drafts: outreach.prospects.list",
+  "size": 25,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 132,
+  "cpu_worst": 187,
+  "wall_median": 1299,
+  "queries": 142,
+  "rows": 251,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 945,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 9,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit.",
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1299,
+    "bytes": 85186,
+    "items": 38,
+    "queries": 142,
+    "rows": 251,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 131,
+    "outcome": "ok"
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 1218,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 187,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1323,
+    "bytes": 85186,
+    "items": 38,
+    "queries": 142,
+    "rows": 251,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 132,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "re-check old drafts: outreach.prospects.list|d100|batched": {
+  "name": "re-check old drafts: outreach.prospects.list",
+  "size": 100,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 755,
+  "cpu_worst": 856,
+  "wall_median": 4389,
+  "queries": 539,
+  "rows": 953,
+  "outbound": 0,
+  "ok": true,
+  "killed": 0,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 4616,
+    "bytes": 261751,
+    "items": 113,
+    "queries": 539,
+    "rows": 953,
+    "outbound": {},
+    "cold": false,
+    "cpu_ms": 725,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 4489,
+    "bytes": 261751,
+    "items": 113,
+    "queries": 539,
+    "rows": 953,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 856,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 4389,
+    "bytes": 261751,
+    "items": 113,
+    "queries": 539,
+    "rows": 953,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 755,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 3979,
+    "bytes": 261751,
+    "items": 113,
+    "queries": 539,
+    "rows": 953,
+    "outbound": {},
+    "cold": true,
+    "cpu_ms": 716,
+    "outcome": "ok"
+   }
+  ]
+ },
+ "re-check old drafts: outreach.prospects.list|d500|batched": {
+  "name": "re-check old drafts: outreach.prospects.list",
+  "size": 500,
+  "mode": "batched",
+  "kind": "write",
+  "cpu_median": 112,
+  "cpu_worst": 112,
+  "wall_median": 644,
+  "queries": 0,
+  "rows": 0,
+  "outbound": 0,
+  "ok": false,
+  "killed": 2,
+  "calls": [
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 5657,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 2010,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   },
+   {
+    "status": 503,
+    "ok": false,
+    "wall_ms": 644,
+    "bytes": 0,
+    "items": null,
+    "cpu_ms": 112,
+    "outcome": "exceededCpu",
+    "errors": [
+     "Worker exceeded CPU time limit."
+    ]
+   }
+  ]
+ }
+}

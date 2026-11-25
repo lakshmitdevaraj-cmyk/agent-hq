@@ -1,0 +1,70 @@
+{
+ "at": "2026-11-25T11:30:04.513Z",
+ "runs": [
+  {
+   "asked_s": 30,
+   "start_status": 200,
+   "status": "complete",
+   "step": {
+    "http_status": 200,
+    "wall_ms": 30181,
+    "answer": "{\"asked_s\":30,\"waited_ms\":30000}"
+   },
+   "error": null
+  },
+  {
+   "asked_s": 45,
+   "start_status": 200,
+   "status": "complete",
+   "step": {
+    "http_status": 200,
+    "wall_ms": 45047,
+    "answer": "{\"asked_s\":45,\"waited_ms\":45000}"
+   },
+   "error": null
+  },
+  {
+   "asked_s": 60,
+   "start_status": 200,
+   "status": "complete",
+   "step": {
+    "http_status": 200,
+    "wall_ms": 60016,
+    "answer": "{\"asked_s\":60,\"waited_ms\":60000}"
+   },
+   "error": null
+  }
+ ],
+ "tail_records": [
+  {
+   "kind": "/slow request",
+   "cpu_ms": 0,
+   "wall_ms": 30000,
+   "outcome": "ok"
+  },
+  {
+   "kind": "/slow request",
+   "cpu_ms": 0,
+   "wall_ms": 44999,
+   "outcome": "ok"
+  },
+  {
+   "kind": "entrypoint WaitWorkflow",
+   "cpu_ms": 1,
+   "wall_ms": 105798,
+   "outcome": "canceled"
+  },
+  {
+   "kind": "/slow request",
+   "cpu_ms": 0,
+   "wall_ms": 60000,
+   "outcome": "ok"
+  },
+  {
+   "kind": "entrypoint WaitWorkflow",
+   "cpu_ms": 1,
+   "wall_ms": 122315,
+   "outcome": "canceled"
+  }
+ ]
+}

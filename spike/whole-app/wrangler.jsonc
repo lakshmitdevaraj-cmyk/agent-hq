@@ -1,0 +1,19 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "alcance-whole-app",
+  "main": "src/adapter.ts",
+  "compatibility_date": "2026-11-01",
+  // global_fetch_strictly_public: lets a Workflow call this Worker's own workers.dev address as a real network request (test I).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "placement": { "region": "aws:us-east-1" },
+  // Production code stays untouched: its two imports that cannot be used here are swapped at build time.
+  "alias": {
+    "@netlify/blobs": "./src/blobs-shim.ts",
+    "node:https": "./src/https-stub.ts"
+  },
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4d49b78d04ad40bebf069bf5c505a050" }],
+  "workflows": [{ "name": "alcance-whole-app-wf", "binding": "WF", "class_name": "WaitWorkflow" }]
+}

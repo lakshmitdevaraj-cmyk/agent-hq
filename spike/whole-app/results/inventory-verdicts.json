@@ -1,0 +1,5942 @@
+[
+ {
+  "name": "auth.bootstrap",
+  "verdict": "Fits Worker",
+  "why": "only the closed (already set up) path",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 1,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 1,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "auth.rotate",
+  "verdict": "Fits Worker",
+  "why": "only the refusal path; a real rotation would break the test key",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 2,
+   "worst": 3,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 1,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 2,
+    "worst": 3,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 1,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "data.counts",
+  "verdict": "Needs rewrite",
+  "why": "inflated by the test shim (values loaded just to count); SQL count not measured",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 82,
+   "worst": 107,
+   "cut": 0,
+   "of": 4,
+   "rows": 3368,
+   "queries": 20,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 29,
+    "worst": 33,
+    "cut": 0,
+    "of": 4,
+    "rows": 367,
+    "queries": 20,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 22,
+    "worst": 29,
+    "cut": 0,
+    "of": 4,
+    "rows": 780,
+    "queries": 20,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 82,
+    "worst": 107,
+    "cut": 0,
+    "of": 4,
+    "rows": 3368,
+    "queries": 20,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 144,
+    "worst": 189,
+    "cut": 0,
+    "of": 4,
+    "rows": 9862,
+    "queries": 20,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 15.7,
+   "100": 17.8,
+   "500": 41.7,
+   "1500": 115
+  }
+ },
+ {
+  "name": "data.export",
+  "verdict": "Needs rewrite",
+  "why": "inflated by the test shim, which loads all values when only keys are asked for; a keys-only query is not measured",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 38,
+   "worst": 43,
+   "cut": 0,
+   "of": 4,
+   "rows": 2001,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 9,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 13,
+    "worst": 21,
+    "cut": 0,
+    "of": 4,
+    "rows": 401,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 38,
+    "worst": 43,
+    "cut": 0,
+    "of": 4,
+    "rows": 2001,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 75,
+    "worst": 97,
+    "cut": 0,
+    "of": 4,
+    "rows": 6001,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 1.9,
+   "100": 4.3,
+   "500": 15.9,
+   "1500": 41
+  }
+ },
+ {
+  "name": "data.import",
+  "verdict": "Needs chunking",
+  "why": "one query per record: bulk insert, or fewer per call",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 35,
+   "worst": 60,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 101,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 60,
+    "worst": 72,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 101,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 64,
+    "worst": 73,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 101,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 35,
+    "worst": 60,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 101,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 36,
+    "worst": 60,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 101,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 63.3,
+   "100": 64.6
+  }
+ },
+ {
+  "name": "agent.register",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 5,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "agent.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "agent.heartbeat",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "agent.delete",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "task.create",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 8,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 8,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "task.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "task.move",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 5,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "task.delete",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "activity.log",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "activity.list",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 12,
+   "worst": 15,
+   "cut": 0,
+   "of": 8,
+   "rows": 501,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": 1500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 4,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 14,
+    "cut": 0,
+    "of": 4,
+    "rows": 501,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 12,
+    "worst": 13,
+    "cut": 0,
+    "of": 4,
+    "rows": 1501,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "form.create",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 8,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 8,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "form.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "form.submissions",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook.create",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 2,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 2,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook.events",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.config.check",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.config.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 3,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 3,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.config.set",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.config.clear",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "config.status",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 5,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 5,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 4,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 5,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "config.set",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 1
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "config.test",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 10,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 3,
+   "outbound": 1
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "config.clear",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.session.save",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.session.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.session.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.session.delete",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 20,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 20,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.invitation.create",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 8,
+   "worst": 14,
+   "cut": 0,
+   "of": 8,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 11,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.invitation.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 21,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.invitation.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 3,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 3,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.invitation.dismiss",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 8,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "voice.invitation.accept",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "page.create",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "page.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "page.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 2,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 2,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "page.update",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "page.delete",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.preview",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 3,
+   "queries": 4,
+   "outbound": 1
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 4,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 3,
+    "median": 5,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 4,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.preview.start",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.preview.result",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.write",
+  "verdict": "Needs chunking",
+  "why": "plans several leads in one request",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 20,
+   "worst": 24,
+   "cut": 0,
+   "of": 4,
+   "rows": 91,
+   "queries": 10,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 11,
+    "worst": 13,
+    "cut": 0,
+    "of": 4,
+    "rows": 19,
+    "queries": 10,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 25,
+    "worst": 36,
+    "cut": 0,
+    "of": 4,
+    "rows": 31,
+    "queries": 10,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 20,
+    "worst": 24,
+    "cut": 0,
+    "of": 4,
+    "rows": 91,
+    "queries": 10,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 27,
+    "worst": 28,
+    "cut": 0,
+    "of": 4,
+    "rows": 241,
+    "queries": 10,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 8,
+   "worst": 10,
+   "cut": 0,
+   "of": 8,
+   "rows": 101,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": 1500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 5,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 6,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 7,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 11,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 14,
+    "worst": 14,
+    "cut": 0,
+    "of": 4,
+    "rows": 301,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.update",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 63,
+   "worst": 76,
+   "cut": 0,
+   "of": 4,
+   "rows": 2003,
+   "queries": 7,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 12,
+    "worst": 17,
+    "cut": 0,
+    "of": 4,
+    "rows": 103,
+    "queries": 7,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 16,
+    "worst": 24,
+    "cut": 0,
+    "of": 4,
+    "rows": 403,
+    "queries": 7,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 63,
+    "worst": 76,
+    "cut": 0,
+    "of": 4,
+    "rows": 2003,
+    "queries": 7,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 96,
+    "worst": 159,
+    "cut": 0,
+    "of": 4,
+    "rows": 6003,
+    "queries": 7,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.verify",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 43,
+   "worst": 48,
+   "cut": 0,
+   "of": 4,
+   "rows": 2003,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 13,
+    "worst": 20,
+    "cut": 0,
+    "of": 4,
+    "rows": 103,
+    "queries": 6,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 18,
+    "worst": 19,
+    "cut": 0,
+    "of": 4,
+    "rows": 403,
+    "queries": 6,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 43,
+    "worst": 48,
+    "cut": 0,
+    "of": 4,
+    "rows": 2003,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 134,
+    "worst": 145,
+    "cut": 0,
+    "of": 4,
+    "rows": 6003,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.mark_sent",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 64,
+   "worst": 113,
+   "cut": 0,
+   "of": 4,
+   "rows": 2055,
+   "queries": 12,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 21,
+    "worst": 23,
+    "cut": 0,
+    "of": 4,
+    "rows": 107,
+    "queries": 12,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 38,
+    "worst": 44,
+    "cut": 0,
+    "of": 4,
+    "rows": 415,
+    "queries": 12,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 64,
+    "worst": 113,
+    "cut": 0,
+    "of": 4,
+    "rows": 2055,
+    "queries": 12,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 137,
+    "worst": 218,
+    "cut": 0,
+    "of": 4,
+    "rows": 6155,
+    "queries": 12,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.record_hand",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 53,
+   "worst": 56,
+   "cut": 0,
+   "of": 4,
+   "rows": 2051,
+   "queries": 7,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 13,
+    "worst": 17,
+    "cut": 0,
+    "of": 4,
+    "rows": 103,
+    "queries": 7,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 27,
+    "worst": 28,
+    "cut": 0,
+    "of": 4,
+    "rows": 411,
+    "queries": 7,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 53,
+    "worst": 56,
+    "cut": 0,
+    "of": 4,
+    "rows": 2051,
+    "queries": 7,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 143,
+    "worst": 212,
+    "cut": 0,
+    "of": 4,
+    "rows": 6151,
+    "queries": 7,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.touch.delete",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 34,
+   "worst": 54,
+   "cut": 0,
+   "of": 4,
+   "rows": 2053,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 0,
+    "median": null,
+    "worst": null,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 14,
+    "worst": 66,
+    "cut": 0,
+    "of": 4,
+    "rows": 413,
+    "queries": 6,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 34,
+    "worst": 54,
+    "cut": 0,
+    "of": 4,
+    "rows": 2053,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 88,
+    "worst": 128,
+    "cut": 0,
+    "of": 4,
+    "rows": 6153,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.lead.touches",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 30,
+   "worst": 35,
+   "cut": 0,
+   "of": 4,
+   "rows": 2052,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 14,
+    "worst": 19,
+    "cut": 0,
+    "of": 4,
+    "rows": 104,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 12,
+    "worst": 14,
+    "cut": 0,
+    "of": 4,
+    "rows": 412,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 30,
+    "worst": 35,
+    "cut": 0,
+    "of": 4,
+    "rows": 2052,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 109,
+    "worst": 123,
+    "cut": 0,
+    "of": 4,
+    "rows": 6152,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.lead.fb_checked",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 18,
+   "worst": 42,
+   "cut": 0,
+   "of": 4,
+   "rows": 501,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 26,
+    "queries": 3,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 8,
+    "worst": 13,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 3,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 18,
+    "worst": 42,
+    "cut": 0,
+    "of": 4,
+    "rows": 501,
+    "queries": 3,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 53,
+    "worst": 67,
+    "cut": 0,
+    "of": 4,
+    "rows": 1501,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.plan",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 91,
+   "worst": 118,
+   "cut": 0,
+   "of": 4,
+   "rows": 2677,
+   "queries": 8,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 25,
+    "worst": 27,
+    "cut": 0,
+    "of": 4,
+    "rows": 135,
+    "queries": 8,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 19,
+    "worst": 31,
+    "cut": 0,
+    "of": 4,
+    "rows": 537,
+    "queries": 8,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 91,
+    "worst": 118,
+    "cut": 0,
+    "of": 4,
+    "rows": 2677,
+    "queries": 8,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 186,
+    "worst": 316,
+    "cut": 0,
+    "of": 4,
+    "rows": 8027,
+    "queries": 8,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.batch.start",
+  "verdict": "Needs chunking",
+  "why": "plans several leads in one request",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 6,
+   "median": 17,
+   "worst": 20,
+   "cut": 1,
+   "of": 8,
+   "rows": 91,
+   "queries": 11,
+   "outbound": 0
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 9,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 19,
+    "queries": 11,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 9,
+    "worst": 13,
+    "cut": 0,
+    "of": 4,
+    "rows": 31,
+    "queries": 11,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 14,
+    "worst": 21,
+    "cut": 0,
+    "of": 4,
+    "rows": 91,
+    "queries": 11,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 14,
+    "worst": 20,
+    "cut": 0,
+    "of": 4,
+    "rows": 241,
+    "queries": 11,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.batch.status",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.batch.resume",
+  "verdict": "Fits Worker",
+  "why": "only the nothing-paused path",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.social.delete",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.job.resume",
+  "verdict": "Fits Worker",
+  "why": "only the nothing-paused path",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.job.resume_due",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.emails.review.start",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 31,
+   "worst": 50,
+   "cut": 0,
+   "of": 4,
+   "rows": 2003,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 11,
+    "cut": 0,
+    "of": 4,
+    "rows": 103,
+    "queries": 6,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 12,
+    "worst": 16,
+    "cut": 0,
+    "of": 4,
+    "rows": 403,
+    "queries": 6,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 31,
+    "worst": 50,
+    "cut": 0,
+    "of": 4,
+    "rows": 2003,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 133,
+    "worst": 165,
+    "cut": 0,
+    "of": 4,
+    "rows": 6003,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.browsercheck.plan",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 43,
+   "worst": 67,
+   "cut": 0,
+   "of": 4,
+   "rows": 503,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 17,
+    "worst": 24,
+    "cut": 0,
+    "of": 4,
+    "rows": 28,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 14,
+    "worst": 26,
+    "cut": 0,
+    "of": 4,
+    "rows": 103,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 43,
+    "worst": 67,
+    "cut": 0,
+    "of": 4,
+    "rows": 503,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 119,
+    "worst": 149,
+    "cut": 0,
+    "of": 4,
+    "rows": 1503,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.browsercheck.start",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 6,
+   "median": 9,
+   "worst": 10,
+   "cut": 2,
+   "of": 8,
+   "rows": 17,
+   "queries": 7,
+   "outbound": 0
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 6,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 10,
+    "worst": 16,
+    "cut": 0,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 12,
+    "worst": 17,
+    "cut": 0,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.draft.start",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 12,
+   "worst": 12,
+   "cut": 0,
+   "of": 4,
+   "rows": 400,
+   "queries": 9,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 17,
+    "worst": 20,
+    "cut": 0,
+    "of": 4,
+    "rows": 37,
+    "queries": 9,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 12,
+    "worst": 21,
+    "cut": 0,
+    "of": 4,
+    "rows": 94,
+    "queries": 9,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 12,
+    "worst": 12,
+    "cut": 0,
+    "of": 4,
+    "rows": 400,
+    "queries": 9,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 25,
+    "worst": 28,
+    "cut": 0,
+    "of": 4,
+    "rows": 1164,
+    "queries": 9,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.campaign.create",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.campaign.list",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 77,
+   "worst": 80,
+   "cut": 0,
+   "of": 4,
+   "rows": 2517,
+   "queries": 14,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 17,
+    "worst": 24,
+    "cut": 0,
+    "of": 4,
+    "rows": 142,
+    "queries": 14,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 40,
+    "worst": 48,
+    "cut": 0,
+    "of": 4,
+    "rows": 517,
+    "queries": 14,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 77,
+    "worst": 80,
+    "cut": 0,
+    "of": 4,
+    "rows": 2517,
+    "queries": 14,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 186,
+    "worst": 211,
+    "cut": 0,
+    "of": 4,
+    "rows": 7517,
+    "queries": 14,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 6.8,
+   "100": 14.3,
+   "500": 40.2,
+   "1500": 96.3
+  }
+ },
+ {
+  "name": "outreach.campaign.get",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 40,
+   "worst": 66,
+   "cut": 0,
+   "of": 4,
+   "rows": 2502,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 127,
+    "queries": 6,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 13,
+    "worst": 16,
+    "cut": 0,
+    "of": 4,
+    "rows": 502,
+    "queries": 6,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 40,
+    "worst": 66,
+    "cut": 0,
+    "of": 4,
+    "rows": 2502,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 96,
+    "worst": 178,
+    "cut": 0,
+    "of": 4,
+    "rows": 7502,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 13.2,
+   "100": 14.2,
+   "500": 60.6,
+   "1500": 109.7
+  }
+ },
+ {
+  "name": "outreach.campaign.update",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 5,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 3,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.campaign.delete",
+  "verdict": "Needs chunking",
+  "why": "deletes one record per query: one SQL delete",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 609,
+   "worst": 609,
+   "cut": 2,
+   "of": 4,
+   "rows": 2602,
+   "queries": 1858,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 1,
+    "median": 43,
+    "worst": 43,
+    "cut": 3,
+    "of": 4,
+    "rows": 132,
+    "queries": 101,
+    "outbound": 0
+   },
+   "100": {
+    "n": 2,
+    "median": 142,
+    "worst": 193,
+    "cut": 2,
+    "of": 4,
+    "rows": 522,
+    "queries": 378,
+    "outbound": 0
+   },
+   "500": {
+    "n": 1,
+    "median": 609,
+    "worst": 609,
+    "cut": 2,
+    "of": 4,
+    "rows": 2602,
+    "queries": 1858,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 0,
+    "median": null,
+    "worst": null,
+    "cut": 3,
+    "of": 4,
+    "rows": 0,
+    "queries": 0,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.campaign.run",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 3,
+   "queries": 5,
+   "outbound": 1
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 3,
+    "median": 10,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.campaign.sync",
+  "verdict": "Needs chunking",
+  "why": "writes one record per query: bulk insert",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 82,
+   "worst": 107,
+   "cut": 0,
+   "of": 4,
+   "rows": 567,
+   "queries": 61,
+   "outbound": 2
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 72,
+    "worst": 80,
+    "cut": 0,
+    "of": 4,
+    "rows": 92,
+    "queries": 61,
+    "outbound": 2
+   },
+   "100": {
+    "n": 3,
+    "median": 35,
+    "worst": 68,
+    "cut": 0,
+    "of": 4,
+    "rows": 167,
+    "queries": 61,
+    "outbound": 2
+   },
+   "500": {
+    "n": 3,
+    "median": 82,
+    "worst": 107,
+    "cut": 0,
+    "of": 4,
+    "rows": 567,
+    "queries": 61,
+    "outbound": 2
+   },
+   "1500": {
+    "n": 3,
+    "median": 186,
+    "worst": 197,
+    "cut": 0,
+    "of": 4,
+    "rows": 1567,
+    "queries": 61,
+    "outbound": 2
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.list",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 62,
+   "worst": 85,
+   "cut": 0,
+   "of": 4,
+   "rows": 886,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 13,
+    "worst": 16,
+    "cut": 0,
+    "of": 4,
+    "rows": 48,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 29,
+    "worst": 31,
+    "cut": 0,
+    "of": 4,
+    "rows": 180,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 62,
+    "worst": 85,
+    "cut": 0,
+    "of": 4,
+    "rows": 886,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 137,
+    "worst": 204,
+    "cut": 0,
+    "of": 4,
+    "rows": 2650,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 7.5,
+   "100": 14.6,
+   "500": 37.5,
+   "1500": 97.2
+  }
+ },
+ {
+  "name": "outreach.lead.set_email",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 88,
+   "worst": 90,
+   "cut": 0,
+   "of": 4,
+   "rows": 2885,
+   "queries": 10,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 11,
+    "worst": 18,
+    "cut": 0,
+    "of": 4,
+    "rows": 147,
+    "queries": 10,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 20,
+    "worst": 31,
+    "cut": 0,
+    "of": 4,
+    "rows": 579,
+    "queries": 10,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 88,
+    "worst": 90,
+    "cut": 0,
+    "of": 4,
+    "rows": 2885,
+    "queries": 10,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 184,
+    "worst": 225,
+    "cut": 0,
+    "of": 4,
+    "rows": 8649,
+    "queries": 10,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.update",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 16,
+   "worst": 23,
+   "cut": 0,
+   "of": 4,
+   "rows": 501,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 6,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 26,
+    "queries": 3,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 12,
+    "worst": 16,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 3,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 16,
+    "worst": 23,
+    "cut": 0,
+    "of": 4,
+    "rows": 501,
+    "queries": 3,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 64,
+    "worst": 77,
+    "cut": 0,
+    "of": 4,
+    "rows": 1501,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.prospects.list",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 84,
+   "worst": 84,
+   "cut": 2,
+   "of": 4,
+   "rows": 2692,
+   "queries": 7,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 48,
+    "worst": 57,
+    "cut": 2,
+    "of": 4,
+    "rows": 150,
+    "queries": 7,
+    "outbound": 0
+   },
+   "100": {
+    "n": 1,
+    "median": 66,
+    "worst": 66,
+    "cut": 3,
+    "of": 4,
+    "rows": 552,
+    "queries": 7,
+    "outbound": 0
+   },
+   "500": {
+    "n": 1,
+    "median": 84,
+    "worst": 84,
+    "cut": 2,
+    "of": 4,
+    "rows": 2692,
+    "queries": 7,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 1,
+    "median": 345,
+    "worst": 345,
+    "cut": 3,
+    "of": 4,
+    "rows": 8042,
+    "queries": 7,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 12.6,
+   "100": 21.5,
+   "500": 59.2,
+   "1500": 172.9
+  }
+ },
+ {
+  "name": "outreach.lead.screenshot.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.count",
+  "verdict": "Needs rewrite",
+  "why": "inflated by the test shim (values loaded just to count); SQL count not measured",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 18,
+   "worst": 18,
+   "cut": 0,
+   "of": 4,
+   "rows": 501,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 3,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 26,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 6,
+    "worst": 17,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 18,
+    "worst": 18,
+    "cut": 0,
+    "of": 4,
+    "rows": 501,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 28,
+    "worst": 41,
+    "cut": 0,
+    "of": 4,
+    "rows": 1501,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.add_test",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 5,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.delete",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 51,
+   "worst": 74,
+   "cut": 0,
+   "of": 4,
+   "rows": 2498,
+   "queries": 12,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 20,
+    "worst": 27,
+    "cut": 0,
+    "of": 4,
+    "rows": 123,
+    "queries": 12,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 25,
+    "worst": 29,
+    "cut": 0,
+    "of": 4,
+    "rows": 498,
+    "queries": 12,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 51,
+    "worst": 74,
+    "cut": 0,
+    "of": 4,
+    "rows": 2498,
+    "queries": 12,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 131,
+    "worst": 165,
+    "cut": 0,
+    "of": 4,
+    "rows": 7498,
+    "queries": 12,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.enrich_one",
+  "verdict": "Move to runner",
+  "why": "same website check",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 146,
+   "worst": 200,
+   "cut": 0,
+   "of": 4,
+   "rows": 17,
+   "queries": 7,
+   "outbound": 10
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 148,
+    "worst": 236,
+    "cut": 1,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   },
+   "100": {
+    "n": 2,
+    "median": 157,
+    "worst": 274,
+    "cut": 1,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   },
+   "500": {
+    "n": 3,
+    "median": 146,
+    "worst": 200,
+    "cut": 0,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   },
+   "1500": {
+    "n": 3,
+    "median": 220,
+    "worst": 254,
+    "cut": 1,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.check_site",
+  "verdict": "Move to runner",
+  "why": "parses whole web pages",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 316,
+   "worst": 316,
+   "cut": 3,
+   "of": 4,
+   "rows": 17,
+   "queries": 7,
+   "outbound": 10
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 157,
+    "worst": 164,
+    "cut": 1,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   },
+   "100": {
+    "n": 1,
+    "median": 238,
+    "worst": 238,
+    "cut": 2,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   },
+   "500": {
+    "n": 1,
+    "median": 316,
+    "worst": 316,
+    "cut": 3,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 129.7
+  }
+ },
+ {
+  "name": "outreach.emails.generate_one",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 39,
+   "worst": 75,
+   "cut": 1,
+   "of": 4,
+   "rows": 914,
+   "queries": 19,
+   "outbound": 3
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 48,
+    "worst": 52,
+    "cut": 1,
+    "of": 4,
+    "rows": 76,
+    "queries": 19,
+    "outbound": 3
+   },
+   "100": {
+    "n": 1,
+    "median": 44,
+    "worst": 44,
+    "cut": 2,
+    "of": 4,
+    "rows": 208,
+    "queries": 19,
+    "outbound": 3
+   },
+   "500": {
+    "n": 2,
+    "median": 39,
+    "worst": 75,
+    "cut": 1,
+    "of": 4,
+    "rows": 914,
+    "queries": 19,
+    "outbound": 3
+   },
+   "1500": {
+    "n": 3,
+    "median": 94,
+    "worst": 116,
+    "cut": 0,
+    "of": 4,
+    "rows": 2678,
+    "queries": 19,
+    "outbound": 3
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.emails.create",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 70,
+   "worst": 95,
+   "cut": 2,
+   "of": 4,
+   "rows": 2502,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 7,
+    "worst": 11,
+    "cut": 1,
+    "of": 4,
+    "rows": 127,
+    "queries": 4,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 21,
+    "worst": 38,
+    "cut": 0,
+    "of": 4,
+    "rows": 502,
+    "queries": 4,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 70,
+    "worst": 95,
+    "cut": 2,
+    "of": 4,
+    "rows": 2502,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 2,
+    "median": 135,
+    "worst": 226,
+    "cut": 1,
+    "of": 4,
+    "rows": 7502,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.emails.generate",
+  "verdict": "Needs chunking",
+  "why": "drafts many leads in one request: one lead per step",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 39,
+   "worst": 58,
+   "cut": 1,
+   "of": 4,
+   "rows": 401,
+   "queries": 14,
+   "outbound": 3
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 16,
+    "worst": 22,
+    "cut": 0,
+    "of": 4,
+    "rows": 38,
+    "queries": 14,
+    "outbound": 3
+   },
+   "100": {
+    "n": 3,
+    "median": 40,
+    "worst": 41,
+    "cut": 0,
+    "of": 4,
+    "rows": 95,
+    "queries": 14,
+    "outbound": 3
+   },
+   "500": {
+    "n": 3,
+    "median": 39,
+    "worst": 58,
+    "cut": 1,
+    "of": 4,
+    "rows": 401,
+    "queries": 14,
+    "outbound": 3
+   },
+   "1500": {
+    "n": 2,
+    "median": 46,
+    "worst": 58,
+    "cut": 1,
+    "of": 4,
+    "rows": 1165,
+    "queries": 14,
+    "outbound": 3
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.emails.list",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 52,
+   "worst": 52,
+   "cut": 3,
+   "of": 4,
+   "rows": 2898,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 15,
+    "worst": 19,
+    "cut": 0,
+    "of": 4,
+    "rows": 160,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 2,
+    "median": 23,
+    "worst": 40,
+    "cut": 1,
+    "of": 4,
+    "rows": 592,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 1,
+    "median": 52,
+    "worst": 52,
+    "cut": 3,
+    "of": 4,
+    "rows": 2898,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 5.9,
+   "100": 12.5,
+   "500": 38.6,
+   "1500": 125.9
+  }
+ },
+ {
+  "name": "outreach.emails.update",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 70,
+   "worst": 77,
+   "cut": 1,
+   "of": 4,
+   "rows": 2002,
+   "queries": 7,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 19,
+    "worst": 45,
+    "cut": 0,
+    "of": 4,
+    "rows": 102,
+    "queries": 7,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 28,
+    "worst": 54,
+    "cut": 0,
+    "of": 4,
+    "rows": 402,
+    "queries": 7,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 70,
+    "worst": 77,
+    "cut": 1,
+    "of": 4,
+    "rows": 2002,
+    "queries": 7,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 2,
+    "median": 78,
+    "worst": 126,
+    "cut": 2,
+    "of": 4,
+    "rows": 6002,
+    "queries": 7,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.emails.delete",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 38,
+   "worst": 43,
+   "cut": 2,
+   "of": 4,
+   "rows": 2002,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 12,
+    "worst": 12,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 18,
+    "worst": 21,
+    "cut": 0,
+    "of": 4,
+    "rows": 401,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 38,
+    "worst": 43,
+    "cut": 2,
+    "of": 4,
+    "rows": 2002,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 49,
+    "worst": 59,
+    "cut": 0,
+    "of": 4,
+    "rows": 6001,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.footer.preview",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 28,
+   "worst": 39,
+   "cut": 2,
+   "of": 4,
+   "rows": 2003,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 7,
+    "worst": 12,
+    "cut": 0,
+    "of": 4,
+    "rows": 103,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 2,
+    "median": 33,
+    "worst": 40,
+    "cut": 1,
+    "of": 4,
+    "rows": 403,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 28,
+    "worst": 39,
+    "cut": 2,
+    "of": 4,
+    "rows": 2003,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 2,
+    "median": 42,
+    "worst": 46,
+    "cut": 1,
+    "of": 4,
+    "rows": 6003,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.settings.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 4,
+   "worst": 6,
+   "cut": 0,
+   "of": 4,
+   "rows": 2,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 4,
+    "worst": 6,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.inboxes.list",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 3,
+   "queries": 3,
+   "outbound": 2
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 3,
+    "outbound": 2
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.settings.set",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 9,
+   "worst": 11,
+   "cut": 0,
+   "of": 8,
+   "rows": 3,
+   "queries": 5,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 10,
+    "worst": 13,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 11,
+    "worst": 14,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 11,
+    "worst": 12,
+    "cut": 1,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 2,
+    "median": 6,
+    "worst": 9,
+    "cut": 1,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.emails.send",
+  "verdict": "Needs chunking",
+  "why": "one email per queue message, plus SQL instead of store scans; first-pass numbers are with every draft stopped by the send checks (nothing sent); with passing drafts one email at 25 leads took 33 / 42 ms and every larger case was cut off (h-send.json)",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 0,
+   "median": null,
+   "worst": null,
+   "cut": 4,
+   "of": 4,
+   "rows": 0,
+   "queries": 0,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 1,
+    "median": 61,
+    "worst": 61,
+    "cut": 3,
+    "of": 4,
+    "rows": 164,
+    "queries": 52,
+    "outbound": 0
+   },
+   "100": {
+    "n": 2,
+    "median": 221,
+    "worst": 399,
+    "cut": 2,
+    "of": 4,
+    "rows": 601,
+    "queries": 184,
+    "outbound": 0
+   },
+   "500": {
+    "n": 0,
+    "median": null,
+    "worst": null,
+    "cut": 4,
+    "of": 4,
+    "rows": 0,
+    "queries": 0,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.replies.list",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 8,
+   "worst": 12,
+   "cut": 0,
+   "of": 8,
+   "rows": 51,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 5,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 4,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 11,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 9,
+    "worst": 9,
+    "cut": 1,
+    "of": 4,
+    "rows": 51,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 8,
+    "worst": 18,
+    "cut": 0,
+    "of": 4,
+    "rows": 151,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.replies.delete",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 50,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 1,
+    "median": 12,
+    "worst": 12,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 3,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 10,
+    "queries": 3,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 50,
+    "queries": 3,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 7,
+    "worst": 12,
+    "cut": 0,
+    "of": 4,
+    "rows": 150,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.replies.get",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 8,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 51,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 7,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 7,
+    "worst": 15,
+    "cut": 0,
+    "of": 4,
+    "rows": 11,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 8,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 51,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 8,
+    "worst": 15,
+    "cut": 0,
+    "of": 4,
+    "rows": 151,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.send.today",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 94,
+   "worst": 94,
+   "cut": 2,
+   "of": 4,
+   "rows": 2515,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 13,
+    "worst": 14,
+    "cut": 1,
+    "of": 4,
+    "rows": 140,
+    "queries": 4,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 27,
+    "worst": 37,
+    "cut": 0,
+    "of": 4,
+    "rows": 515,
+    "queries": 4,
+    "outbound": 0
+   },
+   "500": {
+    "n": 1,
+    "median": 94,
+    "worst": 94,
+    "cut": 2,
+    "of": 4,
+    "rows": 2515,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 247,
+    "worst": 424,
+    "cut": 0,
+    "of": 4,
+    "rows": 7515,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 9.3,
+   "100": 17.7,
+   "500": 79.2,
+   "1500": 167.5
+  }
+ },
+ {
+  "name": "followups.list",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 93,
+   "worst": 93,
+   "cut": 3,
+   "of": 4,
+   "rows": 2688,
+   "queries": 8,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 17,
+    "worst": 45,
+    "cut": 1,
+    "of": 4,
+    "rows": 151,
+    "queries": 8,
+    "outbound": 0
+   },
+   "100": {
+    "n": 1,
+    "median": 22,
+    "worst": 22,
+    "cut": 2,
+    "of": 4,
+    "rows": 552,
+    "queries": 8,
+    "outbound": 0
+   },
+   "500": {
+    "n": 1,
+    "median": 93,
+    "worst": 93,
+    "cut": 3,
+    "of": 4,
+    "rows": 2688,
+    "queries": 8,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 8.8,
+   "100": 14.9,
+   "500": 50.4,
+   "1500": 145.4
+  }
+ },
+ {
+  "name": "followups.update",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 5,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 5,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "followups.replied",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 9,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "followups.linkedin",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.reply.draft",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 96,
+   "worst": 240,
+   "cut": 2,
+   "of": 4,
+   "rows": 2554,
+   "queries": 8,
+   "outbound": 1
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 50,
+    "worst": 87,
+    "cut": 1,
+    "of": 4,
+    "rows": 131,
+    "queries": 8,
+    "outbound": 1
+   },
+   "100": {
+    "n": 2,
+    "median": 51,
+    "worst": 55,
+    "cut": 1,
+    "of": 4,
+    "rows": 514,
+    "queries": 8,
+    "outbound": 1
+   },
+   "500": {
+    "n": 2,
+    "median": 96,
+    "worst": 240,
+    "cut": 2,
+    "of": 4,
+    "rows": 2554,
+    "queries": 8,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 1,
+    "median": 263,
+    "worst": 263,
+    "cut": 2,
+    "of": 4,
+    "rows": 7654,
+    "queries": 8,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.reply.send",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 52,
+   "worst": 55,
+   "cut": 0,
+   "of": 4,
+   "rows": 2554,
+   "queries": 9,
+   "outbound": 1
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 0,
+    "median": null,
+    "worst": null,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 27,
+    "worst": 52,
+    "cut": 0,
+    "of": 4,
+    "rows": 514,
+    "queries": 9,
+    "outbound": 1
+   },
+   "500": {
+    "n": 3,
+    "median": 52,
+    "worst": 55,
+    "cut": 0,
+    "of": 4,
+    "rows": 2554,
+    "queries": 9,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 3,
+    "median": 220,
+    "worst": 239,
+    "cut": 0,
+    "of": 4,
+    "rows": 7654,
+    "queries": 9,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.replies.convert_to_task",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 8,
+   "worst": 13,
+   "cut": 0,
+   "of": 8,
+   "rows": 51,
+   "queries": 4,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 7,
+    "worst": 12,
+    "cut": 1,
+    "of": 4,
+    "rows": 3,
+    "queries": 4,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 9,
+    "worst": 12,
+    "cut": 0,
+    "of": 4,
+    "rows": 11,
+    "queries": 4,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 9,
+    "worst": 56,
+    "cut": 0,
+    "of": 4,
+    "rows": 51,
+    "queries": 4,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 2,
+    "median": 8,
+    "worst": 12,
+    "cut": 1,
+    "of": 4,
+    "rows": 151,
+    "queries": 4,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.analytics.summary",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 46,
+   "worst": 53,
+   "cut": 1,
+   "of": 4,
+   "rows": 2004,
+   "queries": 8,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 1,
+    "median": 30,
+    "worst": 30,
+    "cut": 3,
+    "of": 4,
+    "rows": 104,
+    "queries": 8,
+    "outbound": 0
+   },
+   "100": {
+    "n": 1,
+    "median": 30,
+    "worst": 30,
+    "cut": 2,
+    "of": 4,
+    "rows": 404,
+    "queries": 8,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 46,
+    "worst": 53,
+    "cut": 1,
+    "of": 4,
+    "rows": 2004,
+    "queries": 8,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 2,
+    "median": 122,
+    "worst": 161,
+    "cut": 1,
+    "of": 4,
+    "rows": 6004,
+    "queries": 8,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 5.2,
+   "100": 10.2,
+   "500": 24.6,
+   "1500": 85.3
+  }
+ },
+ {
+  "name": "outreach.replies.sync",
+  "verdict": "Needs chunking",
+  "why": "one inbound message per step, plus SQL lookups",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 59,
+   "worst": 151,
+   "cut": 1,
+   "of": 4,
+   "rows": 2053,
+   "queries": 8,
+   "outbound": 22
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 1,
+    "median": 69,
+    "worst": 69,
+    "cut": 2,
+    "of": 4,
+    "rows": 105,
+    "queries": 8,
+    "outbound": 22
+   },
+   "100": {
+    "n": 2,
+    "median": 22,
+    "worst": 26,
+    "cut": 1,
+    "of": 4,
+    "rows": 413,
+    "queries": 8,
+    "outbound": 22
+   },
+   "500": {
+    "n": 3,
+    "median": 59,
+    "worst": 151,
+    "cut": 1,
+    "of": 4,
+    "rows": 2053,
+    "queries": 8,
+    "outbound": 22
+   },
+   "1500": {
+    "n": 2,
+    "median": 73,
+    "worst": 160,
+    "cut": 1,
+    "of": 4,
+    "rows": 6153,
+    "queries": 8,
+    "outbound": 22
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.webhook.events",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 5,
+   "worst": 9,
+   "cut": 0,
+   "of": 8,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 1
+  },
+  "crosses": null,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 1
+   },
+   "100": {
+    "n": 3,
+    "median": 7,
+    "worst": 11,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 1
+   },
+   "500": {
+    "n": 3,
+    "median": 9,
+    "worst": 26,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 3,
+    "median": 9,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.webhook.test",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 8,
+   "worst": 12,
+   "cut": 0,
+   "of": 8,
+   "rows": 23,
+   "queries": 4,
+   "outbound": 2
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 7,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 23,
+    "queries": 4,
+    "outbound": 2
+   },
+   "100": {
+    "n": 3,
+    "median": 10,
+    "worst": 30,
+    "cut": 0,
+    "of": 4,
+    "rows": 23,
+    "queries": 4,
+    "outbound": 2
+   },
+   "500": {
+    "n": 2,
+    "median": 6,
+    "worst": 11,
+    "cut": 1,
+    "of": 4,
+    "rows": 23,
+    "queries": 4,
+    "outbound": 2
+   },
+   "1500": {
+    "n": 1,
+    "median": 5,
+    "worst": 5,
+    "cut": 2,
+    "of": 4,
+    "rows": 23,
+    "queries": 4,
+    "outbound": 2
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook.create_typed",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 6,
+   "worst": 7,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 6,
+    "worst": 7,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook.delete",
+  "verdict": "Fits Worker",
+  "why": "only an id that does not exist",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 5,
+   "worst": 6,
+   "cut": 0,
+   "of": 8,
+   "rows": 1,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": 500,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 6,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 7,
+    "worst": 9,
+    "cut": 1,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 8,
+    "worst": 13,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "page-serve GET /p/hello",
+  "verdict": "Fits Worker (marginal)",
+  "why": "single-record work; some calls over 10 ms",
+  "ref_size": 500,
+  "source": "re-measured",
+  "ref": {
+   "n": 7,
+   "median": 5,
+   "worst": 25,
+   "cut": 0,
+   "of": 8,
+   "rows": 2,
+   "queries": 2,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 6,
+    "worst": 11,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   },
+   "100": {
+    "n": 3,
+    "median": 7,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 9,
+    "worst": 23,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 4,
+    "worst": 5,
+    "cut": 0,
+    "of": 4,
+    "rows": 2,
+    "queries": 2,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "track-click GET /t/:token",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 35,
+   "worst": 63,
+   "cut": 0,
+   "of": 4,
+   "rows": 2001,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 9,
+    "cut": 0,
+    "of": 4,
+    "rows": 101,
+    "queries": 6,
+    "outbound": 0
+   },
+   "100": {
+    "n": 2,
+    "median": 12,
+    "worst": 14,
+    "cut": 1,
+    "of": 4,
+    "rows": 401,
+    "queries": 6,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 35,
+    "worst": 63,
+    "cut": 0,
+    "of": 4,
+    "rows": 2001,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 1,
+    "median": 64,
+    "worst": 64,
+    "cut": 2,
+    "of": 4,
+    "rows": 6001,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 8.1,
+   "100": 12.5,
+   "500": 30.2,
+   "1500": 72.9
+  }
+ },
+ {
+  "name": "form-submit GET /api/form/contact",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 3,
+   "worst": 4,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 1,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 3,
+    "worst": 4,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 1,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "form-submit POST /api/form/contact",
+  "verdict": "Fits Worker",
+  "why": "",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 7,
+   "worst": 8,
+   "cut": 0,
+   "of": 4,
+   "rows": 1,
+   "queries": 3,
+   "outbound": 0
+  },
+  "crosses": null,
+  "per": {
+   "500": {
+    "n": 3,
+    "median": 7,
+    "worst": 8,
+    "cut": 0,
+    "of": 4,
+    "rows": 1,
+    "queries": 3,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook-receive message.delivered",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 40,
+   "worst": 69,
+   "cut": 1,
+   "of": 4,
+   "rows": 2001,
+   "queries": 6,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 2,
+    "median": 17,
+    "worst": 20,
+    "cut": 1,
+    "of": 4,
+    "rows": 101,
+    "queries": 6,
+    "outbound": 0
+   },
+   "100": {
+    "n": 1,
+    "median": 29,
+    "worst": 29,
+    "cut": 2,
+    "of": 4,
+    "rows": 401,
+    "queries": 6,
+    "outbound": 0
+   },
+   "500": {
+    "n": 3,
+    "median": 40,
+    "worst": 69,
+    "cut": 1,
+    "of": 4,
+    "rows": 2001,
+    "queries": 6,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 63,
+    "worst": 124,
+    "cut": 0,
+    "of": 4,
+    "rows": 6001,
+    "queries": 6,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 5.2,
+   "100": 7,
+   "500": 18.1,
+   "1500": 44.6
+  }
+ },
+ {
+  "name": "webhook-receive message.bounced",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 25,
+   "worst": 27,
+   "cut": 1,
+   "of": 4,
+   "rows": 2001,
+   "queries": 7,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 1,
+    "median": 9,
+    "worst": 9,
+    "cut": 3,
+    "of": 4,
+    "rows": 101,
+    "queries": 7,
+    "outbound": 0
+   },
+   "100": {
+    "n": 2,
+    "median": 28,
+    "worst": 31,
+    "cut": 1,
+    "of": 4,
+    "rows": 401,
+    "queries": 7,
+    "outbound": 0
+   },
+   "500": {
+    "n": 2,
+    "median": 25,
+    "worst": 27,
+    "cut": 1,
+    "of": 4,
+    "rows": 2001,
+    "queries": 7,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 100,
+    "worst": 102,
+    "cut": 0,
+    "of": 4,
+    "rows": 6001,
+    "queries": 7,
+    "outbound": 0
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "webhook-receive message.received",
+  "verdict": "Needs rewrite",
+  "why": "reads whole stores: filter and sort in SQL",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 52,
+   "worst": 93,
+   "cut": 0,
+   "of": 4,
+   "rows": 2056,
+   "queries": 12,
+   "outbound": 1
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 8,
+    "worst": 29,
+    "cut": 0,
+    "of": 4,
+    "rows": 108,
+    "queries": 12,
+    "outbound": 1
+   },
+   "100": {
+    "n": 2,
+    "median": 26,
+    "worst": 42,
+    "cut": 1,
+    "of": 4,
+    "rows": 415,
+    "queries": 12,
+    "outbound": 1
+   },
+   "500": {
+    "n": 3,
+    "median": 52,
+    "worst": 93,
+    "cut": 0,
+    "of": 4,
+    "rows": 2056,
+    "queries": 12,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 2,
+    "median": 56,
+    "worst": 82,
+    "cut": 1,
+    "of": 4,
+    "rows": 6155,
+    "queries": 12,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 10.9,
+   "100": 15.1,
+   "500": 30.6,
+   "1500": 41.7
+  }
+ },
+ {
+  "name": "ai-background draft (10 leads)",
+  "verdict": "Needs chunking",
+  "why": "one lead per Workflow step; not measured at 500 leads: the start step before it was cut off",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 0,
+   "median": null,
+   "worst": null,
+   "cut": 4,
+   "of": 4,
+   "rows": 0,
+   "queries": 0,
+   "outbound": 0
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 153,
+    "worst": 176,
+    "cut": 0,
+    "of": 4,
+    "rows": 77,
+    "queries": 102,
+    "outbound": 30
+   },
+   "100": {
+    "n": 3,
+    "median": 225,
+    "worst": 227,
+    "cut": 0,
+    "of": 4,
+    "rows": 209,
+    "queries": 102,
+    "outbound": 30
+   },
+   "500": {
+    "n": 0,
+    "median": null,
+    "worst": null,
+    "cut": 4,
+    "of": 4,
+    "rows": 0,
+    "queries": 0,
+    "outbound": 0
+   },
+   "1500": {
+    "n": 3,
+    "median": 287,
+    "worst": 418,
+    "cut": 0,
+    "of": 4,
+    "rows": 2679,
+    "queries": 102,
+    "outbound": 30
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "ai-background review (3 drafts)",
+  "verdict": "Needs chunking",
+  "why": "one draft group per Workflow step, plus SQL lookups",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 62,
+   "worst": 132,
+   "cut": 0,
+   "of": 4,
+   "rows": 2505,
+   "queries": 24,
+   "outbound": 3
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 40,
+    "worst": 49,
+    "cut": 0,
+    "of": 4,
+    "rows": 130,
+    "queries": 24,
+    "outbound": 3
+   },
+   "100": {
+    "n": 3,
+    "median": 51,
+    "worst": 99,
+    "cut": 0,
+    "of": 4,
+    "rows": 505,
+    "queries": 24,
+    "outbound": 3
+   },
+   "500": {
+    "n": 3,
+    "median": 62,
+    "worst": 132,
+    "cut": 0,
+    "of": 4,
+    "rows": 2505,
+    "queries": 24,
+    "outbound": 3
+   },
+   "1500": {
+    "n": 3,
+    "median": 194,
+    "worst": 364,
+    "cut": 0,
+    "of": 4,
+    "rows": 7505,
+    "queries": 24,
+    "outbound": 3
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "ai-background social (3 leads)",
+  "verdict": "Needs chunking",
+  "why": "one lead per Workflow step",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 56,
+   "worst": 61,
+   "cut": 1,
+   "of": 4,
+   "rows": 93,
+   "queries": 27,
+   "outbound": 9
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 55,
+    "worst": 77,
+    "cut": 0,
+    "of": 4,
+    "rows": 21,
+    "queries": 27,
+    "outbound": 9
+   },
+   "100": {
+    "n": 3,
+    "median": 46,
+    "worst": 71,
+    "cut": 0,
+    "of": 4,
+    "rows": 33,
+    "queries": 27,
+    "outbound": 9
+   },
+   "500": {
+    "n": 3,
+    "median": 56,
+    "worst": 61,
+    "cut": 1,
+    "of": 4,
+    "rows": 93,
+    "queries": 27,
+    "outbound": 9
+   },
+   "1500": {
+    "n": 3,
+    "median": 47,
+    "worst": 56,
+    "cut": 0,
+    "of": 4,
+    "rows": 243,
+    "queries": 27,
+    "outbound": 9
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "ai-background social_batch (3 leads)",
+  "verdict": "Needs chunking",
+  "why": "one lead per Workflow step",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 2,
+   "median": 37,
+   "worst": 38,
+   "cut": 1,
+   "of": 4,
+   "rows": 93,
+   "queries": 31,
+   "outbound": 9
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 31,
+    "worst": 61,
+    "cut": 1,
+    "of": 4,
+    "rows": 21,
+    "queries": 31,
+    "outbound": 9
+   },
+   "100": {
+    "n": 3,
+    "median": 34,
+    "worst": 63,
+    "cut": 0,
+    "of": 4,
+    "rows": 33,
+    "queries": 31,
+    "outbound": 9
+   },
+   "500": {
+    "n": 2,
+    "median": 37,
+    "worst": 38,
+    "cut": 1,
+    "of": 4,
+    "rows": 93,
+    "queries": 31,
+    "outbound": 9
+   },
+   "1500": {
+    "n": 3,
+    "median": 65,
+    "worst": 70,
+    "cut": 0,
+    "of": 4,
+    "rows": 243,
+    "queries": 31,
+    "outbound": 9
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "ai-background browsercheck (1 lead)",
+  "verdict": "Move to runner",
+  "why": "parses rendered pages",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 3,
+   "median": 169,
+   "worst": 173,
+   "cut": 0,
+   "of": 4,
+   "rows": 19,
+   "queries": 14,
+   "outbound": 7
+  },
+  "crosses": 25,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 165,
+    "worst": 166,
+    "cut": 0,
+    "of": 4,
+    "rows": 19,
+    "queries": 14,
+    "outbound": 7
+   },
+   "100": {
+    "n": 2,
+    "median": 133,
+    "worst": 269,
+    "cut": 1,
+    "of": 4,
+    "rows": 19,
+    "queries": 14,
+    "outbound": 7
+   },
+   "500": {
+    "n": 3,
+    "median": 169,
+    "worst": 173,
+    "cut": 0,
+    "of": 4,
+    "rows": 19,
+    "queries": 14,
+    "outbound": 7
+   },
+   "1500": {
+    "n": 3,
+    "median": 81,
+    "worst": 118,
+    "cut": 0,
+    "of": 4,
+    "rows": 19,
+    "queries": 14,
+    "outbound": 7
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "ai-background preview",
+  "verdict": "Needs chunking",
+  "why": "run as a Workflow step",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 10,
+   "worst": 10,
+   "cut": 2,
+   "of": 4,
+   "rows": 3,
+   "queries": 5,
+   "outbound": 1
+  },
+  "crosses": 100,
+  "per": {
+   "25": {
+    "n": 3,
+    "median": 7,
+    "worst": 18,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 1
+   },
+   "100": {
+    "n": 1,
+    "median": 7,
+    "worst": 7,
+    "cut": 2,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 1
+   },
+   "500": {
+    "n": 1,
+    "median": 10,
+    "worst": 10,
+    "cut": 2,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 1
+   },
+   "1500": {
+    "n": 3,
+    "median": 9,
+    "worst": 10,
+    "cut": 0,
+    "of": 4,
+    "rows": 3,
+    "queries": 5,
+    "outbound": 1
+   }
+  },
+  "mac_cpu_ms": {}
+ },
+ {
+  "name": "outreach.leads.check_site (300 KB pages)",
+  "verdict": "Move to runner",
+  "why": "parses whole web pages",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 883,
+   "worst": 883,
+   "cut": 3,
+   "of": 4,
+   "rows": 17,
+   "queries": 7,
+   "outbound": 10
+  },
+  "crosses": 500,
+  "per": {
+   "500": {
+    "n": 1,
+    "median": 883,
+    "worst": 883,
+    "cut": 3,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 206.5
+  }
+ },
+ {
+  "name": "outreach.leads.check_site (1 MB pages)",
+  "verdict": "Move to runner",
+  "why": "parses whole web pages",
+  "ref_size": 500,
+  "source": "first pass",
+  "ref": {
+   "n": 1,
+   "median": 1519,
+   "worst": 1519,
+   "cut": 2,
+   "of": 4,
+   "rows": 17,
+   "queries": 7,
+   "outbound": 10
+  },
+  "crosses": 500,
+  "per": {
+   "500": {
+    "n": 1,
+    "median": 1519,
+    "worst": 1519,
+    "cut": 2,
+    "of": 4,
+    "rows": 17,
+    "queries": 7,
+    "outbound": 10
+   }
+  },
+  "mac_cpu_ms": {
+   "25": 379.6
+  }
+ }
+]

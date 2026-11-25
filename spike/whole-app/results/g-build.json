@@ -1,0 +1,49 @@
+{
+ "at": "2026-11-25T08:29:19.735Z",
+ "total_upload_kib": 738.01,
+ "gzip_kib": 200.47,
+ "bundle_js_bytes": 755722,
+ "bundle_js_gzip_bytes": 205286,
+ "build_warnings": 0,
+ "build_errors": 0,
+ "without_https_alias": {
+  "total_upload_kib": 737.6,
+  "warnings": 0,
+  "errors": 0
+ },
+ "netlify_blobs_in_bundle": false,
+ "bytes_in_bundle_top": [
+  [
+   "netlify/functions/command.ts",
+   298006
+  ],
+  [
+   "netlify/functions/lib/sitecheck.ts",
+   49470
+  ],
+  [
+   "../node_modules/postgres/src/connection.js",
+   47703
+  ],
+  [
+   "../node_modules/postgres/src/pool.js",
+   30023
+  ],
+  [
+   "../node_modules/postgres/src/index.js",
+   22772
+  ],
+  [
+   "netlify/functions/lib/messagerules.ts",
+   22565
+  ],
+  [
+   "netlify/functions/lib/angle.ts",
+   22147
+  ],
+  [
+   "netlify/functions/lib/prompts.ts",
+   21131
+  ]
+ ]
+}

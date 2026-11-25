@@ -1,0 +1,3 @@
+https://example.com/ spike: blocked outbound call to example.com
+https://api.agentmail.to/v0/inboxes 200
+https://api.brevo.com/x spike: blocked outbound call to api.brevo.com

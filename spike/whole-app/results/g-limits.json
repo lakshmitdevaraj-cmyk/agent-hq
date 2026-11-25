@@ -1,0 +1,8 @@
+{
+ "fetched": "2026-11-25",
+ "pages": [
+  {"url": "https://developers.cloudflare.com/workers/platform/limits/", "free_plan": {"worker_size_uncompressed": "64 MiB (free and paid)", "compressed_size_limit": "none: only the uncompressed bundle size counts", "startup_time": "1 s", "cpu_time": "10 ms", "external_subrequests_per_request": 50, "internal_subrequests_per_request": 1000, "overruns": "some flexibility for infrequent overruns; consistently over is terminated"}},
+  {"url": "https://developers.cloudflare.com/workflows/reference/limits/", "free_plan": {"max_script_size": "3 MB (conflicts with the Workers limits page)", "compute_per_step": "10 ms", "wall_clock_per_step": "unlimited"}},
+  {"url": "https://developers.cloudflare.com/hyperdrive/platform/pricing/", "free_plan": {"database_queries_per_day": 100000, "over_limit": "operations fail"}}
+ ]
+}

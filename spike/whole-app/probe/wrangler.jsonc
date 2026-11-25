@@ -1,0 +1,1 @@
+{ "name": "alcance-https-probe", "main": "https-probe.js", "compatibility_date": "2026-11-01", "compatibility_flags": ["nodejs_compat"] }

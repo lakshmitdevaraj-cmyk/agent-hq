@@ -1,0 +1,56 @@
+{
+ "at": "2026-11-25T08:32:16.526Z",
+ "runs": [
+  {
+   "run": 1,
+   "startup_ms_reported_by_wrangler": 13,
+   "first": {
+    "status": 200,
+    "isolate_was_cold": true,
+    "cpu_ms": 23,
+    "wall_ms": 724,
+    "outcome": "ok"
+   },
+   "second": {
+    "status": 200,
+    "isolate_was_cold": true,
+    "cpu_ms": 30,
+    "wall_ms": 484
+   }
+  },
+  {
+   "run": 2,
+   "startup_ms_reported_by_wrangler": 13,
+   "first": {
+    "status": 200,
+    "isolate_was_cold": true,
+    "cpu_ms": 22,
+    "wall_ms": 818,
+    "outcome": "ok"
+   },
+   "second": {
+    "status": 200,
+    "isolate_was_cold": true,
+    "cpu_ms": 26,
+    "wall_ms": 353
+   }
+  },
+  {
+   "run": 3,
+   "startup_ms_reported_by_wrangler": 11,
+   "first": {
+    "status": 200,
+    "isolate_was_cold": true,
+    "cpu_ms": 46,
+    "wall_ms": 759,
+    "outcome": "ok"
+   },
+   "second": {
+    "status": 200,
+    "isolate_was_cold": true,
+    "cpu_ms": 21,
+    "wall_ms": 539
+   }
+  }
+ ]
+}

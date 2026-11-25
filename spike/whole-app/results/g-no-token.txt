@@ -1,0 +1,4 @@
+/api/command 401
+/p/hello 401
+/slow 401
+/wf/start 401

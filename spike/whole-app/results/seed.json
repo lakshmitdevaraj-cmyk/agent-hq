@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T08:29:11.206Z",
+  "sizes": [
+    25,
+    100,
+    500,
+    1500
+  ],
+  "records_including_pristine_copy": 32160,
+  "kv_bytes": 41754624,
+  "db_bytes": 58343424
+}

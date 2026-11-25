@@ -1,0 +1,44 @@
+{
+ "by_file": {
+  "h-light": {
+   "rows": 256,
+   "calls": 1024,
+   "cut_off": 45,
+   "queries_logged": 7552
+  },
+  "h-heavy": {
+   "rows": 66,
+   "calls": 264,
+   "cut_off": 83,
+   "queries_logged": 13862
+  },
+  "h-stale": {
+   "rows": 9,
+   "calls": 30,
+   "cut_off": 9,
+   "queries_logged": 7425
+  },
+  "h-literal": {
+   "rows": 10,
+   "calls": 40,
+   "cut_off": 13,
+   "queries_logged": 9822
+  },
+  "h-confirm": {
+   "rows": 18,
+   "calls": 144,
+   "cut_off": 51,
+   "queries_logged": 0
+  },
+  "h-send": {
+   "rows": 6,
+   "calls": 24,
+   "cut_off": 20,
+   "queries_logged": 76
+  }
+ },
+ "calls": 1526,
+ "cut_off": 221,
+ "queries_logged": 38737,
+ "max_outbound_in_one_call": 30
+}
