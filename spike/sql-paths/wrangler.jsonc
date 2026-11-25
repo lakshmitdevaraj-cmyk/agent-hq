@@ -1,0 +1,12 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "alcance-sql-paths",
+  "main": "src/router.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "placement": { "region": "aws:us-east-1" },
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4d49b78d04ad40bebf069bf5c505a050" }]
+}

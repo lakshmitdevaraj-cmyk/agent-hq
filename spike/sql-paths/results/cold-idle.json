@@ -1,0 +1,51 @@
+{
+ "at": "2026-11-25T12:20:09.024Z",
+ "path": "request refused with 401: no database, no path code",
+ "runs": [
+  {
+   "run": 1,
+   "calls": [
+    {
+     "status": 401,
+     "cpu_ms": 0,
+     "outcome": "ok"
+    },
+    {
+     "status": 401,
+     "cpu_ms": 0,
+     "outcome": "ok"
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "calls": [
+    {
+     "status": 401,
+     "cpu_ms": 0,
+     "outcome": "ok"
+    },
+    {
+     "status": 401,
+     "cpu_ms": 0,
+     "outcome": "ok"
+    }
+   ]
+  },
+  {
+   "run": 3,
+   "calls": [
+    {
+     "status": 401,
+     "cpu_ms": 1,
+     "outcome": "ok"
+    },
+    {
+     "status": 401,
+     "cpu_ms": 0,
+     "outcome": "ok"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,169 @@
+{
+ "at": "2026-11-25T12:14:11.316Z",
+ "checks": 21,
+ "same": 14,
+ "results": [
+  {
+   "check": "campaign.get cbig",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "campaign.get cnew",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "prospects.list A",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.0.address: production \"3 Fake St, Faketown, TX 75000\" | sql \"25 Fake St, Faketown, TX 75000\"",
+    "$.0.created_at: production \"2026-10-06T06:00:03.000Z\" | sql \"2026-10-06T06:00:25.000Z\"",
+    "$.0.email: production \"owner3@fake3.example.test\" | sql \"owner25@fake25.example.test\"",
+    "$.0.emailed_at: production \"2026-11-01T06:00:00.000Z\" | sql \"2026-10-24T06:00:00.000Z\"",
+    "$.0.gap_score: production 99 | sql 25",
+    "$.0.id: production \"l3\" | sql \"l25\""
+   ],
+   "note": "38 rows"
+  },
+  {
+   "check": "prospects.list B",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.0.address: production \"3 Fake St, Faketown, TX 75000\" | sql \"25 Fake St, Faketown, TX 75000\"",
+    "$.0.created_at: production \"2026-10-06T06:00:03.000Z\" | sql \"2026-10-06T06:00:25.000Z\"",
+    "$.0.email: production \"owner3@fake3.example.test\" | sql \"owner25@fake25.example.test\"",
+    "$.0.emailed_at: production \"2026-11-01T06:00:00.000Z\" | sql \"2026-10-24T06:00:00.000Z\"",
+    "$.0.gap_score: production 99 | sql 25",
+    "$.0.id: production \"l3\" | sql \"l25\""
+   ],
+   "note": "38 rows"
+  },
+  {
+   "check": "prospects.list C page 1",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.0.address: production \"3 Fake St, Faketown, TX 75000\" | sql \"25 Fake St, Faketown, TX 75000\"",
+    "$.0.created_at: production \"2026-10-06T06:00:03.000Z\" | sql \"2026-10-06T06:00:25.000Z\"",
+    "$.0.email: production \"owner3@fake3.example.test\" | sql \"owner25@fake25.example.test\"",
+    "$.0.emailed_at: production \"2026-11-01T06:00:00.000Z\" | sql \"2026-10-24T06:00:00.000Z\"",
+    "$.0.gap_score: production 99 | sql 25",
+    "$.0.id: production \"l3\" | sql \"l25\""
+   ],
+   "note": "38 of 38"
+  },
+  {
+   "check": "prospects.list C page 2",
+   "size": 25,
+   "same": true,
+   "differences": [],
+   "note": "0 of 0"
+  },
+  {
+   "check": "prospects.list C search 'air 12'",
+   "size": 25,
+   "same": true,
+   "differences": [],
+   "note": "1 of 1"
+  },
+  {
+   "check": "webhook message.delivered (a)",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.count: production 1000 | sql 21"
+   ]
+  },
+  {
+   "check": "webhook message.delivered (b)",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.count: production 1000 | sql 21"
+   ]
+  },
+  {
+   "check": "webhook message.bounced (a)",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.count: production 1000 | sql 21"
+   ]
+  },
+  {
+   "check": "webhook message.bounced (b)",
+   "size": 25,
+   "same": false,
+   "differences": [
+    "$.count: production 1000 | sql 21"
+   ]
+  },
+  {
+   "check": "tracking link (a)",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "tracking link (b)",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "send limit 1: response",
+   "size": 25,
+   "same": true,
+   "differences": [],
+   "note": "sent 1"
+  },
+  {
+   "check": "send limit 1: sent records",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "send limit 1: outside calls",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "send limit 1: campaign and leads",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "send limit 3: response",
+   "size": 25,
+   "same": true,
+   "differences": [],
+   "note": "sent 3"
+  },
+  {
+   "check": "send limit 3: sent records",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "send limit 3: outside calls",
+   "size": 25,
+   "same": true,
+   "differences": []
+  },
+  {
+   "check": "send limit 3: campaign and leads",
+   "size": 25,
+   "same": true,
+   "differences": []
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "rates": {
+  "credits_per_gb_hour": 10,
+  "function_memory_gb": 1,
+  "credits_per_10k_requests": 2,
+  "credits_per_gb_bandwidth": 20,
+  "credits_per_production_deploy": 15,
+  "free_plan_credits": 300
+ },
+ "scenarios": [
+  {
+   "name": "light",
+   "assumed": {
+    "api_requests_per_day": 500,
+    "seconds_per_request": 1,
+    "bandwidth_gb_per_month": 1,
+    "production_deploys": 4
+   },
+   "credits": {
+    "compute": 42,
+    "requests": 3,
+    "bandwidth": 20,
+    "deploys": 60
+   },
+   "total": 125
+  },
+  {
+   "name": "typical",
+   "assumed": {
+    "api_requests_per_day": 2000,
+    "seconds_per_request": 1,
+    "bandwidth_gb_per_month": 3,
+    "production_deploys": 4
+   },
+   "credits": {
+    "compute": 167,
+    "requests": 12,
+    "bandwidth": 60,
+    "deploys": 60
+   },
+   "total": 299
+  },
+  {
+   "name": "heavy",
+   "assumed": {
+    "api_requests_per_day": 5000,
+    "seconds_per_request": 1,
+    "bandwidth_gb_per_month": 5,
+    "production_deploys": 4
+   },
+   "credits": {
+    "compute": 417,
+    "requests": 30,
+    "bandwidth": 100,
+    "deploys": 60
+   },
+   "total": 607
+  }
+ ]
+}

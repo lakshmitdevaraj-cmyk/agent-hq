@@ -1,0 +1,210 @@
+[
+ {
+  "name": "floor",
+  "size": 500,
+  "verdict": "marginal",
+  "first": "6 / 35 / 42",
+  "second": "5 / 9 / 9",
+  "response_bytes": 34
+ },
+ {
+  "name": "floor",
+  "size": 1500,
+  "verdict": "marginal",
+  "first": "5 / 28 / 32",
+  "second": "5 / 11 / 14",
+  "response_bytes": 34
+ },
+ {
+  "name": "campaign page",
+  "size": 500,
+  "verdict": "marginal",
+  "first": "6 / 16 / 17",
+  "second": "4 / 10 / 10",
+  "response_bytes": 467
+ },
+ {
+  "name": "campaign page",
+  "size": 1500,
+  "verdict": "marginal",
+  "first": "6 / 14 / 16",
+  "second": "6 / 9 / 10",
+  "response_bytes": 472
+ },
+ {
+  "name": "webhook (plain)",
+  "size": 500,
+  "verdict": "fail",
+  "first": "9 / 18 / 28",
+  "second": "not re-run (failed)",
+  "response_bytes": 37
+ },
+ {
+  "name": "webhook (plain)",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "7 / 21 / 23",
+  "second": "8 / 24 / 24",
+  "response_bytes": 37
+ },
+ {
+  "name": "webhook (combined)",
+  "size": 500,
+  "verdict": "pass",
+  "first": "4 / 7 / 9",
+  "second": "5 / 8 / 9",
+  "response_bytes": 37
+ },
+ {
+  "name": "webhook (combined)",
+  "size": 1500,
+  "verdict": "marginal",
+  "first": "4 / 10 / 10",
+  "second": "4 / 7 / 10",
+  "response_bytes": 37
+ },
+ {
+  "name": "tracking link (plain)",
+  "size": 500,
+  "verdict": "marginal",
+  "first": "6 / 18 / 18",
+  "second": "7 / 12 / 14",
+  "response_bytes": 0
+ },
+ {
+  "name": "tracking link (plain)",
+  "size": 1500,
+  "verdict": "marginal",
+  "first": "6 / 15 / 15",
+  "second": "6 / 13 / 16",
+  "response_bytes": 0
+ },
+ {
+  "name": "tracking link (combined)",
+  "size": 500,
+  "verdict": "marginal",
+  "first": "4 / 8 / 12",
+  "second": "4 / 9 / 9",
+  "response_bytes": 0
+ },
+ {
+  "name": "tracking link (combined)",
+  "size": 1500,
+  "verdict": "marginal",
+  "first": "4 / 7 / 9",
+  "second": "4 / 10 / 11",
+  "response_bytes": 0
+ },
+ {
+  "name": "send",
+  "size": 500,
+  "verdict": "fail",
+  "first": "21 / 42 / 44",
+  "second": "not re-run (failed)",
+  "response_bytes": 52286
+ },
+ {
+  "name": "send",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "20 / 37 / 39",
+  "second": "not re-run (failed)",
+  "response_bytes": 157429
+ },
+ {
+  "name": "Prospects C page 1",
+  "size": 500,
+  "verdict": "fail",
+  "first": "31 / 56 / 72",
+  "second": "not re-run (failed)",
+  "response_bytes": 118241
+ },
+ {
+  "name": "Prospects C page 1",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "20 / 46 / 87",
+  "second": "not re-run (failed)",
+  "response_bytes": 117763
+ },
+ {
+  "name": "Prospects C page 3",
+  "size": 500,
+  "verdict": "fail",
+  "first": "26 / 57 / 63",
+  "second": "not re-run (failed)",
+  "response_bytes": 118204
+ },
+ {
+  "name": "Prospects C page 3",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "27 / 63 / 63",
+  "second": "not re-run (failed)",
+  "response_bytes": 119035
+ },
+ {
+  "name": "Prospects C search name",
+  "size": 500,
+  "verdict": "fail",
+  "first": "14 / 27 / 30",
+  "second": "not re-run (failed)",
+  "response_bytes": 26023
+ },
+ {
+  "name": "Prospects C search name",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "23 / 41 / 66",
+  "second": "not re-run (failed)",
+  "response_bytes": 118978
+ },
+ {
+  "name": "Prospects C search 2 letters",
+  "size": 500,
+  "verdict": "fail",
+  "first": "12 / 29 / 29",
+  "second": "not re-run (failed)",
+  "response_bytes": 35247
+ },
+ {
+  "name": "Prospects C search 2 letters",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "18 / 34 / 43",
+  "second": "not re-run (failed)",
+  "response_bytes": 118978
+ },
+ {
+  "name": "Prospects A",
+  "size": 500,
+  "verdict": "fail",
+  "first": "90 / 208 / 237",
+  "second": "not re-run (failed)",
+  "response_bytes": 1207766
+ },
+ {
+  "name": "Prospects A",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "219 / 433 / 558 (cut 2/30)",
+  "second": "not re-run (failed)",
+  "response_bytes": 3580906
+ },
+ {
+  "name": "Prospects B",
+  "size": 500,
+  "verdict": "fail",
+  "first": "15 / 29 / 35 (cut 2/30)",
+  "second": "not re-run (failed)",
+  "response_bytes": 1207766
+ },
+ {
+  "name": "Prospects B",
+  "size": 1500,
+  "verdict": "fail",
+  "first": "31 / 64 / 69 (cut 1/30)",
+  "second": "not re-run (failed)",
+  "response_bytes": 3580906
+ }
+]

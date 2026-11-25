@@ -1,0 +1,8 @@
+POST /api/command no token 401
+POST /api/command wrong token 401
+POST /api/webhook/hook1 no token 401
+POST /api/webhook/hook1 wrong token 401
+GET /t/abc no token 401
+GET /t/abc wrong token 401
+https://example.com/ spike: blocked outbound call to example.com
+https://api.brevo.com/x spike: blocked outbound call to api.brevo.com

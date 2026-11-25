@@ -1,0 +1,5848 @@
+{
+ "floor|d500": {
+  "name": "floor",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 6,
+  "p95": 35,
+  "worst": 42,
+  "work_ok": true,
+  "database": null,
+  "bytes": 34,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 864,
+    "bytes": 34,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 344,
+    "bytes": 34,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 376,
+    "bytes": 34,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 343,
+    "bytes": 34,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 34,
+    "cpu_ms": 35,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 311,
+    "bytes": 34,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 344,
+    "bytes": 34,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 354,
+    "bytes": 34,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 324,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 385,
+    "bytes": 34,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 438,
+    "bytes": 34,
+    "cpu_ms": 42,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 294,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 374,
+    "bytes": 34,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 301,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 331,
+    "bytes": 34,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 381,
+    "bytes": 34,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 365,
+    "bytes": 34,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 299,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 295,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 299,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 314,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 281,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 361,
+    "bytes": 34,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 330,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 315,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 305,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 326,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 294,
+    "bytes": 34,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 320,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 330,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 282,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "floor|d1500": {
+  "name": "floor",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 5,
+  "p95": 28,
+  "worst": 32,
+  "work_ok": true,
+  "database": null,
+  "bytes": 34,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 34,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 299,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 299,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 314,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 287,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 374,
+    "bytes": 34,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 285,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 290,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 300,
+    "bytes": 34,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 365,
+    "bytes": 34,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 289,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 296,
+    "bytes": 34,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 299,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 308,
+    "bytes": 34,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 298,
+    "bytes": 34,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 282,
+    "bytes": 34,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 266,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 283,
+    "bytes": 34,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 2131,
+    "bytes": 34,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 289,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 282,
+    "bytes": 34,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 283,
+    "bytes": 34,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 320,
+    "bytes": 34,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 351,
+    "bytes": 34,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 315,
+    "bytes": 34,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 292,
+    "bytes": 34,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 285,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 322,
+    "bytes": 34,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 302,
+    "bytes": 34,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 285,
+    "bytes": 34,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 290,
+    "bytes": 34,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "campaign page|d500": {
+  "name": "campaign page",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 6,
+  "p95": 16,
+  "worst": 17,
+  "work_ok": true,
+  "database": null,
+  "bytes": 467,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 311,
+    "bytes": 467,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 314,
+    "bytes": 467,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 279,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 288,
+    "bytes": 467,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 329,
+    "bytes": 467,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 280,
+    "bytes": 467,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 320,
+    "bytes": 467,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 292,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 326,
+    "bytes": 467,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 308,
+    "bytes": 467,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 298,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 315,
+    "bytes": 467,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 294,
+    "bytes": 467,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 301,
+    "bytes": 467,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 297,
+    "bytes": 467,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 299,
+    "bytes": 467,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 302,
+    "bytes": 467,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 467,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 300,
+    "bytes": 467,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 284,
+    "bytes": 467,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 300,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 311,
+    "bytes": 467,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 295,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 351,
+    "bytes": 467,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 292,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 291,
+    "bytes": 467,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 292,
+    "bytes": 467,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 312,
+    "bytes": 467,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 322,
+    "bytes": 467,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 309,
+    "bytes": 467,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 316,
+    "bytes": 467,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "campaign page|d1500": {
+  "name": "campaign page",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 6,
+  "p95": 14,
+  "worst": 16,
+  "work_ok": true,
+  "database": null,
+  "bytes": 472,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 301,
+    "bytes": 472,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 325,
+    "bytes": 472,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 318,
+    "bytes": 472,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 312,
+    "bytes": 472,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 278,
+    "bytes": 472,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 307,
+    "bytes": 472,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 282,
+    "bytes": 472,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 309,
+    "bytes": 472,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 298,
+    "bytes": 472,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 308,
+    "bytes": 472,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 314,
+    "bytes": 472,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 323,
+    "bytes": 472,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 325,
+    "bytes": 472,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 304,
+    "bytes": 472,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 317,
+    "bytes": 472,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 317,
+    "bytes": 472,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 279,
+    "bytes": 472,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 326,
+    "bytes": 472,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 288,
+    "bytes": 472,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 316,
+    "bytes": 472,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 311,
+    "bytes": 472,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 304,
+    "bytes": 472,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 291,
+    "bytes": 472,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 319,
+    "bytes": 472,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 298,
+    "bytes": 472,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 317,
+    "bytes": 472,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 319,
+    "bytes": 472,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 296,
+    "bytes": 472,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 298,
+    "bytes": 472,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 327,
+    "bytes": 472,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 289,
+    "bytes": 472,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "webhook (plain)|d500": {
+  "name": "webhook (plain)",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 9,
+  "p95": 18,
+  "worst": 28,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "events_written": 31,
+   "emails_updated": 31
+  },
+  "bytes": 37,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1068,
+    "bytes": 37,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 477,
+    "bytes": 37,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 518,
+    "bytes": 37,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 465,
+    "bytes": 37,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 471,
+    "bytes": 37,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 37,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 37,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 37,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 37,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 424,
+    "bytes": 37,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 416,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 514,
+    "bytes": 37,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 37,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 433,
+    "bytes": 37,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 443,
+    "bytes": 37,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 461,
+    "bytes": 37,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 540,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 524,
+    "bytes": 37,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 431,
+    "bytes": 37,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 403,
+    "bytes": 37,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 433,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 507,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 421,
+    "bytes": 37,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 517,
+    "bytes": 37,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 517,
+    "bytes": 37,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "webhook (plain)|d1500": {
+  "name": "webhook (plain)",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 7,
+  "p95": 21,
+  "worst": 23,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "events_written": 31,
+   "emails_updated": 31
+  },
+  "bytes": 37,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 535,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 37,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 406,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 434,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 433,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 441,
+    "bytes": 37,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 37,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 434,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 400,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 409,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 400,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 427,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 428,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 546,
+    "bytes": 37,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 466,
+    "bytes": 37,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 473,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 396,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 541,
+    "bytes": 37,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 369,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 400,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 507,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 404,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 403,
+    "bytes": 37,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 411,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 433,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 432,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 466,
+    "bytes": 37,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 392,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 515,
+    "bytes": 37,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 37,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "webhook (combined)|d500": {
+  "name": "webhook (combined)",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 4,
+  "p95": 7,
+  "worst": 9,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "events_written": 31,
+   "emails_updated": 31
+  },
+  "bytes": 37,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 571,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 460,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 406,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 408,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 439,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 404,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 469,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 429,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 407,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 438,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 406,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 512,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 370,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 374,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 509,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 385,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 370,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 397,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 414,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 373,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 359,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 373,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "pass"
+ },
+ "webhook (combined)|d1500": {
+  "name": "webhook (combined)",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 4,
+  "p95": 10,
+  "worst": 10,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "events_written": 31,
+   "emails_updated": 31
+  },
+  "bytes": 37,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 945,
+    "bytes": 37,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 309,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 282,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 295,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 329,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 326,
+    "bytes": 37,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 309,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 257,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 261,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 305,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 283,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 279,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 264,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 283,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 301,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 269,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 260,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 322,
+    "bytes": 37,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 285,
+    "bytes": 37,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 254,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 264,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 257,
+    "bytes": 37,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 267,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 283,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 301,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 283,
+    "bytes": 37,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 272,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 267,
+    "bytes": 37,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 265,
+    "bytes": 37,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 263,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 260,
+    "bytes": 37,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "tracking link (plain)|d500": {
+  "name": "tracking link (plain)",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 6,
+  "p95": 18,
+  "worst": 18,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "clicks_written": 31,
+   "emails_clicked": 31
+  },
+  "bytes": 0,
+  "calls": [
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 674,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 0,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 414,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 432,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 509,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 450,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 0,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 518,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 0,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 412,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 392,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 553,
+    "bytes": 0,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 414,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 0,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 523,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 399,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 440,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 426,
+    "bytes": 0,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 510,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 416,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 446,
+    "bytes": 0,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 493,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 394,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 465,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 495,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "tracking link (plain)|d1500": {
+  "name": "tracking link (plain)",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 6,
+  "p95": 15,
+  "worst": 15,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "clicks_written": 31,
+   "emails_clicked": 31
+  },
+  "bytes": 0,
+  "calls": [
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 718,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 445,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 443,
+    "bytes": 0,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 469,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 436,
+    "bytes": 0,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 504,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 0,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 411,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 525,
+    "bytes": 0,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 436,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 433,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 506,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 422,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 410,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 524,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 442,
+    "bytes": 0,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 393,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 503,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 0,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 438,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "marginal"
+ },
+ "tracking link (combined)|d500": {
+  "name": "tracking link (combined)",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 4,
+  "p95": 8,
+  "worst": 12,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "clicks_written": 31,
+   "emails_clicked": 31
+  },
+  "bytes": 0,
+  "calls": [
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 722,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 280,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 274,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 287,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 292,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 262,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 282,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 261,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 271,
+    "bytes": 0,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 291,
+    "bytes": 0,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 294,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 271,
+    "bytes": 0,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 263,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 249,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 247,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 302,
+    "bytes": 0,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 267,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 275,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 263,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 268,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 274,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 277,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 295,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 276,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 266,
+    "bytes": 0,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 254,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 297,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 262,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 263,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 261,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 259,
+    "bytes": 0,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "pass"
+ },
+ "tracking link (combined)|d1500": {
+  "name": "tracking link (combined)",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 4,
+  "p95": 7,
+  "worst": 9,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "clicks_written": 31,
+   "emails_clicked": 31
+  },
+  "bytes": 0,
+  "calls": [
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 574,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 388,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 388,
+    "bytes": 0,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 349,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 424,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 351,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 381,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 350,
+    "bytes": 0,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 367,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 395,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 371,
+    "bytes": 0,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 383,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 405,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 390,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 394,
+    "bytes": 0,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 350,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 447,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 420,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 388,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 447,
+    "bytes": 0,
+    "cpu_ms": 2,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 357,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 355,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 441,
+    "bytes": 0,
+    "cpu_ms": 5,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 356,
+    "bytes": 0,
+    "cpu_ms": 4,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 357,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 437,
+    "bytes": 0,
+    "cpu_ms": 3,
+    "outcome": "ok"
+   },
+   {
+    "status": 302,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 0,
+    "cpu_ms": 6,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "pass"
+ },
+ "send|d500": {
+  "name": "send",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 21,
+  "p95": 42,
+  "worst": 44,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "emails_sent": 31
+  },
+  "bytes": 52286,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1163,
+    "bytes": 52286,
+    "cpu_ms": 66,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 475,
+    "bytes": 52286,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 465,
+    "bytes": 52286,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 537,
+    "bytes": 52286,
+    "cpu_ms": 35,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 500,
+    "bytes": 52286,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 52286,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 451,
+    "bytes": 52286,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 421,
+    "bytes": 52286,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 459,
+    "bytes": 52286,
+    "cpu_ms": 44,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 503,
+    "bytes": 52286,
+    "cpu_ms": 42,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 562,
+    "bytes": 52286,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 515,
+    "bytes": 52286,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 381,
+    "bytes": 52286,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 452,
+    "bytes": 52286,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 631,
+    "bytes": 52286,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 440,
+    "bytes": 52286,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 444,
+    "bytes": 52286,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 571,
+    "bytes": 52286,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 439,
+    "bytes": 52286,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 532,
+    "bytes": 52286,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 549,
+    "bytes": 52286,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 434,
+    "bytes": 52286,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 552,
+    "bytes": 52286,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 459,
+    "bytes": 52286,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 434,
+    "bytes": 52286,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 552,
+    "bytes": 52286,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 509,
+    "bytes": 52286,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 421,
+    "bytes": 52286,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 414,
+    "bytes": 52286,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 408,
+    "bytes": 52286,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 406,
+    "bytes": 52286,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "send|d1500": {
+  "name": "send",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 20,
+  "p95": 37,
+  "worst": 39,
+  "work_ok": true,
+  "database": {
+   "expected": 31,
+   "emails_sent": 31
+  },
+  "bytes": 157429,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1093,
+    "bytes": 157429,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 898,
+    "bytes": 157429,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 898,
+    "bytes": 157429,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1008,
+    "bytes": 157429,
+    "cpu_ms": 39,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 865,
+    "bytes": 157429,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 935,
+    "bytes": 157429,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 753,
+    "bytes": 157429,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 899,
+    "bytes": 157429,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1275,
+    "bytes": 157429,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1162,
+    "bytes": 157429,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1066,
+    "bytes": 157429,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 941,
+    "bytes": 157429,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1235,
+    "bytes": 157429,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1224,
+    "bytes": 157429,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1080,
+    "bytes": 157429,
+    "cpu_ms": 35,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 525,
+    "bytes": 157429,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 832,
+    "bytes": 157429,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 625,
+    "bytes": 157429,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 854,
+    "bytes": 157429,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 820,
+    "bytes": 157429,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1060,
+    "bytes": 157429,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 944,
+    "bytes": 157429,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 895,
+    "bytes": 157429,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1103,
+    "bytes": 157429,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 737,
+    "bytes": 157429,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 949,
+    "bytes": 157429,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 563,
+    "bytes": 157429,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 1207,
+    "bytes": 157429,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 881,
+    "bytes": 157429,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 879,
+    "bytes": 157429,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 941,
+    "bytes": 157429,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C page 1|d500": {
+  "name": "Prospects C page 1",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 31,
+  "p95": 56,
+  "worst": 72,
+  "work_ok": true,
+  "database": null,
+  "bytes": 118241,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 931,
+    "bytes": 118241,
+    "cpu_ms": 55,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 118241,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 431,
+    "bytes": 118241,
+    "cpu_ms": 39,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 550,
+    "bytes": 118241,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 402,
+    "bytes": 118241,
+    "cpu_ms": 36,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 454,
+    "bytes": 118241,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 499,
+    "bytes": 118241,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 521,
+    "bytes": 118241,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 516,
+    "bytes": 118241,
+    "cpu_ms": 56,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 416,
+    "bytes": 118241,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 421,
+    "bytes": 118241,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 455,
+    "bytes": 118241,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 118241,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 411,
+    "bytes": 118241,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 429,
+    "bytes": 118241,
+    "cpu_ms": 42,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 428,
+    "bytes": 118241,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 406,
+    "bytes": 118241,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 444,
+    "bytes": 118241,
+    "cpu_ms": 51,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 491,
+    "bytes": 118241,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 118241,
+    "cpu_ms": 50,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 448,
+    "bytes": 118241,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 428,
+    "bytes": 118241,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 118241,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 518,
+    "bytes": 118241,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 446,
+    "bytes": 118241,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 434,
+    "bytes": 118241,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 471,
+    "bytes": 118241,
+    "cpu_ms": 54,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 443,
+    "bytes": 118241,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 695,
+    "bytes": 118241,
+    "cpu_ms": 72,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 523,
+    "bytes": 118241,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 523,
+    "bytes": 118241,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C page 1|d1500": {
+  "name": "Prospects C page 1",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 20,
+  "p95": 46,
+  "worst": 87,
+  "work_ok": true,
+  "database": null,
+  "bytes": 117763,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 432,
+    "bytes": 117763,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 117763,
+    "cpu_ms": 46,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 405,
+    "bytes": 117763,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 467,
+    "bytes": 117763,
+    "cpu_ms": 46,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 428,
+    "bytes": 117763,
+    "cpu_ms": 46,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 117763,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 569,
+    "bytes": 117763,
+    "cpu_ms": 87,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 424,
+    "bytes": 117763,
+    "cpu_ms": 34,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 117763,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 426,
+    "bytes": 117763,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 409,
+    "bytes": 117763,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 117763,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 117763,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 117763,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 408,
+    "bytes": 117763,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 393,
+    "bytes": 117763,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 423,
+    "bytes": 117763,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 117763,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 117763,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 424,
+    "bytes": 117763,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 412,
+    "bytes": 117763,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 480,
+    "bytes": 117763,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 434,
+    "bytes": 117763,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 117763,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 438,
+    "bytes": 117763,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 117763,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 117763,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 371,
+    "bytes": 117763,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 383,
+    "bytes": 117763,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 424,
+    "bytes": 117763,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 383,
+    "bytes": 117763,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C page 3|d500": {
+  "name": "Prospects C page 3",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 26,
+  "p95": 57,
+  "worst": 63,
+  "work_ok": true,
+  "database": null,
+  "bytes": 118204,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 483,
+    "bytes": 118204,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 407,
+    "bytes": 118204,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 551,
+    "bytes": 118204,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 423,
+    "bytes": 118204,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 443,
+    "bytes": 118204,
+    "cpu_ms": 51,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 464,
+    "bytes": 118204,
+    "cpu_ms": 63,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 545,
+    "bytes": 118204,
+    "cpu_ms": 42,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 457,
+    "bytes": 118204,
+    "cpu_ms": 41,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 457,
+    "bytes": 118204,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 543,
+    "bytes": 118204,
+    "cpu_ms": 43,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 447,
+    "bytes": 118204,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 496,
+    "bytes": 118204,
+    "cpu_ms": 43,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 402,
+    "bytes": 118204,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 455,
+    "bytes": 118204,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 396,
+    "bytes": 118204,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 433,
+    "bytes": 118204,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 428,
+    "bytes": 118204,
+    "cpu_ms": 36,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 398,
+    "bytes": 118204,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 448,
+    "bytes": 118204,
+    "cpu_ms": 52,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 572,
+    "bytes": 118204,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 408,
+    "bytes": 118204,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 445,
+    "bytes": 118204,
+    "cpu_ms": 49,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 427,
+    "bytes": 118204,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 471,
+    "bytes": 118204,
+    "cpu_ms": 36,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 539,
+    "bytes": 118204,
+    "cpu_ms": 49,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 426,
+    "bytes": 118204,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 437,
+    "bytes": 118204,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 386,
+    "bytes": 118204,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 412,
+    "bytes": 118204,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 463,
+    "bytes": 118204,
+    "cpu_ms": 57,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 385,
+    "bytes": 118204,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C page 3|d1500": {
+  "name": "Prospects C page 3",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 27,
+  "p95": 63,
+  "worst": 63,
+  "work_ok": true,
+  "database": null,
+  "bytes": 119035,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 516,
+    "bytes": 119035,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 119035,
+    "cpu_ms": 51,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 418,
+    "bytes": 119035,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 119035,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 583,
+    "bytes": 119035,
+    "cpu_ms": 63,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 483,
+    "bytes": 119035,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 454,
+    "bytes": 119035,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 517,
+    "bytes": 119035,
+    "cpu_ms": 44,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 478,
+    "bytes": 119035,
+    "cpu_ms": 35,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 470,
+    "bytes": 119035,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 489,
+    "bytes": 119035,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 451,
+    "bytes": 119035,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 459,
+    "bytes": 119035,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 567,
+    "bytes": 119035,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 491,
+    "bytes": 119035,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 547,
+    "bytes": 119035,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 449,
+    "bytes": 119035,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 489,
+    "bytes": 119035,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 509,
+    "bytes": 119035,
+    "cpu_ms": 34,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 389,
+    "bytes": 119035,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 546,
+    "bytes": 119035,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 527,
+    "bytes": 119035,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 621,
+    "bytes": 119035,
+    "cpu_ms": 63,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 522,
+    "bytes": 119035,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 519,
+    "bytes": 119035,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 449,
+    "bytes": 119035,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 444,
+    "bytes": 119035,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 460,
+    "bytes": 119035,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 119035,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 451,
+    "bytes": 119035,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 445,
+    "bytes": 119035,
+    "cpu_ms": 31,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C search name|d500": {
+  "name": "Prospects C search name",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 14,
+  "p95": 27,
+  "worst": 30,
+  "work_ok": true,
+  "database": null,
+  "bytes": 26023,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 422,
+    "bytes": 26023,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 381,
+    "bytes": 26023,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 381,
+    "bytes": 26023,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 26023,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 417,
+    "bytes": 26023,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 520,
+    "bytes": 26023,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 444,
+    "bytes": 26023,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 436,
+    "bytes": 26023,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 420,
+    "bytes": 26023,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 4139,
+    "bytes": 26023,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 26023,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 407,
+    "bytes": 26023,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 407,
+    "bytes": 26023,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 383,
+    "bytes": 26023,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 525,
+    "bytes": 26023,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 412,
+    "bytes": 26023,
+    "cpu_ms": 27,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 410,
+    "bytes": 26023,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 420,
+    "bytes": 26023,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 398,
+    "bytes": 26023,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 26023,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 411,
+    "bytes": 26023,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 387,
+    "bytes": 26023,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 420,
+    "bytes": 26023,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 393,
+    "bytes": 26023,
+    "cpu_ms": 7,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 26023,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 431,
+    "bytes": 26023,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 487,
+    "bytes": 26023,
+    "cpu_ms": 30,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 26023,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 26023,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 393,
+    "bytes": 26023,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 26023,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C search name|d1500": {
+  "name": "Prospects C search name",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 23,
+  "p95": 41,
+  "worst": 66,
+  "work_ok": true,
+  "database": null,
+  "bytes": 118978,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 443,
+    "bytes": 118978,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 411,
+    "bytes": 118978,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 425,
+    "bytes": 118978,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 396,
+    "bytes": 118978,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 419,
+    "bytes": 118978,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 443,
+    "bytes": 118978,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 448,
+    "bytes": 118978,
+    "cpu_ms": 37,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 118978,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 118978,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 427,
+    "bytes": 118978,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 435,
+    "bytes": 118978,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 637,
+    "bytes": 118978,
+    "cpu_ms": 66,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 577,
+    "bytes": 118978,
+    "cpu_ms": 36,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 466,
+    "bytes": 118978,
+    "cpu_ms": 41,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 118978,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 481,
+    "bytes": 118978,
+    "cpu_ms": 32,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 118978,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 427,
+    "bytes": 118978,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 412,
+    "bytes": 118978,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 455,
+    "bytes": 118978,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 437,
+    "bytes": 118978,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 461,
+    "bytes": 118978,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 407,
+    "bytes": 118978,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 483,
+    "bytes": 118978,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 438,
+    "bytes": 118978,
+    "cpu_ms": 28,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 408,
+    "bytes": 118978,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 428,
+    "bytes": 118978,
+    "cpu_ms": 35,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 414,
+    "bytes": 118978,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 415,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 394,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 383,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C search 2 letters|d500": {
+  "name": "Prospects C search 2 letters",
+  "size": 500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 12,
+  "p95": 29,
+  "worst": 29,
+  "work_ok": true,
+  "database": null,
+  "bytes": 35247,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 397,
+    "bytes": 35247,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 425,
+    "bytes": 35247,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 401,
+    "bytes": 35247,
+    "cpu_ms": 21,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 364,
+    "bytes": 35247,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 444,
+    "bytes": 35247,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 416,
+    "bytes": 35247,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 386,
+    "bytes": 35247,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 385,
+    "bytes": 35247,
+    "cpu_ms": 17,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 385,
+    "bytes": 35247,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 35247,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 397,
+    "bytes": 35247,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 374,
+    "bytes": 35247,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 391,
+    "bytes": 35247,
+    "cpu_ms": 25,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 367,
+    "bytes": 35247,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 515,
+    "bytes": 35247,
+    "cpu_ms": 26,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 390,
+    "bytes": 35247,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 379,
+    "bytes": 35247,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 367,
+    "bytes": 35247,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 395,
+    "bytes": 35247,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 408,
+    "bytes": 35247,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 392,
+    "bytes": 35247,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 407,
+    "bytes": 35247,
+    "cpu_ms": 10,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 372,
+    "bytes": 35247,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 413,
+    "bytes": 35247,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 391,
+    "bytes": 35247,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 392,
+    "bytes": 35247,
+    "cpu_ms": 11,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 389,
+    "bytes": 35247,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 441,
+    "bytes": 35247,
+    "cpu_ms": 29,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 395,
+    "bytes": 35247,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 364,
+    "bytes": 35247,
+    "cpu_ms": 8,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 357,
+    "bytes": 35247,
+    "cpu_ms": 9,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ },
+ "Prospects C search 2 letters|d1500": {
+  "name": "Prospects C search 2 letters",
+  "size": 1500,
+  "round": "first",
+  "n": 30,
+  "cut": 0,
+  "median": 18,
+  "p95": 34,
+  "worst": 43,
+  "work_ok": true,
+  "database": null,
+  "bytes": 118978,
+  "calls": [
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 398,
+    "bytes": 118978,
+    "cpu_ms": 12,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 424,
+    "bytes": 118978,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 404,
+    "bytes": 118978,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 384,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 426,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 423,
+    "bytes": 118978,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 501,
+    "bytes": 118978,
+    "cpu_ms": 20,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 514,
+    "bytes": 118978,
+    "cpu_ms": 43,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 439,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 461,
+    "bytes": 118978,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 432,
+    "bytes": 118978,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 430,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 479,
+    "bytes": 118978,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 546,
+    "bytes": 118978,
+    "cpu_ms": 33,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 438,
+    "bytes": 118978,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 442,
+    "bytes": 118978,
+    "cpu_ms": 34,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 455,
+    "bytes": 118978,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 404,
+    "bytes": 118978,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 422,
+    "bytes": 118978,
+    "cpu_ms": 15,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 410,
+    "bytes": 118978,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 411,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 441,
+    "bytes": 118978,
+    "cpu_ms": 24,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 400,
+    "bytes": 118978,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 449,
+    "bytes": 118978,
+    "cpu_ms": 14,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 391,
+    "bytes": 118978,
+    "cpu_ms": 16,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 452,
+    "bytes": 118978,
+    "cpu_ms": 34,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 388,
+    "bytes": 118978,
+    "cpu_ms": 18,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 429,
+    "bytes": 118978,
+    "cpu_ms": 19,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 393,
+    "bytes": 118978,
+    "cpu_ms": 13,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 409,
+    "bytes": 118978,
+    "cpu_ms": 22,
+    "outcome": "ok"
+   },
+   {
+    "status": 200,
+    "ok": true,
+    "wall_ms": 474,
+    "bytes": 118978,
+    "cpu_ms": 23,
+    "outcome": "ok"
+   }
+  ],
+  "verdict": "fail"
+ }
+}

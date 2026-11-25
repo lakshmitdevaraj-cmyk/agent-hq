@@ -1,0 +1,80 @@
+[
+ {
+  "pattern": "%air 12%",
+  "plain_scans_off": false,
+  "uses_trigram_index": true,
+  "plan": [
+   "Bitmap Heap Scan on s75_leads (actual rows=124.00 loops=1)",
+   "Recheck Cond: (search ~~ '%air 12%'::text)",
+   "Heap Blocks: exact=26",
+   "Buffers: shared hit=45",
+   "->  Bitmap Index Scan on s75_leads_search (actual rows=127.00 loops=1)",
+   "Index Cond: (search ~~ '%air 12%'::text)"
+  ]
+ },
+ {
+  "pattern": "%air 12%",
+  "plain_scans_off": true,
+  "uses_trigram_index": true,
+  "plan": [
+   "Bitmap Heap Scan on s75_leads (actual rows=124.00 loops=1)",
+   "Recheck Cond: (search ~~ '%air 12%'::text)",
+   "Heap Blocks: exact=26",
+   "Buffers: shared hit=45",
+   "->  Bitmap Index Scan on s75_leads_search (actual rows=127.00 loops=1)",
+   "Index Cond: (search ~~ '%air 12%'::text)"
+  ]
+ },
+ {
+  "pattern": "%heating & air 1234%",
+  "plain_scans_off": false,
+  "uses_trigram_index": true,
+  "plan": [
+   "Bitmap Heap Scan on s75_leads (actual rows=1.00 loops=1)",
+   "Recheck Cond: (search ~~ '%heating & air 1234%'::text)",
+   "Heap Blocks: exact=1",
+   "Buffers: shared hit=48",
+   "->  Bitmap Index Scan on s75_leads_search (actual rows=1.00 loops=1)",
+   "Index Cond: (search ~~ '%heating & air 1234%'::text)"
+  ]
+ },
+ {
+  "pattern": "%heating & air 1234%",
+  "plain_scans_off": true,
+  "uses_trigram_index": true,
+  "plan": [
+   "Bitmap Heap Scan on s75_leads (actual rows=1.00 loops=1)",
+   "Recheck Cond: (search ~~ '%heating & air 1234%'::text)",
+   "Heap Blocks: exact=1",
+   "Buffers: shared hit=48",
+   "->  Bitmap Index Scan on s75_leads_search (actual rows=1.00 loops=1)",
+   "Index Cond: (search ~~ '%heating & air 1234%'::text)"
+  ]
+ },
+ {
+  "pattern": "%12%",
+  "plain_scans_off": false,
+  "uses_trigram_index": false,
+  "plan": [
+   "Seq Scan on s75_leads (actual rows=151.00 loops=1)",
+   "Filter: (search ~~ '%12%'::text)",
+   "Rows Removed by Filter: 2026",
+   "Buffers: shared hit=726",
+   "Planning:",
+   "Buffers: shared hit=1"
+  ]
+ },
+ {
+  "pattern": "%12%",
+  "plain_scans_off": true,
+  "uses_trigram_index": true,
+  "plan": [
+   "Bitmap Heap Scan on s75_leads (actual rows=151.00 loops=1)",
+   "Recheck Cond: (search ~~ '%12%'::text)",
+   "Rows Removed by Index Recheck: 2026",
+   "Heap Blocks: exact=382",
+   "Buffers: shared hit=480",
+   "->  Bitmap Index Scan on s75_leads_search (actual rows=2215.00 loops=1)"
+  ]
+ }
+]

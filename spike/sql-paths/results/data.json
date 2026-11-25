@@ -1,0 +1,30 @@
+{
+ "rows": {
+  "d25": {
+   "leads": 38,
+   "emails": 100,
+   "contacts": 19,
+   "replies": 2
+  },
+  "d100": {
+   "leads": 113,
+   "emails": 400,
+   "contacts": 76,
+   "replies": 10
+  },
+  "d500": {
+   "leads": 513,
+   "emails": 2000,
+   "contacts": 382,
+   "replies": 50
+  },
+  "d1500": {
+   "leads": 1513,
+   "emails": 6000,
+   "contacts": 1146,
+   "replies": 150
+  }
+ },
+ "db_bytes": 119980032,
+ "s75_bytes": 28811264
+}
