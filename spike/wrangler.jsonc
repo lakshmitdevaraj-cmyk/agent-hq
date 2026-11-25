@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "alcance-spike",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  // Run the Worker next to the database (Neon is in us-east-1): measured much faster queries.
+  "placement": { "region": "aws:us-east-1" },
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4d49b78d04ad40bebf069bf5c505a050" }],
+  "queues": {
+    "producers": [{ "binding": "QUEUE", "queue": "alcance-spike-q" }],
+    "consumers": [{ "queue": "alcance-spike-q", "max_batch_size": 1, "max_batch_timeout": 0, "max_retries": 0 }]
+  },
+  "workflows": [{ "name": "alcance-spike-wf", "binding": "WF", "class_name": "SpikeWorkflow" }]
+}

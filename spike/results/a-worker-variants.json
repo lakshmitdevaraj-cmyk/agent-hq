@@ -1,0 +1,275 @@
+{
+ "at": "2026-11-25T06:57:26.138Z",
+ "rows": [
+  {
+   "rid": "v1",
+   "host": "climateservicesoftexas.com",
+   "mode": "onepage-strip",
+   "kchars": 76,
+   "status": 200,
+   "cpu_ms": 25,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v2",
+   "host": "bosworthac.com",
+   "mode": "onepage-strip",
+   "kchars": 40,
+   "status": 200,
+   "cpu_ms": 11,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v3",
+   "host": "mcdarisac.com",
+   "mode": "onepage-strip",
+   "kchars": 71,
+   "status": 200,
+   "cpu_ms": 12,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v4",
+   "host": "vick-construction.com",
+   "mode": "onepage-strip",
+   "kchars": 97,
+   "status": 200,
+   "cpu_ms": 11,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v5",
+   "host": "doctorcool.com",
+   "mode": "onepage-strip",
+   "kchars": 224,
+   "status": 200,
+   "cpu_ms": 21,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v6",
+   "host": "simplycozy.com",
+   "mode": "onepage-strip",
+   "kchars": 140,
+   "status": 200,
+   "cpu_ms": 13,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v7",
+   "host": "txdvp.com",
+   "mode": "onepage-strip",
+   "kchars": 266,
+   "status": 200,
+   "cpu_ms": 23,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v8",
+   "host": "jimsairandheat.com",
+   "mode": "onepage-strip",
+   "kchars": 160,
+   "status": 200,
+   "cpu_ms": 7,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v9",
+   "host": "nolimitroofingtexas.com",
+   "mode": "onepage-strip",
+   "kchars": 140,
+   "status": 200,
+   "cpu_ms": 16,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v10",
+   "host": "onthewaypros.com",
+   "mode": "onepage-strip",
+   "kchars": 199,
+   "status": 200,
+   "cpu_ms": 25,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v11",
+   "host": "makcomfort.com",
+   "mode": "onepage-strip",
+   "kchars": 213,
+   "status": 200,
+   "cpu_ms": 12,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v12",
+   "host": "newhorizonac.com",
+   "mode": "onepage-strip",
+   "kchars": 272,
+   "status": 200,
+   "cpu_ms": 16,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v13",
+   "host": "schulzeac.com",
+   "mode": "onepage-strip",
+   "kchars": 317,
+   "status": 200,
+   "cpu_ms": 9,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v14",
+   "host": "trusealroofingsolutions.com",
+   "mode": "onepage-strip",
+   "kchars": 466,
+   "status": 200,
+   "cpu_ms": 20,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v15",
+   "host": "brownairandheat.com",
+   "mode": "onepage-strip",
+   "kchars": 684,
+   "status": 200,
+   "cpu_ms": 22,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v16",
+   "host": "climateservicesoftexas.com",
+   "mode": "strip",
+   "kchars": 76,
+   "status": 200,
+   "cpu_ms": 76,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v17",
+   "host": "bosworthac.com",
+   "mode": "strip",
+   "kchars": 111,
+   "status": 200,
+   "cpu_ms": 24,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v18",
+   "host": "mcdarisac.com",
+   "mode": "strip",
+   "kchars": 114,
+   "status": 200,
+   "cpu_ms": 54,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v19",
+   "host": "vick-construction.com",
+   "mode": "strip",
+   "kchars": 179,
+   "status": 200,
+   "cpu_ms": 20,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v20",
+   "host": "doctorcool.com",
+   "mode": "strip",
+   "kchars": 224,
+   "status": 200,
+   "cpu_ms": 28,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v21",
+   "host": "simplycozy.com",
+   "mode": "strip",
+   "kchars": 236,
+   "status": 200,
+   "cpu_ms": 21,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v22",
+   "host": "txdvp.com",
+   "mode": "strip",
+   "kchars": 266,
+   "status": 200,
+   "cpu_ms": 30,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v23",
+   "host": "jimsairandheat.com",
+   "mode": "strip",
+   "kchars": 300,
+   "status": 200,
+   "cpu_ms": 23,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v24",
+   "host": "nolimitroofingtexas.com",
+   "mode": "strip",
+   "kchars": 330,
+   "status": 200,
+   "cpu_ms": 37,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v25",
+   "host": "onthewaypros.com",
+   "mode": "strip",
+   "kchars": 492,
+   "status": 200,
+   "cpu_ms": 65,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v26",
+   "host": "makcomfort.com",
+   "mode": "strip",
+   "kchars": 584,
+   "status": 200,
+   "cpu_ms": 39,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v27",
+   "host": "newhorizonac.com",
+   "mode": "strip",
+   "kchars": 682,
+   "status": 200,
+   "cpu_ms": 44,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v28",
+   "host": "schulzeac.com",
+   "mode": "strip",
+   "kchars": 913,
+   "status": 200,
+   "cpu_ms": 27,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v29",
+   "host": "trusealroofingsolutions.com",
+   "mode": "strip",
+   "kchars": 1241,
+   "status": 200,
+   "cpu_ms": 63,
+   "outcome": "ok"
+  },
+  {
+   "rid": "v30",
+   "host": "brownairandheat.com",
+   "mode": "strip",
+   "kchars": 2051,
+   "status": 200,
+   "cpu_ms": 102,
+   "outcome": "ok"
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "alcance-spike",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "postgres": "^4.1.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261125.1",
+    "esbuild": "^0.28.2",
+    "wrangler": "^4.168.0"
+  },
+  "scripts": {
+    "test:a-local": "esbuild scripts/local-cpu.ts --bundle --platform=node --format=esm --outfile=.cache/local-cpu.mjs  && node .cache/local-cpu.mjs",
+    "build:worker": "esbuild worker/sitecheck-worker.ts --bundle --platform=node --format=esm --outfile=.cache/worker.mjs --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "test:a": "esbuild scripts/test-a.ts --bundle --platform=node --format=esm --outfile=.cache/test-a.mjs --external:./remote.mjs --external:postgres && sed -i '' 's#\"./remote.mjs\"#\"../scripts/remote.mjs\"#' .cache/test-a.mjs && node .cache/test-a.mjs",
+    "test:a-variants": "esbuild scripts/test-a2.ts --bundle --platform=node --format=esm --outfile=.cache/test-a2.mjs --external:./remote.mjs --external:postgres && sed -i '' 's#\"./remote.mjs\"#\"../scripts/remote.mjs\"#' .cache/test-a2.mjs && node .cache/test-a2.mjs",
+    "test:e": "npm run build:worker && node scripts/test-e.mjs",
+    "test:f": "node scripts/test-f.mjs",
+    "seed": "node db/seed.mjs"
+  }
+}

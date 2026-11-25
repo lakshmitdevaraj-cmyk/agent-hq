@@ -1,0 +1,50 @@
+{
+ "at": "2026-11-25T07:10:20.520Z",
+ "synthetic_kchars": 600,
+ "attempted": 40,
+ "queue_consumer": {
+  "invocations_seen": 16,
+  "outcomes": {
+   "ok": 14,
+   "exceededCpu": 2
+  },
+  "cpu_ms": {
+   "min": 50,
+   "median": 123,
+   "max": 148
+  }
+ },
+ "workflow": {
+  "status": "errored",
+  "output": null,
+  "error": {
+   "message": "Worker exceeded CPU time limit.",
+   "name": "Error"
+  },
+  "invocations_seen": 2,
+  "outcomes": {
+   "exceededCpu": 1,
+   "exception": 1
+  },
+  "cpu_ms": {
+   "min": 2,
+   "median": 2050,
+   "max": 2050
+  }
+ },
+ "http": {
+  "ok": 38,
+  "failed": 2,
+  "first_failure_at": 19,
+  "invocations_seen": 40,
+  "outcomes": {
+   "ok": 38,
+   "exceededCpu": 2
+  },
+  "cpu_ms": {
+   "min": 10,
+   "median": 128,
+   "max": 225
+  }
+ }
+}

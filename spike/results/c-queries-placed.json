@@ -1,0 +1,61 @@
+{
+ "at": "2026-11-25T07:08:13.445Z",
+ "placement": "aws:us-east-1",
+ "warm": {
+  "prospects_no_email_social": {
+   "n": 15,
+   "statuses": [
+    200
+   ],
+   "client_ms_median": 513,
+   "db_ms_median": 30,
+   "cf_placement": "remote-IAD",
+   "before_client_ms": 562,
+   "before_db_ms": 478
+  },
+  "prospects_emailed_no_reply": {
+   "n": 15,
+   "statuses": [
+    200
+   ],
+   "client_ms_median": 558,
+   "db_ms_median": 27,
+   "cf_placement": "remote-IAD",
+   "before_client_ms": 553,
+   "before_db_ms": 482
+  },
+  "prospects_due_today": {
+   "n": 15,
+   "statuses": [
+    200
+   ],
+   "client_ms_median": 401,
+   "db_ms_median": 25,
+   "cf_placement": "remote-IAD",
+   "before_client_ms": 367,
+   "before_db_ms": 298
+  },
+  "followups": {
+   "n": 15,
+   "statuses": [
+    200
+   ],
+   "client_ms_median": 387,
+   "db_ms_median": 27,
+   "cf_placement": "remote-IAD",
+   "before_client_ms": 372,
+   "before_db_ms": 301
+  },
+  "campaign_page": {
+   "n": 15,
+   "statuses": [
+    200
+   ],
+   "client_ms_median": 937,
+   "db_ms_median": 40,
+   "cf_placement": "remote-IAD",
+   "before_client_ms": 1126,
+   "before_db_ms": 1039
+  }
+ }
+}

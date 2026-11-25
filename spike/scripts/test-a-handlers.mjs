@@ -1,0 +1,32 @@
+import { writeFileSync } from "node:fs";
+import { call, startTail, sleep } from "../scripts/remote.mjs";
+const KB = 600, N = 40;
+const tail = await startTail("cpu");
+const J = (r) => { try { return JSON.parse(r.text); } catch { return {}; } };
+const summarise = (events) => {
+  const cpu = events.map((e) => e.cpuTime).sort((a, b) => a - b);
+  const outcomes = {}; for (const e of events) outcomes[e.outcome] = (outcomes[e.outcome] ?? 0) + 1;
+  return { invocations_seen: events.length, outcomes, cpu_ms: { min: cpu[0], median: cpu[Math.floor(cpu.length / 2)], max: cpu.at(-1) } };
+};
+const out = { at: new Date().toISOString(), synthetic_kchars: KB, attempted: N };
+await sleep(5000);
+let mark = tail.events().length;
+console.log("queue", (await call(`/load/queue?kb=${KB}&n=${N}`, null, { method: "POST" })).status);
+await sleep(75_000);
+out.queue_consumer = summarise(tail.events().slice(mark).filter((e) => e.event?.queue));
+console.log("queue", JSON.stringify(out.queue_consumer));
+mark = tail.events().length;
+const w = J(await call(`/load/workflow?kb=${KB}&n=${N}`, null, { method: "POST" }));
+let st = {};
+for (let i = 0; i < 24; i++) { await sleep(10_000); st = J(await call(`/load/workflow-status?id=${w.id}`)); if (["complete", "errored"].includes(st.status)) break; }
+await sleep(10_000);
+out.workflow = { status: st.status, output: st.output, error: st.error, ...summarise(tail.events().slice(mark).filter((e) => !e.event?.request && !e.event?.queue)) };
+console.log("workflow", JSON.stringify(out.workflow));
+mark = tail.events().length;
+const statuses = [];
+for (let i = 0; i < N; i++) statuses.push((await call(`/load/http?kb=${KB}`, "h" + i)).status);
+await sleep(10_000);
+out.http = { ok: statuses.filter((s) => s === 200).length, failed: statuses.filter((s) => s !== 200).length, first_failure_at: statuses.findIndex((s) => s !== 200) + 1 || null, ...summarise(tail.events().slice(mark).filter((e) => e.event?.request?.url?.includes("/load/http"))) };
+console.log("http", JSON.stringify(out.http));
+await tail.stop();
+writeFileSync("results/a-cpu-by-handler.json", JSON.stringify(out, null, 1));

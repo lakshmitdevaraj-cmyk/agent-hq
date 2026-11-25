@@ -1,0 +1,2828 @@
+{
+ "at": "2026-11-25T06:20:00.226Z",
+ "tail_events": 271,
+ "requests": 320,
+ "rows": [
+  {
+   "host": "makcomfort.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      200,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "ok",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      150,
+      139,
+      9
+     ],
+     "max_cpu_ms": 150,
+     "err1102": 1,
+     "wall_ms": [
+      3257,
+      2772,
+      1747
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      6606,
+      2792,
+      1434
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      825,
+      649,
+      660
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      851,
+      860,
+      847
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      875,
+      873,
+      848
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      637,
+      631,
+      654
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      634,
+      629,
+      637
+     ]
+    }
+   }
+  },
+  {
+   "host": "jimsairandheat.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      200,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "ok",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      42,
+      51,
+      10
+     ],
+     "max_cpu_ms": 51,
+     "err1102": 1,
+     "wall_ms": [
+      766,
+      607,
+      603
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      643,
+      643,
+      643
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      655,
+      653,
+      817
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      654,
+      646,
+      643
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      642,
+      650,
+      642
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      437,
+      440,
+      442
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      438,
+      438,
+      435
+     ]
+    }
+   }
+  },
+  {
+   "host": "bayareaacplumbing.com",
+   "loaded_local": false,
+   "loaded_worker": true,
+   "differs_from_local": null,
+   "modes": {
+    "live": {
+     "runs": 1,
+     "statuses": [
+      200
+     ],
+     "outcomes": [
+      "ok"
+     ],
+     "cpu_ms": [
+      38
+     ],
+     "max_cpu_ms": 38,
+     "err1102": 0,
+     "wall_ms": [
+      2902
+     ]
+    }
+   }
+  },
+  {
+   "host": "nolimitroofingtexas.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      200,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "ok",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      76,
+      70,
+      10
+     ],
+     "max_cpu_ms": 76,
+     "err1102": 1,
+     "wall_ms": [
+      6362,
+      4098,
+      4104
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      646,
+      654,
+      642
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      640,
+      640,
+      645
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      646,
+      650,
+      657
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      655,
+      654,
+      652
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      442,
+      439,
+      437
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      440,
+      433,
+      453
+     ]
+    }
+   }
+  },
+  {
+   "host": "schulzeac.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      200,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "ok",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      175,
+      173,
+      9
+     ],
+     "max_cpu_ms": 175,
+     "err1102": 1,
+     "wall_ms": [
+      6610,
+      5460,
+      3823
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      888,
+      1102,
+      2280
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1058,
+      1047,
+      1036
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1283,
+      1542,
+      2325
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1276,
+      1248,
+      1266
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      645,
+      649,
+      646
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      643,
+      644,
+      648
+     ]
+    }
+   }
+  },
+  {
+   "host": "plumbingchamp.com",
+   "loaded_local": false,
+   "loaded_worker": false,
+   "differs_from_local": null,
+   "modes": {
+    "live": {
+     "runs": 1,
+     "statuses": [
+      200
+     ],
+     "outcomes": [
+      "ok"
+     ],
+     "cpu_ms": [
+      4
+     ],
+     "max_cpu_ms": 4,
+     "err1102": 0,
+     "wall_ms": [
+      288
+     ]
+    }
+   }
+  },
+  {
+   "host": "txdvp.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      200,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "ok",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      74,
+      58,
+      10
+     ],
+     "max_cpu_ms": 74,
+     "err1102": 1,
+     "wall_ms": [
+      7650,
+      5805,
+      5553
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      651,
+      638,
+      661
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      641,
+      655,
+      644
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      636,
+      640,
+      635
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      640,
+      647,
+      647
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      638,
+      640,
+      650
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      644,
+      1862,
+      832
+     ]
+    }
+   }
+  },
+  {
+   "host": "climateservicesoftexas.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      29,
+      12,
+      10
+     ],
+     "max_cpu_ms": 29,
+     "err1102": 2,
+     "wall_ms": [
+      1384,
+      1497,
+      1582
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      433,
+      483,
+      430
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      440,
+      424,
+      427
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      486,
+      1020,
+      622
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      430,
+      434,
+      442
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      427,
+      427,
+      428
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      425,
+      444,
+      502
+     ]
+    }
+   }
+  },
+  {
+   "host": "newhorizonac.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      146,
+      9,
+      9
+     ],
+     "max_cpu_ms": 146,
+     "err1102": 2,
+     "wall_ms": [
+      1075,
+      657,
+      750
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      2238,
+      1676,
+      1646
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1250,
+      1053,
+      1038
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1050,
+      1064,
+      883
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      876,
+      1048,
+      2036
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      644,
+      641,
+      641
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      641,
+      846,
+      636
+     ]
+    }
+   }
+  },
+  {
+   "host": "brownairandheat.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      362,
+      10,
+      10
+     ],
+     "max_cpu_ms": 362,
+     "err1102": 2,
+     "wall_ms": [
+      3994,
+      556,
+      853
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      2073,
+      1873,
+      1726
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1239,
+      1067,
+      1067
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1295,
+      2265,
+      1501
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1463,
+      1453,
+      1440
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      867,
+      871,
+      872
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      878,
+      877,
+      870
+     ]
+    }
+   }
+  },
+  {
+   "host": "mcdarisac.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      50,
+      10,
+      10
+     ],
+     "max_cpu_ms": 50,
+     "err1102": 2,
+     "wall_ms": [
+      3235,
+      3023,
+      3005
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      430,
+      435,
+      432
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      429,
+      428,
+      436
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      439,
+      430,
+      437
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      432,
+      429,
+      2057
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1416,
+      1025,
+      899
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      814,
+      631,
+      623
+     ]
+    }
+   }
+  },
+  {
+   "host": "simplycozy.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      44,
+      10,
+      10
+     ],
+     "max_cpu_ms": 44,
+     "err1102": 2,
+     "wall_ms": [
+      947,
+      1051,
+      752
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1032,
+      835,
+      634
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      852,
+      636,
+      641
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      634,
+      639,
+      638
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      640,
+      636,
+      647
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      433,
+      437,
+      434
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      437,
+      432,
+      440
+     ]
+    }
+   }
+  },
+  {
+   "host": "texasroofmasters.com",
+   "loaded_local": false,
+   "loaded_worker": false,
+   "differs_from_local": null,
+   "modes": {
+    "live": {
+     "runs": 1,
+     "statuses": [
+      200
+     ],
+     "outcomes": [
+      "ok"
+     ],
+     "cpu_ms": [
+      5
+     ],
+     "max_cpu_ms": 5,
+     "err1102": 0,
+     "wall_ms": [
+      875
+     ]
+    }
+   }
+  },
+  {
+   "host": "vick-construction.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      45,
+      10,
+      10
+     ],
+     "max_cpu_ms": 45,
+     "err1102": 2,
+     "wall_ms": [
+      2624,
+      2500,
+      2181
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      442,
+      437,
+      439
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      435,
+      440,
+      431
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      441,
+      444,
+      440
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      445,
+      620,
+      441
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      429,
+      433,
+      431
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      434,
+      435,
+      1435
+     ]
+    }
+   }
+  },
+  {
+   "host": "abel-ac.com",
+   "loaded_local": false,
+   "loaded_worker": true,
+   "differs_from_local": null,
+   "modes": {
+    "live": {
+     "runs": 1,
+     "statuses": [
+      200
+     ],
+     "outcomes": [
+      "ok"
+     ],
+     "cpu_ms": [
+      115
+     ],
+     "max_cpu_ms": 115,
+     "err1102": 0,
+     "wall_ms": [
+      7973
+     ]
+    }
+   }
+  },
+  {
+   "host": "trusealroofingsolutions.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      182,
+      10,
+      10
+     ],
+     "max_cpu_ms": 182,
+     "err1102": 2,
+     "wall_ms": [
+      19663,
+      3926,
+      4849
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      8475,
+      1846,
+      1260
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      877,
+      888,
+      888
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1378,
+      1244,
+      2251
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      1244,
+      1235,
+      1227
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      839,
+      855,
+      850
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      836,
+      844,
+      851
+     ]
+    }
+   }
+  },
+  {
+   "host": "airtechofconroe.com",
+   "loaded_local": false,
+   "loaded_worker": false,
+   "differs_from_local": null,
+   "modes": {
+    "live": {
+     "runs": 1,
+     "statuses": [
+      200
+     ],
+     "outcomes": [
+      "ok"
+     ],
+     "cpu_ms": [
+      6
+     ],
+     "max_cpu_ms": 6,
+     "err1102": 0,
+     "wall_ms": [
+      468
+     ]
+    }
+   }
+  },
+  {
+   "host": "doctorcool.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      50,
+      10,
+      10
+     ],
+     "max_cpu_ms": 50,
+     "err1102": 2,
+     "wall_ms": [
+      1982,
+      1835,
+      649
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      636,
+      631,
+      649
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      641,
+      650,
+      634
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      658,
+      633,
+      645
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      631,
+      632,
+      647
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      639,
+      637,
+      636
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      641,
+      644,
+      635
+     ]
+    }
+   }
+  },
+  {
+   "host": "bosworthac.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      43,
+      10,
+      10
+     ],
+     "max_cpu_ms": 43,
+     "err1102": 2,
+     "wall_ms": [
+      7863,
+      6943,
+      6971
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "not-in-tail"
+     ],
+     "cpu_ms": [
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      432,
+      431,
+      431
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      430,
+      425,
+      432
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      431,
+      433,
+      449
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      432,
+      431,
+      450
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      226,
+      224,
+      230
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      200,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 2,
+     "wall_ms": [
+      225,
+      229,
+      227
+     ]
+    }
+   }
+  },
+  {
+   "host": "onthewaypros.com",
+   "loaded_local": true,
+   "loaded_worker": true,
+   "differs_from_local": [],
+   "modes": {
+    "live": {
+     "runs": 3,
+     "statuses": [
+      200,
+      503,
+      503
+     ],
+     "outcomes": [
+      "ok",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      139,
+      10,
+      10
+     ],
+     "max_cpu_ms": 139,
+     "err1102": 2,
+     "wall_ms": [
+      908,
+      542,
+      504
+     ]
+    },
+    "full": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      837,
+      842,
+      848
+     ]
+    },
+    "lite": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "not-in-tail",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      651,
+      650,
+      644
+     ]
+    },
+    "trim": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      855,
+      845,
+      847
+     ]
+    },
+    "strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      854,
+      843,
+      865
+     ]
+    },
+    "onepage": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "exceededCpu",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      632,
+      633,
+      635
+     ]
+    },
+    "onepage-strip": {
+     "runs": 3,
+     "statuses": [
+      503,
+      503,
+      503
+     ],
+     "outcomes": [
+      "not-in-tail",
+      "exceededCpu",
+      "exceededCpu"
+     ],
+     "cpu_ms": [
+      10,
+      10
+     ],
+     "max_cpu_ms": 10,
+     "err1102": 3,
+     "wall_ms": [
+      634,
+      640,
+      631
+     ]
+    }
+   }
+  }
+ ]
+}

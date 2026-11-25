@@ -1,0 +1,132 @@
+{
+ "at": "2026-11-25T06:22:32.132Z",
+ "rows": [
+  {
+   "n": 1,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 2,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 3,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 4,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 5,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 6,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 7,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 8,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 9,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  },
+  {
+   "n": 10,
+   "status": "sent",
+   "http_status": 200,
+   "detail": "accepted"
+  }
+ ],
+ "sent": 10,
+ "seconds_queue_to_last_send": 13.599,
+ "second_start_status": 409,
+ "consumer_invocations": [
+  {
+   "cpu": 30,
+   "wall": 909,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 7,
+   "wall": 664,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 7,
+   "wall": 807,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 6,
+   "wall": 667,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 8,
+   "wall": 696,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 5,
+   "wall": 683,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 5,
+   "wall": 693,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 6,
+   "wall": 758,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 7,
+   "wall": 674,
+   "outcome": "ok"
+  },
+  {
+   "cpu": 5,
+   "wall": 700,
+   "outcome": "ok"
+  }
+ ],
+ "producer": [
+  {
+   "cpu": 20,
+   "wall": 3766,
+   "outcome": "ok"
+  }
+ ],
+ "sixty_fetches": {
+  "ok": 50,
+  "failed": true,
+  "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+ }
+}

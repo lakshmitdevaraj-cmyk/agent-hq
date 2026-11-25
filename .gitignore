@@ -6,3 +6,9 @@ dist
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Cloudflare + Neon spike
+spike/.dev.vars
+.dev.vars
+spike/.wrangler/
+spike/.cache/

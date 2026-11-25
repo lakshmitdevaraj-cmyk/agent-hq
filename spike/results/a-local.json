@@ -1,0 +1,1413 @@
+{
+ "node": "v26.8.1",
+ "arch": "arm64",
+ "rows": [
+  {
+   "host": "makcomfort.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 584,
+    "first_ms": 82.272,
+    "median_ms": 43.014,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": "39b8b07f",
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 374,
+    "first_ms": 27.566,
+    "median_ms": 26.355,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": "39b8b07f",
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 293,
+    "first_ms": 16.529,
+    "median_ms": 16.529,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "request_form",
+     "owner",
+     "facts",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 225,
+    "first_ms": 16.3,
+    "median_ms": 15.628,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": "39b8b07f",
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 213,
+    "max_median_ms": 15.434,
+    "max_first_ms": 15.857
+   }
+  },
+  {
+   "host": "jimsairandheat.com",
+   "loaded": true,
+   "pages": 2,
+   "full": {
+    "kb": 300,
+    "first_ms": 32.171,
+    "median_ms": 17.219,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 300,
+    "first_ms": 14.568,
+    "median_ms": 13.871,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 196,
+    "first_ms": 9.934,
+    "median_ms": 7.95,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "request_form",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 146,
+    "first_ms": 9.112,
+    "median_ms": 9.344,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 160,
+    "max_median_ms": 7.976,
+    "max_first_ms": 7.926
+   }
+  },
+  {
+   "host": "bayareaacplumbing.com",
+   "loaded": false
+  },
+  {
+   "host": "nolimitroofingtexas.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 330,
+    "first_ms": 49.542,
+    "median_ms": 27.296,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=true no_https=false old_copyright=unknown",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 228,
+    "first_ms": 15.87,
+    "median_ms": 15.353,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=true no_https=false old_copyright=unknown",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 283,
+    "first_ms": 17.996,
+    "median_ms": 18.223,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=true no_https=false old_copyright=unknown",
+     "gap_score": 75
+    },
+    "lost": [
+     "social"
+    ]
+   },
+   "strip": {
+    "kb": 202,
+    "first_ms": 14.951,
+    "median_ms": 14.944,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=true no_https=false old_copyright=unknown",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 140,
+    "max_median_ms": 9.527,
+    "max_first_ms": 9.527
+   }
+  },
+  {
+   "host": "schulzeac.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 913,
+    "first_ms": 80.938,
+    "median_ms": 56.053,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 614,
+    "first_ms": 39.156,
+    "median_ms": 38.715,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 293,
+    "first_ms": 31.544,
+    "median_ms": 30.658,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 92,
+    "first_ms": 7.817,
+    "median_ms": 7.817,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 317,
+    "max_median_ms": 21.22,
+    "max_first_ms": 21.22
+   }
+  },
+  {
+   "host": "plumbingchamp.com",
+   "loaded": false
+  },
+  {
+   "host": "txdvp.com",
+   "loaded": true,
+   "pages": 1,
+   "full": {
+    "kb": 266,
+    "first_ms": 36.938,
+    "median_ms": 27.323,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 266,
+    "first_ms": 26.644,
+    "median_ms": 26.644,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 98,
+    "first_ms": 11.326,
+    "median_ms": 8.512,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=unknown no_https=false old_copyright=unknown",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "social",
+     "facts",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 150,
+    "first_ms": 15.922,
+    "median_ms": 13.8,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "gap_score"
+    ]
+   },
+   "per_page": {
+    "max_kb": 266,
+    "max_median_ms": 21.5,
+    "max_first_ms": 21.47
+   }
+  },
+  {
+   "host": "climateservicesoftexas.com",
+   "loaded": true,
+   "pages": 1,
+   "full": {
+    "kb": 76,
+    "first_ms": 13.965,
+    "median_ms": 10.145,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 65
+    }
+   },
+   "lite": {
+    "kb": 76,
+    "first_ms": 7.249,
+    "median_ms": 6.514,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 76,
+    "first_ms": 5.937,
+    "median_ms": 5.845,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "strip": {
+    "kb": 75,
+    "first_ms": 5.405,
+    "median_ms": 5.405,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=true",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 76,
+    "max_median_ms": 5.398,
+    "max_first_ms": 5.398
+   }
+  },
+  {
+   "host": "newhorizonac.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 682,
+    "first_ms": 65.031,
+    "median_ms": 38.793,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 477,
+    "first_ms": 27.54,
+    "median_ms": 27.754,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 293,
+    "first_ms": 20.241,
+    "median_ms": 20.367,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=unknown no_https=false old_copyright=unknown",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "social",
+     "facts",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 271,
+    "first_ms": 19.596,
+    "median_ms": 19.638,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 272,
+    "max_median_ms": 17.203,
+    "max_first_ms": 17.197
+   }
+  },
+  {
+   "host": "brownairandheat.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 2051,
+    "first_ms": 129.954,
+    "median_ms": 93.618,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    }
+   },
+   "lite": {
+    "kb": 1367,
+    "first_ms": 64.044,
+    "median_ms": 64.044,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 293,
+    "first_ms": 27.003,
+    "median_ms": 26.253,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=unknown no_https=false old_copyright=unknown",
+     "gap_score": 65
+    },
+    "lost": [
+     "social",
+     "facts"
+    ]
+   },
+   "strip": {
+    "kb": 640,
+    "first_ms": 34.529,
+    "median_ms": 28.582,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 684,
+    "max_median_ms": 34.629,
+    "max_first_ms": 34.629
+   }
+  },
+  {
+   "host": "mcdarisac.com",
+   "loaded": true,
+   "pages": 2,
+   "full": {
+    "kb": 114,
+    "first_ms": 20.004,
+    "median_ms": 17.021,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 71,
+    "first_ms": 7.1,
+    "median_ms": 6.657,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 114,
+    "first_ms": 9.048,
+    "median_ms": 9.114,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "strip": {
+    "kb": 73,
+    "first_ms": 6.752,
+    "median_ms": 7.304,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": true,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 71,
+    "max_median_ms": 6.249,
+    "max_first_ms": 6.384
+   }
+  },
+  {
+   "host": "simplycozy.com",
+   "loaded": true,
+   "pages": 2,
+   "full": {
+    "kb": 236,
+    "first_ms": 26.026,
+    "median_ms": 17.685,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 236,
+    "first_ms": 13.728,
+    "median_ms": 11.831,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 196,
+    "first_ms": 8.802,
+    "median_ms": 9.075,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "strip": {
+    "kb": 162,
+    "first_ms": 8.357,
+    "median_ms": 8.63,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+instagram",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 140,
+    "max_median_ms": 7.01,
+    "max_first_ms": 7.01
+   }
+  },
+  {
+   "host": "texasroofmasters.com",
+   "loaded": false
+  },
+  {
+   "host": "vick-construction.com",
+   "loaded": true,
+   "pages": 2,
+   "full": {
+    "kb": 179,
+    "first_ms": 24.71,
+    "median_ms": 16.095,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    }
+   },
+   "lite": {
+    "kb": 97,
+    "first_ms": 7.325,
+    "median_ms": 7.141,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 180,
+    "first_ms": 11.064,
+    "median_ms": 11.013,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": []
+   },
+   "strip": {
+    "kb": 90,
+    "first_ms": 7.145,
+    "median_ms": 7.145,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 65
+    },
+    "lost": [
+     "form_plugin"
+    ]
+   },
+   "per_page": {
+    "max_kb": 97,
+    "max_median_ms": 6.605,
+    "max_first_ms": 6.648
+   }
+  },
+  {
+   "host": "abel-ac.com",
+   "loaded": false
+  },
+  {
+   "host": "trusealroofingsolutions.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 1241,
+    "first_ms": 88.796,
+    "median_ms": 52.113,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": "9b1968b",
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    }
+   },
+   "lite": {
+    "kb": 847,
+    "first_ms": 35.761,
+    "median_ms": 36.028,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": [
+     "owner"
+    ]
+   },
+   "trim": {
+    "kb": 293,
+    "first_ms": 14.924,
+    "median_ms": 14.42,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=unknown phone_not_tappable=unknown no_https=false old_copyright=unknown",
+     "gap_score": 65
+    },
+    "lost": [
+     "contact_form",
+     "social",
+     "owner",
+     "facts",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 449,
+    "first_ms": 21.821,
+    "median_ms": 21.402,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": "9b1968b",
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 75
+    },
+    "lost": [
+     "facts"
+    ]
+   },
+   "per_page": {
+    "max_kb": 466,
+    "max_median_ms": 22.383,
+    "max_first_ms": 29.039
+   }
+  },
+  {
+   "host": "airtechofconroe.com",
+   "loaded": false
+  },
+  {
+   "host": "doctorcool.com",
+   "loaded": true,
+   "pages": 1,
+   "full": {
+    "kb": 224,
+    "first_ms": 35.909,
+    "median_ms": 17.719,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    }
+   },
+   "lite": {
+    "kb": 224,
+    "first_ms": 13.94,
+    "median_ms": 13.94,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 98,
+    "first_ms": 6.25,
+    "median_ms": 6.452,
+    "fp": {
+     "chat": false,
+     "booking": false,
+     "contact_form": false,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 65
+    },
+    "lost": [
+     "booking",
+     "contact_form",
+     "social",
+     "form_plugin",
+     "facts",
+     "gap_score"
+    ]
+   },
+   "strip": {
+    "kb": 144,
+    "first_ms": 11.375,
+    "median_ms": 11.034,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": true,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 224,
+    "max_median_ms": 15.537,
+    "max_first_ms": 14.762
+   }
+  },
+  {
+   "host": "bosworthac.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 111,
+    "first_ms": 21.105,
+    "median_ms": 14.251,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    }
+   },
+   "lite": {
+    "kb": 72,
+    "first_ms": 6.538,
+    "median_ms": 5.923,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 111,
+    "first_ms": 8.27,
+    "median_ms": 8.05,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "strip": {
+    "kb": 79,
+    "first_ms": 6.685,
+    "median_ms": 6.685,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company+yelp",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 40,
+    "max_median_ms": 3.379,
+    "max_first_ms": 3.425
+   }
+  },
+  {
+   "host": "onthewaypros.com",
+   "loaded": true,
+   "pages": 3,
+   "full": {
+    "kb": 492,
+    "first_ms": 56.497,
+    "median_ms": 31.113,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    }
+   },
+   "lite": {
+    "kb": 327,
+    "first_ms": 23.061,
+    "median_ms": 21.263,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "trim": {
+    "kb": 279,
+    "first_ms": 18.219,
+    "median_ms": 18.219,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=unknown",
+     "gap_score": 35
+    },
+    "lost": [
+     "facts"
+    ]
+   },
+   "strip": {
+    "kb": 339,
+    "first_ms": 24.425,
+    "median_ms": 24.842,
+    "fp": {
+     "chat": false,
+     "booking": true,
+     "contact_form": true,
+     "request_form": false,
+     "whatsapp": false,
+     "social": "facebook+google_reviews+instagram+linkedin_company",
+     "emails": 0,
+     "emails_hash": "811c9dc5",
+     "owner": null,
+     "form_plugin": false,
+     "facts": "not_mobile_friendly=false phone_not_tappable=false no_https=false old_copyright=false",
+     "gap_score": 35
+    },
+    "lost": []
+   },
+   "per_page": {
+    "max_kb": 199,
+    "max_median_ms": 14.057,
+    "max_first_ms": 14.165
+   }
+  }
+ ]
+}

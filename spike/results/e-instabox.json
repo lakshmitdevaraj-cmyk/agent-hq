@@ -1,0 +1,158 @@
+{
+ "at": "2026-11-25T06:54:14.096Z",
+ "upload_seconds": 3.8,
+ "run_seconds_seen_from_mac": 213.912,
+ "exit": 0,
+ "totals": {
+  "run": "instabox-1795589435715",
+  "sites": 20,
+  "loaded": 18,
+  "total_seconds": 211.329,
+  "parse_cpu_ms_total": 1089,
+  "node": "v22.23.3",
+  "cpus": 4
+ },
+ "rows_in_neon": 20,
+ "rows": [
+  {
+   "host": "abel-ac.com",
+   "pages": 3,
+   "kb": 396,
+   "fetch_ms": 12991,
+   "cpu_ms": 74.573
+  },
+  {
+   "host": "airtechofconroe.com",
+   "pages": 0,
+   "kb": 0,
+   "fetch_ms": 6725,
+   "cpu_ms": 0.006
+  },
+  {
+   "host": "bayareaacplumbing.com",
+   "pages": 3,
+   "kb": 130,
+   "fetch_ms": 10030,
+   "cpu_ms": 17.987
+  },
+  {
+   "host": "bosworthac.com",
+   "pages": 3,
+   "kb": 111,
+   "fetch_ms": 14278,
+   "cpu_ms": 18.157
+  },
+  {
+   "host": "brownairandheat.com",
+   "pages": 3,
+   "kb": 2051,
+   "fetch_ms": 8649,
+   "cpu_ms": 200.819
+  },
+  {
+   "host": "climateservicesoftexas.com",
+   "pages": 1,
+   "kb": 76,
+   "fetch_ms": 6940,
+   "cpu_ms": 17.88
+  },
+  {
+   "host": "doctorcool.com",
+   "pages": 1,
+   "kb": 224,
+   "fetch_ms": 8394,
+   "cpu_ms": 31.382
+  },
+  {
+   "host": "jimsairandheat.com",
+   "pages": 2,
+   "kb": 300,
+   "fetch_ms": 6535,
+   "cpu_ms": 29.597
+  },
+  {
+   "host": "makcomfort.com",
+   "pages": 3,
+   "kb": 584,
+   "fetch_ms": 9342,
+   "cpu_ms": 99.459
+  },
+  {
+   "host": "mcdarisac.com",
+   "pages": 2,
+   "kb": 114,
+   "fetch_ms": 10669,
+   "cpu_ms": 18.674
+  },
+  {
+   "host": "newhorizonac.com",
+   "pages": 3,
+   "kb": 682,
+   "fetch_ms": 8227,
+   "cpu_ms": 108.221
+  },
+  {
+   "host": "nolimitroofingtexas.com",
+   "pages": 3,
+   "kb": 330,
+   "fetch_ms": 12660,
+   "cpu_ms": 44.477
+  },
+  {
+   "host": "onthewaypros.com",
+   "pages": 3,
+   "kb": 492,
+   "fetch_ms": 6724,
+   "cpu_ms": 66.78
+  },
+  {
+   "host": "plumbingchamp.com",
+   "pages": 3,
+   "kb": 659,
+   "fetch_ms": 9349,
+   "cpu_ms": 71.419
+  },
+  {
+   "host": "schulzeac.com",
+   "pages": 3,
+   "kb": 913,
+   "fetch_ms": 12128,
+   "cpu_ms": 101.325
+  },
+  {
+   "host": "simplycozy.com",
+   "pages": 2,
+   "kb": 236,
+   "fetch_ms": 6809,
+   "cpu_ms": 20.609
+  },
+  {
+   "host": "texasroofmasters.com",
+   "pages": 0,
+   "kb": 0,
+   "fetch_ms": 8999,
+   "cpu_ms": 0.007
+  },
+  {
+   "host": "trusealroofingsolutions.com",
+   "pages": 3,
+   "kb": 1241,
+   "fetch_ms": 26281,
+   "cpu_ms": 97.401
+  },
+  {
+   "host": "txdvp.com",
+   "pages": 1,
+   "kb": 266,
+   "fetch_ms": 13512,
+   "cpu_ms": 41.844
+  },
+  {
+   "host": "vick-construction.com",
+   "pages": 2,
+   "kb": 179,
+   "fetch_ms": 9358,
+   "cpu_ms": 28.059
+  }
+ ]
+}

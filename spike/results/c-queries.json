@@ -1,0 +1,194 @@
+{
+ "at": "2026-11-25T06:27:46.731Z",
+ "warm": {
+  "prospects_no_email_social": {
+   "rows": 200,
+   "response_kb": 72,
+   "statuses": [
+    200
+   ],
+   "client_ms": {
+    "n": 20,
+    "median": 562,
+    "p95": 596,
+    "max": 596
+   },
+   "db_ms": {
+    "n": 20,
+    "median": 478,
+    "p95": 498,
+    "max": 498
+   },
+   "cpu_ms": {
+    "n": 17,
+    "median": 3,
+    "p95": 5,
+    "max": 5
+   },
+   "outcomes": [
+    "ok"
+   ],
+   "subrequests": "0 external fetches; 1 SQL query via Hyperdrive"
+  },
+  "prospects_emailed_no_reply": {
+   "rows": 200,
+   "response_kb": 73,
+   "statuses": [
+    200
+   ],
+   "client_ms": {
+    "n": 20,
+    "median": 553,
+    "p95": 3975,
+    "max": 3975
+   },
+   "db_ms": {
+    "n": 20,
+    "median": 482,
+    "p95": 507,
+    "max": 507
+   },
+   "cpu_ms": {
+    "n": 18,
+    "median": 3,
+    "p95": 4,
+    "max": 4
+   },
+   "outcomes": [
+    "ok"
+   ],
+   "subrequests": "0 external fetches; 1 SQL query via Hyperdrive"
+  },
+  "prospects_due_today": {
+   "rows": 119,
+   "response_kb": 43,
+   "statuses": [
+    200
+   ],
+   "client_ms": {
+    "n": 20,
+    "median": 367,
+    "p95": 392,
+    "max": 392
+   },
+   "db_ms": {
+    "n": 20,
+    "median": 298,
+    "p95": 305,
+    "max": 305
+   },
+   "cpu_ms": {
+    "n": 12,
+    "median": 2,
+    "p95": 5,
+    "max": 5
+   },
+   "outcomes": [
+    "ok"
+   ],
+   "subrequests": "0 external fetches; 1 SQL query via Hyperdrive"
+  },
+  "followups": {
+   "rows": 200,
+   "response_kb": 39,
+   "statuses": [
+    200
+   ],
+   "client_ms": {
+    "n": 20,
+    "median": 372,
+    "p95": 466,
+    "max": 466
+   },
+   "db_ms": {
+    "n": 20,
+    "median": 301,
+    "p95": 306,
+    "max": 306
+   },
+   "cpu_ms": {
+    "n": 13,
+    "median": 3,
+    "p95": 4,
+    "max": 4
+   },
+   "outcomes": [
+    "ok"
+   ],
+   "subrequests": "0 external fetches; 1 SQL query via Hyperdrive"
+  },
+  "campaign_page": {
+   "rows": 1,
+   "response_kb": 296,
+   "statuses": [
+    200
+   ],
+   "client_ms": {
+    "n": 20,
+    "median": 1126,
+    "p95": 1225,
+    "max": 1225
+   },
+   "db_ms": {
+    "n": 20,
+    "median": 1039,
+    "p95": 1114,
+    "max": 1114
+   },
+   "cpu_ms": {
+    "n": 20,
+    "median": 4,
+    "p95": 8,
+    "max": 8
+   },
+   "outcomes": [
+    "ok"
+   ],
+   "subrequests": "0 external fetches; 1 SQL query via Hyperdrive"
+  }
+ },
+ "cold": {
+  "prospects_emailed_no_reply": {
+   "status": 200,
+   "client_ms": 1491,
+   "db_ms": 757,
+   "cpu_ms": 7,
+   "outcome": "ok",
+   "error": null,
+   "next_call_ms": 321,
+   "neon_uptime_s_after": 2,
+   "neon_had_slept": true
+  },
+  "followups": {
+   "status": 200,
+   "client_ms": 1780,
+   "db_ms": 1129,
+   "cpu_ms": 19,
+   "outcome": "ok",
+   "error": null,
+   "next_call_ms": 406,
+   "neon_uptime_s_after": 3,
+   "neon_had_slept": true
+  },
+  "campaign_page": {
+   "status": 200,
+   "client_ms": 1801,
+   "db_ms": 819,
+   "cpu_ms": 16,
+   "outcome": "ok",
+   "error": null,
+   "next_call_ms": 490,
+   "neon_uptime_s_after": 3,
+   "neon_had_slept": true
+  }
+ },
+ "checks": {
+  "followup_rows": 200,
+  "rows_that_should_be_skipped": 0,
+  "min_weekdays_since_previous": 29
+ },
+ "storage": {
+  "db_bytes": "16449536",
+  "spike_bytes": "8265728"
+ }
+}
