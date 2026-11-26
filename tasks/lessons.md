@@ -28,3 +28,7 @@
 - Anything that can be decided by looking at the text (does it end with a yes/no offer, is it the last email, length) is a code check; the AI reviewer is told not to judge it and its remarks about it are dropped when the code already found the answer.
 - When a re-count differs from an earlier number (19 vs 18 newly hidden), say so and say why, do not quietly replace it.
 - tsc: the root tsconfig has "files": [] so `tsc --noEmit` checks NOTHING. Typecheck with `npx tsc -b` (what `npm run build` runs). 22 Nov: earlier "tsc exit 0" claims for batch 8c used the empty one.
+
+## 26 Nov (P1 database, plan review)
+- A send that "failed" (API or network error) is not a bounce. Only a real bounce (bounce event, bounce report, bounced/ contact entry) stops email; list failed sends with their error for the owner to decide.
+- US holidays for this audience are the days home-service offices are really closed (New Year's Day, Memorial Day, 4 July, Labor Day, Thanksgiving and the day after, Christmas Eve, Christmas Day), not the federal list.
