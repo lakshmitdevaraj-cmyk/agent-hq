@@ -105,10 +105,10 @@ Chunk 1 prompt: `~/Documents/ShiftForge HQ/p2-reports/p2-chunk1-prompt.md`. Plan
 
 **Chunk 1 is finished (27 Nov 2026).** 78/78 tests, `npx tsc -b` clean. Migrations 0001–0010 are on `dev`.
 
-Before chunk 2, Lakshmi decides (details in `p2-reports/chunk1-report.md`):
-1. `any_trade`: 9 older campaigns have no field. Old code reads that as true; the import stored false. Recommended: a migration setting them to true, plus an import fix for P5.
-2. Supply the fix-list (R1) definitions, so chunk 2 can place F2–F47.
-3. Keep Blobs behind a `DATA_BACKEND` switch until P5 (as assumed in `tasks/p2-plan.md`), or replace the code outright.
+Decisions made 27 Nov (after the chunk 1 report):
+1. `any_trade`: missing means true. Migration **0011** (applied to `dev`) sets the default to true and fixes the 9 campaigns from before 19 Nov; `transform.mjs` imports a missing value as true (for P5). Commit `d7f9b41`.
+2. Fix list: `~/Documents/ShiftForge HQ/scope-reports/alcance-master-fix-list.md`. Every R1 item is placed in `tasks/p2-plan.md`, with a new chunk **5b** (message checks F35–F40). Open: **F32** (flags before drafting) isn't in R1; Lakshmi decides chunk 4 or P4.
+3. `DATA_BACKEND` switch kept as planned; the old code is removed about 2 weeks after P5.
 
 Also noted: Neon's pooler ignores `statement_timeout` sent at connect, so use `withTx` / `timed` from `lib/db/client.ts`. `postgres` is still a devDependency; moving it needs approval.
 
