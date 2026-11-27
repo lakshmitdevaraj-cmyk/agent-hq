@@ -175,3 +175,10 @@ test("a + in a contact key that came out as a space is put back", () => {
   assert.deepEqual([out.tables.contacts[0].email, out.tables.contacts[0].blob_key], ["me+b@example.com", "sent/me b@example.com/c1"]);
   assert.equal(out.report.contact_plus_restored, 1);
 });
+
+test("any_trade: a campaign with no value imports as true (as the live app reads it); an explicit value is kept", () => {
+  const out = run({ "agent-hq-outreach-campaigns": [camp("c1"), camp("c2", { any_trade: false }), camp("c3", { any_trade: true })] });
+  assert.equal(row(out, "campaigns", "c1").any_trade, true);
+  assert.equal(row(out, "campaigns", "c2").any_trade, false);
+  assert.equal(row(out, "campaigns", "c3").any_trade, true);
+});

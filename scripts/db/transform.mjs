@@ -92,7 +92,7 @@ export function transform(stores, { rules, today, exportedAt = `${today}T00:00:0
     const row = split(merged, {
       id: ["id", str], name: ["name", str, ""], description: ["description", str], niche: ["query", str], created_by: ["created_by", str],
       default_sender_name: ["default_sender_name", str], default_sender_company: ["default_sender_company", str], default_sender_offer: ["default_sender_offer", str],
-      default_framework: ["default_framework", str], default_sequence_total: ["default_sequence_total", int], any_trade: ["any_trade", bool, false],
+      default_framework: ["default_framework", str], default_sequence_total: ["default_sequence_total", int], any_trade: ["any_trade", bool, true], // missing = true, as the live app reads it (decision 27 Nov 2026)
       agentmail_inbox_id: ["agentmail_inbox_id", str], created_at: ["created_at", time], updated_at: ["updated_at", time],
     }, ["job", "browser_checked_ids", "status", "total_leads_found", "leads_imported", "last_run_at", ...JOB_FIELDS]);
     Object.assign(row, { blob_key: key, area, country, time_zone: usState ? rules.STATE_TZ[usState] : null });

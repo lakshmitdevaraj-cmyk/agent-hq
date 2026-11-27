@@ -73,12 +73,11 @@ export async function brokenSqlVersion(tx) {
 }
 
 /**
- * Differences found, each with its reason. Matched narrowly (path AND values), so anything else still fails.
- * FINDING (27 Nov 2026, needs Lakshmi's decision before chunk 2): older campaign records have no `any_trade`.
- * Today's code reads a missing value as TRUE (`any_trade !== false` in campaignSkipCtx), but the P1 import
- * stored FALSE (the column's default). Fix options: a migration setting those campaigns to true, or the rewrite
- * reading them as true. Until decided, the difference is listed here and counted by the test.
+ * Intended differences, each with its reason, matched narrowly (path AND values) so anything else still fails.
+ * any_trade: older campaign records have no field, which the old code and the screens read as true ("absent = on").
+ * The 27 Nov finding was that the import stored false for them; migration 0011 and the import fix (Lakshmi's
+ * decision, 27 Nov) store true. So old "absent" vs new true is the same meaning; old absent vs new false would fail.
  */
 export const known = [
-  { path: /^\$\[\d+\]\.any_trade$/, when: (d) => d.old === "(absent)" && d.new === false, why: "missing any_trade imported as false; old code reads it as true (needs decision)" },
+  { path: /^\$\[\d+\]\.any_trade$/, when: (d) => d.old === "(absent)" && d.new === true, why: "absent means true in the old code; stored as true since 0011" },
 ];

@@ -67,3 +67,10 @@ test("V9: outreach and email History entries are never deleted, however old", ()
   const after = await tx`select category, count(*)::int as n from activity where category in ('outreach', 'email') group by 1 order by 1`;
   assert.deepEqual(after, before);
 }));
+
+test("0011: no campaign from before 19 Nov is left with any_trade false, and new campaigns default to true", () => rolledBack(async (tx) => {
+  const [{ n }] = await tx`select count(*)::int as n from campaigns where any_trade = false and created_at < '2026-11-19'`;
+  assert.equal(n, 0);
+  const [c] = await tx`insert into campaigns (id) values ('t-camp-default') returning any_trade`;
+  assert.equal(c.any_trade, true);
+}));

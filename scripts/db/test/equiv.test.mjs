@@ -110,12 +110,14 @@ describe("outreach.campaign.list: old vs new", { skip: !haveExport && "P1 export
     const r = compare(oldResult, newResult, { known: cs.known });
     console.log(describeDiff(r));
     assert.ok(r.same, describeDiff(r));
-    // The listed finding must cover exactly the campaigns with no any_trade field, no more.
+    // The only listed difference: campaigns with no any_trade field (old) now hold true (new).
     assert.equal(r.known.length, oldResult.filter((c) => !("any_trade" in c)).length);
   });
 
-  test("a known difference is matched narrowly: any_trade true → false would still fail", () => {
-    const r = compare([{ any_trade: true }], [{ any_trade: false }], { known: cs.known });
+  test("a known difference is matched narrowly: same path, other values still fail", () => {
+    const known = [{ path: /\.any_trade$/, when: (d) => d.old === "(absent)" && d.new === false, why: "example" }];
+    assert.equal(compare([{}], [{ any_trade: false }], { known }).same, true);
+    const r = compare([{ any_trade: true }], [{ any_trade: false }], { known });
     assert.equal(r.same, false);
   });
 });

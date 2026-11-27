@@ -39,7 +39,7 @@ Plain SQL in `db/migrations`, forward only. Never edit an applied file; add the 
 
 Ids are the same as today. Fields without a column are kept in `data`.
 
-**P2 changes (0008–0010):** US `postal_address_required` is now `true` (R9): when it is blank, warn and don't send. `purge_old_records(as_of)` (V9) deletes raw `webhook_events` and "webhook received" History entries older than 30 days, other `system` History entries older than 90 days, and keeps everything else (outreach and email entries forever). It is not scheduled yet. The failed-send reason (R2) already has a column: `emails.error`.
+**P2 changes (0008–0010):** US `postal_address_required` is now `true` (R9): when it is blank, warn and don't send. `purge_old_records(as_of)` (V9) deletes raw `webhook_events` and "webhook received" History entries older than 30 days, other `system` History entries older than 90 days, and keeps everything else (outreach and email entries forever). It is not scheduled yet. The failed-send reason (R2) already has a column: `emails.error`. **0011:** a campaign with no `any_trade` means true, as in the live app (`!== false`). The column default is now `true`, the 9 campaigns from before 19 Nov 2026 that the import had set to `false` are `true` on `dev`, and `transform.mjs` imports a missing value as `true`.
 
 `stop_state` is the first that applies: `do_not_contact`, `replied` (a real person), `bounced` (a real bounce of the current address; stops email only), `none`. A failed send is never a bounce.
 
