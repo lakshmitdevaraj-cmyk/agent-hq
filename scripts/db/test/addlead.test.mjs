@@ -118,6 +118,15 @@ describe("A1: add a lead", () => {
     });
   });
 
+  test("the phone and place-id lookups use the 0012 indexes (seqscan off at this size)", async () => {
+    await n.call(async (tx) => {
+      await tx`set local enable_seqscan = off`;
+      const plan = async (q, v) => (await tx.unsafe(`explain ${q}`, v)).map((r) => r["QUERY PLAN"]).join("\n");
+      assert.match(await plan(`select id from leads where right(regexp_replace(coalesce(phone, ''), '\\D', '', 'g'), 10) = any($1)`, [["5550100000"]]), /leads_phone_key/);
+      assert.match(await plan(`select id from leads where (data->'raw'->>'placeId') = any($1)`, [["equiv-made-up"]]), /leads_place_id/);
+    });
+  });
+
   test("the normaliseSocialUrl and phoneKey copies match the import's on every link and phone on dev", async () => {
     const [links, phones] = await n.call(async (tx) => [await tx`select url from lead_social_links`, await tx`select phone from leads where phone is not null`]);
     for (const { url } of links) assert.deepEqual(al.normaliseSocialUrl(url), norm.normaliseSocialUrl(url));

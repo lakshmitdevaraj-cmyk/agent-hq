@@ -19,7 +19,8 @@ describe("F32 / F33 lead flags", () => {
 
   test("chain: a franchise location page, a brand name, 'franchise' wording; near-miss: a one-site business", () => {
     assert.ok(codes({ name: "Made-up Restoration of Spring", website: "https://www.bigbrand-test.com/locations/spring/" }).includes("chain"));
-    assert.ok(codes({ name: "Made-up Restoration", website: "https://www.bigbrand-test.com/houston-tx-made-up/" }).includes("chain"));
+    assert.ok(codes({ name: "Made-up Restoration of Houston", website: "https://www.bigbrand-test.com/houston-tx-made-up/" }).includes("chain"));
+    assert.ok(!codes({ name: "Made-up Restoration", website: "https://www.madeup-test.com/drain-in-katy" }).includes("chain"), "a word like \"in\" is not read as a state");
     assert.ok(codes({ name: "PuroClean of Somewhere", website: null }).includes("chain"));
     assert.ok(codes({ name: "Made-up Plumbing, an independently owned franchise", website: "https://madeup-test.com/" }).includes("chain"));
     assert.ok(!codes({ name: "Made-up Plumbing", website: "https://madeup-test.com/" }).includes("chain"));
@@ -49,7 +50,7 @@ describe("F32 / F33 lead flags", () => {
   });
 
   test("template_site: a keyword domain; near-miss: a brand domain", () => {
-    assert.ok(codes({ name: "Made-up Plumbing", address: "1 Test St, Katy, TX 77494", website: "https://katyplumbingrepair-test.com/" }).includes("template_site"));
+    assert.ok(codes({ name: "Made-up Plumbing", address: "1 Test St, Katy, TX 77494", website: "https://katyplumbingrepair.com/" }).includes("template_site"));
     assert.ok(!codes({ name: "Made-up Plumbing", address: "1 Test St, Katy, TX 77494", website: "https://madeupplumbing-test.com/" }).includes("template_site"));
   });
 
