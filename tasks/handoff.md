@@ -101,4 +101,15 @@ Chunk 1 prompt: `~/Documents/ShiftForge HQ/p2-reports/p2-chunk1-prompt.md`. Plan
 | 3. DB client (R8) | done: `netlify/functions/lib/db/client.ts`, test `scripts/db/test/db-client.test.mjs` (56/56 tests pass) |
 | 4. Migrations 0008+ | done: 0008 (US postal address required), 0009 (outbox), 0010 (`purge_old_records`, not scheduled) applied to `dev`. R2: `emails.error` already exists. R10 skipped: orphans remain (see `db/README.md`) |
 | 5. Equivalence harness (R13) | done: `scripts/db/equiv/`, test `scripts/db/test/equiv.test.mjs`; proof on `outreach.campaign.list`. Finding: 9 campaigns have no `any_trade`, imported as false, but the old code reads them as true (needs a decision) |
-| Report `p2-reports/chunk1-report.md` | next |
+| Report `p2-reports/chunk1-report.md` | done |
+
+**Chunk 1 is finished (27 Nov 2026).** 78/78 tests, `npx tsc -b` clean. Migrations 0001–0010 are on `dev`.
+
+Before chunk 2, Lakshmi decides (details in `p2-reports/chunk1-report.md`):
+1. `any_trade`: 9 older campaigns have no field. Old code reads that as true; the import stored false. Recommended: a migration setting them to true, plus an import fix for P5.
+2. Supply the fix-list (R1) definitions, so chunk 2 can place F2–F47.
+3. Keep Blobs behind a `DATA_BACKEND` switch until P5 (as assumed in `tasks/p2-plan.md`), or replace the code outright.
+
+Also noted: Neon's pooler ignores `statement_timeout` sent at connect, so use `withTx` / `timed` from `lib/db/client.ts`. `postgres` is still a devDependency; moving it needs approval.
+
+Next: chunk 2 (campaign reads and writes), see `tasks/p2-plan.md`. Add each rewritten action as a case in `scripts/db/equiv/cases/`.
