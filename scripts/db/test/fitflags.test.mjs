@@ -37,16 +37,24 @@ describe("F32 / F33 lead flags", () => {
     assert.ok(!codes({ name: "Made-up", category: "Plumber", reviews_count: 999 }).includes("too_big"));
   });
 
-  test("has_answering_booking: online booking and chat or 24/7; near-miss: booking alone", () => {
+  test("has_answering_booking: booking tool plus a chat widget or a real answering service; near-miss: booking with only 24/7 wording", () => {
     assert.ok(codes({ name: "Made-up", site_check: { booking_tool: "Made-up Booker", chat_widget: "Made-up Chat" } }).includes("has_answering_booking"));
-    assert.ok(codes({ name: "Made-up", site_check: { booking_tool: "Made-up Booker", mentions_24_7: true } }).includes("has_answering_booking"));
+    assert.ok(codes({ name: "Made-up", site_check: { booking_tool: "Made-up Booker", answering_service: "Made-up Answering Co" } }).includes("has_answering_booking"));
+    assert.ok(!codes({ name: "Made-up", site_check: { booking_tool: "Made-up Booker", mentions_24_7: true } }).includes("has_answering_booking"), "24/7 alone is not an answering service");
+    assert.ok(!codes({ name: "Made-up", site_check: { booking_tool: "Made-up Booker", mentions_24_7: true, advertises_emergency: true } }).includes("has_answering_booking"), "24/7 emergency service is not an answering service");
     assert.ok(!codes({ name: "Made-up", site_check: { booking_tool: "Made-up Booker" } }).includes("has_answering_booking"));
+    assert.ok(!codes({ name: "Made-up", site_check: { chat_widget: "Made-up Chat", mentions_24_7: true } }).includes("has_answering_booking"), "no booking tool");
   });
 
-  test("not_call_driven: remodeler, design-build, custom builder, rentals, supplier; near-miss: HVAC repair", () => {
-    for (const l of [{ name: "Made-up", category: "Remodeler" }, { name: "Made-up Design-Build", category: "General contractor" }, { name: "Made-up Custom Homes", category: "Home builder" },
-      { name: "Made-up Air & Power Rentals", category: "HVAC contractor" }, { name: "Made-up Plumbing Supply", category: "Plumbing supply store" }]) assert.ok(codes(l).includes("not_call_driven"), l.name);
-    assert.ok(!codes({ name: "Made-up Air", category: "HVAC contractor" }).includes("not_call_driven"));
+  test("not_call_driven: custom builders, design-build firms, rentals, suppliers; near-miss: a general remodeler, HVAC repair", () => {
+    for (const l of [{ name: "Made-up Design-Build", category: "General contractor" }, { name: "Made-up Custom Homes", category: "Home builder" },
+      { name: "Made-up", category: "Custom home builder" },
+      { name: "Made-up", category: "Remodeler", raw: { categories: ["Remodeler", "Custom home builder"] } },
+      { name: "Made-up", category: "Remodeler", raw: { ownerDescription: "Made-up is a design-build firm that plans and builds homes." } },
+      { name: "Made-up Air & Power Rentals", category: "HVAC contractor" }, { name: "Made-up Plumbing Supply", category: "Plumbing supply store" }]) assert.ok(codes(l).includes("not_call_driven"), JSON.stringify(l));
+    for (const l of [{ name: "Made-up Air", category: "HVAC contractor" }, { name: "Made-up Remodeling", category: "Remodeler" }, { name: "Made-up Baths", category: "Bathroom remodeler" },
+      { name: "Made-up", category: "Kitchen remodeler", raw: { categories: ["Kitchen remodeler", "Contractor"], ownerDescription: "We remodel kitchens and baths." } },
+      { name: "Made-up Builders", category: "Home builder" }]) assert.ok(!codes(l).includes("not_call_driven"), JSON.stringify(l));
   });
 
   test("template_site: a keyword domain; near-miss: a brand domain", () => {

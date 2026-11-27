@@ -40,3 +40,8 @@
 
 ## 27 Nov (P2 chunk 2, planning)
 - Chunk plans don't use plan mode: plan mode could only write its own file, so the plan never reached p2-reports/. Write `chunkN-plan.md` to the reports folder first, then stop and wait for the go.
+
+## 27 Nov (P2 chunk 4, report review)
+- `not_call_driven` covers custom builders and design-build firms (plus shops, suppliers, wholesale, rentals), never general remodelers. Catch the builder side from Google's full category list or the owner's description too, not only the main category (a named case had main category "Remodeler", with "Custom home builder" and "design-build firm" only in the raw data).
+- `has_answering_booking` needs a booking tool AND a real answering service or chat widget. "24/7" or "24/7 emergency service" on the site is not an answering service. When a rule is approximate, check what each signal really means before counting it.
+- Report timings two ways from now on: the database's own time (`EXPLAIN ANALYZE`) and the time measured from this Mac.
