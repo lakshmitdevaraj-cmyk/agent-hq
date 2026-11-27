@@ -5,6 +5,7 @@
 import { CampaignError } from "./campaigns.ts";
 import { leadRecord, type Q } from "./leads.ts";
 import { campaignSkipCtx, autoNotFit } from "./leadrules.ts";
+import { leadFlags } from "./fitflags.ts";
 import { isJunkEmail } from "../outreach.ts";
 import { deriveTouches, summarizeTouches, type Touch } from "../touches.ts";
 import { leadHours } from "../sitecheck.ts";
@@ -189,6 +190,7 @@ async function prospectRows(sql: Q, leadRows: Row[]): Promise<Row[]> {
       email_typo: possibleTypoDomain(l.email as string | null | undefined),
       ...autoFitFields(l.excluded === true ? null : autoNotFit(l, campCtx.get(l.campaign_id as string) ?? { location: null, query: "", anyTrade: true }, isContacted({ emailSent: !!(em?.sent || contactedAt), emailDraft: em?.review != null, touches: touches.total, replied: touches.replied }))),
       stop_state: l.stop_state,
+      fit_flags: leadFlags(l),
       facts: (factsByLead.get(lid) ?? []).map((f) => ({ id: String(f.id), fact: f.fact, source: f.source, noted_on: f.noted_on instanceof Date ? f.noted_on.toISOString().slice(0, 10) : f.noted_on })),
     };
   });

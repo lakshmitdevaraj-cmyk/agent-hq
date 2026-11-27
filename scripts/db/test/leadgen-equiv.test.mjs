@@ -43,7 +43,7 @@ describe("chunk 4 lead finding: old vs new", { skip }, () => {
     ...shared.oneKnown(id, merged, "\\$\\.body\\.data"),
     { path: /^\$\.body\.data\.(job|browser_checked_ids|default_sender_\w+|default_framework|default_sequence_total)$/, when: (d) => d.old === "(absent)", why: "the stored record now carries its saved state (chunk 2: settings and jobs in their own columns)" },
   ];
-  const leadsKnown = lc.leadKnown("\\$\\.body\\.data\\[\\d+\\]");
+  const leadsKnown = () => lc.leadKnown("\\$\\.body\\.data\\[\\d+\\]");
 
   test("campaign.run → sync (running) → sync (succeeded: 3 new, 3 duplicates of other campaigns, 1 repeat) → read back (F1)", async () => {
     const { id, dup } = target;
@@ -62,17 +62,21 @@ describe("chunk 4 lead finding: old vs new", { skip }, () => {
     const deps = depsFor(nw);
     deps.useRoutes();
     const n = await fresh.callWrite(cs.runAndSync, { id, deps, w: nw, items });
-    same("run", o.run, n.run, { known: campKnown(id) });
+    // The old run answered with the raw campaign record, whose inline copies of the saved state (job, sender
+    // defaults) can be stale; the SQL answer carries the saved state, as campaign.get shows it (and "run → get" matches).
+    const staleInline = { path: /^\$\.body\.data\.(job(\.\w+)?|default_\w+)$/, why: "the old run answer showed the raw record's stale inline state; SQL shows the saved state" };
+    same("run", o.run, n.run, { known: [...campKnown(id), staleInline] });
     same("run → get", o.afterRun, n.afterRun, { known: campKnown(id) });
     same("sync running", o.syncRunning, n.syncRunning);
     same("sync succeeded", o.syncDone, n.syncDone);
     assert.equal(n.syncDone.body.data.imported, 3);
-    assert.equal(n.syncDone.body.data.skipped, 3);
+    assert.equal(n.syncDone.body.data.skipped, 4, "3 duplicates of other campaigns + the repeat inside the scrape (counted as skipped, as today)");
+    assert.deepEqual(n.leads.body.data.filter((l) => /^Equiv Made-up/.test(l.name)).map((l) => l.name).sort(), ["Equiv Made-up Plumbing A", "Equiv Made-up Plumbing B", "Equiv Made-up Plumbing C"]);
     same("sync again", o.syncAgain, n.syncAgain);
-    const keep = (r) => ({ ...r, body: { ...r.body, data: r.body.data.filter((l) => !lc.mergedIds || true).sort(byName) } });
+    const keep = (r) => ({ ...r, body: { ...r.body, data: [...r.body.data].sort(byName) } });
     const mergedIds = await fresh.call(lc.mergedIds);
     const oldLeads = { ...o.leads, body: { ...o.leads.body, data: o.leads.body.data.filter((l) => !mergedIds.has(l.id)).sort(byName) } };
-    same("sync → leads.list", oldLeads, keep(n.leads), { known: leadsKnown, ignoreKeys: ["id"] });
+    same("sync → leads.list", oldLeads, keep(n.leads), { known: leadsKnown(), ignoreKeys: ["id"] });
     assert.deepEqual(n.activity.length, 2);
     assert.match(n.activity[0], /3 imported/);
   });

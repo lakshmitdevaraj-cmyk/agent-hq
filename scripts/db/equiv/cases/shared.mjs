@@ -7,7 +7,7 @@ export async function asResponse(fn) {
   try {
     return { status: 200, body: { ok: true, data: await fn() } };
   } catch (e) {
-    if (e instanceof CampaignError) return { status: e.status, body: { ok: false, error: e.message } };
+    if (e instanceof CampaignError) return { status: e.status, body: { ok: false, error: e.message, ...(e.code ? { code: e.code } : {}) } };
     throw e;
   }
 }

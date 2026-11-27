@@ -12,6 +12,7 @@ import { CampaignError } from "./campaigns.ts";
 import { leadSkipReason, cleanEmail, isJunkEmail, isGovEduEmail, emailKey } from "../outreach.ts";
 import { contactBlock, emptyContacts, type Contacts } from "../contacts.ts";
 import { campaignSkipCtx, withoutJunkEmail, NOT_FIT_REASONS } from "./leadrules.ts";
+import { leadFlags } from "./fitflags.ts";
 
 export type Q = Sql | Tx;
 type Row = Record<string, unknown>;
@@ -82,7 +83,9 @@ export async function list(sql: Q, params: Row): Promise<Row[]> {
   const annotated = leads.map((r0) => {
     const r = withoutJunkEmail(r0 as Row & { email?: string | null });
     const why = leadSkipReason(r as Parameters<typeof leadSkipReason>[0], ctx) ?? (r.email ? contactBlock(contacts, r.email, cid, { isTest: r.is_test === true }) : null);
-    return why ? { ...r, skip_reason: why.message, skip_code: why.code } : r;
+    // F32/F33: flags to check before drafting (worked out on read; drafting calls draftAllowed).
+    const flagged = { ...r, fit_flags: leadFlags(r0) };
+    return why ? { ...flagged, skip_reason: why.message, skip_code: why.code } : flagged;
   });
   return annotated.slice(0, typeof limit === "number" ? limit : 500);
 }

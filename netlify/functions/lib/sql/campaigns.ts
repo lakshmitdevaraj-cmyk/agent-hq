@@ -17,10 +17,16 @@ type Row = Record<string, unknown>;
 /** A refusal with the HTTP status the handler should answer with. */
 export class CampaignError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** An error code the old answer carried (failCode), e.g. "job_running". */
+  code?: string;
+  /** Keep what was written before the refusal (the old code saved a failed state, then answered 500). */
+  keep: boolean;
+  constructor(status: number, message: string, opts: { code?: string; keep?: boolean } = {}) {
     super(message);
     this.name = "CampaignError";
     this.status = status;
+    this.code = opts.code;
+    this.keep = opts.keep === true;
   }
 }
 
@@ -190,7 +196,7 @@ export async function get(sql: Q, id: unknown): Promise<Row> {
 }
 
 /** The stored record (what old `update` answered with): no counters worked out, no lead count. */
-async function storedRecord(sql: Q, id: string): Promise<Row | null> {
+export async function storedRecord(sql: Q, id: string): Promise<Row | null> {
   const [row] = await listStatement(sql, { id });
   return row ? baseRecord(row) : null;
 }

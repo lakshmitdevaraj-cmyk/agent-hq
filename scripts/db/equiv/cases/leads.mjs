@@ -22,6 +22,7 @@ export async function linksFromMerges(tx) {
 /** Known, intended differences on one lead record at `prefix` (a path regex source). */
 export const leadKnown = (prefix) => [
   { path: new RegExp(`^${prefix}\\.stop_state$`), when: (d) => d.old === "(absent)", why: "F8: the lead's stop state is shown (new column)" },
+  { path: new RegExp(`^${prefix}\\.fit_flags(\\[\\d+\\](\\.\\w+)?)?$`), when: (d) => d.old === "(absent)", why: "F32/F33: flags to check before drafting are shown" },
   { path: new RegExp(`^${prefix}\\.(is_test|excluded|not_fit_kept|do_not_contact)$`), when: (d) => d.old === "(absent)" && d.new === false, why: "a missing flag is stored as false (P1 import; the code only checks === true)" },
   { path: new RegExp(`^${prefix}\\.email_source$`), when: (d) => d.old === "(absent)" && ["google_maps", "site_check", "browser", "manual"].includes(d.new), why: "P1 import worked out where an address came from" },
 ];
