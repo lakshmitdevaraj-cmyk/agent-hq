@@ -100,5 +100,5 @@ Chunk 1 prompt: `~/Documents/ShiftForge HQ/p2-reports/p2-chunk1-prompt.md`. Plan
 | 2. `tasks/p2-plan.md` | done (111 actions mapped; fix-list definitions missing locally) |
 | 3. DB client (R8) | done: `netlify/functions/lib/db/client.ts`, test `scripts/db/test/db-client.test.mjs` (56/56 tests pass) |
 | 4. Migrations 0008+ | done: 0008 (US postal address required), 0009 (outbox), 0010 (`purge_old_records`, not scheduled) applied to `dev`. R2: `emails.error` already exists. R10 skipped: orphans remain (see `db/README.md`) |
-| 5. Equivalence harness (R13) | next |
-| Report `p2-reports/chunk1-report.md` | to do |
+| 5. Equivalence harness (R13) | done: `scripts/db/equiv/`, test `scripts/db/test/equiv.test.mjs`; proof on `outreach.campaign.list`. Finding: 9 campaigns have no `any_trade`, imported as false, but the old code reads them as true (needs a decision) |
+| Report `p2-reports/chunk1-report.md` | next |

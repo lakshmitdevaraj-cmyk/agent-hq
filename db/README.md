@@ -76,6 +76,8 @@ Delete the branch afterwards.
 
 Database tests run on `dev` in transactions that are rolled back.
 
+**Equivalence checks (R13):** `scripts/db/equiv/` runs an action two ways and compares the answers. The old way is the real `command.ts` bundled with Blobs swapped for the P1 export (read only; writes stay in memory) and every network route blocked (fetch, http/https/net/tls/child_process). The new way is its SQL version on `dev`, in a read-only transaction that is rolled back. Key order and timestamps are ignored. Intended differences are listed per case with a reason, matched narrowly, and still reported. One case so far: `cases/campaign-list.mjs`. The export is read at test time from `~/agent-hq-backups/p1-2026-11-26/` and never committed; the tests skip if it is missing.
+
 ## At the P5 switch
 
 - **Type these in again in Settings:** the Gemini key, the service keys and the agent keys. They were removed from the export and never go into the database from it.
