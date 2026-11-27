@@ -33,10 +33,13 @@ Plain SQL in `db/migrations`, forward only. Never edit an applied file; add the 
 | `replies`, `clicks`, `contacts` | replies with their `kind`; link clicks; addresses already sent to or bounced |
 | `outreach_settings`, `service_config` | settings; service keys' status (filled at P5) |
 | `country_profiles`, `public_holidays`, `blackout_dates` | sending rules; `next_working_day(date, country)` |
+| `outbox` | handoffs to other systems (the CRM), written in the same transaction as the change; `sent_at` null until delivered (R12, 0009) |
 | `activity`, `tasks`, `agents`, `forms`, `submissions`, `pages` | the rest of HQ |
 | `webhooks`, `webhook_events`, `voice_config`, `voice_sessions`, `voice_invitations` | webhooks and voice |
 
 Ids are the same as today. Fields without a column are kept in `data`.
+
+**P2 changes (0008–0010):** US `postal_address_required` is now `true` (R9): when it is blank, warn and don't send. `purge_old_records(as_of)` (V9) deletes raw `webhook_events` and "webhook received" History entries older than 30 days, other `system` History entries older than 90 days, and keeps everything else (outreach and email entries forever). It is not scheduled yet. The failed-send reason (R2) already has a column: `emails.error`.
 
 `stop_state` is the first that applies: `do_not_contact`, `replied` (a real person), `bounced` (a real bounce of the current address; stops email only), `none`. A failed send is never a bounce.
 
@@ -86,5 +89,7 @@ No foreign keys yet, because some rows point to things that no longer exist. Onc
 - `emails.lead_id`, `social_messages.lead_id`, `touches.lead_id`, `follow_up_state.lead_id`, `follow_ups.lead_id`, `lead_social_links.lead_id`, `lead_facts.lead_id`, `lead_screenshots.lead_id`, `leads.merged_into` to `leads`
 - `replies.campaign_id`, `replies.lead_id`, `replies.original_email_id`, `clicks.email_id`, `follow_ups.email_id` to `campaigns`, `leads` and `emails`
 - `submissions.form_slug` to `forms`, `webhook_events.webhook_id` to `webhooks`
+
+**Still blocked (27 Nov 2026, P2 chunk 1):** the orphans in `p1-reports/orphans-and-clashes.md` are still in `dev`: 10 leads and 12 emails whose campaign is gone, 4 emails whose lead is gone, 16 replies with no campaign and 14 with no lead, and 6 contact entries for a gone campaign. Most are test rows or bounce and system reports. Each needs a decision (delete, keep and null the link, or a placeholder campaign) before the keys can be added.
 
 Also: save the error when a send fails (today it is only shown on screen), and make every screen and count leave out merged leads (`merged_into is null`).
