@@ -135,3 +135,20 @@ Decisions (27 Nov): `active` = a running job, searching or sending, or unsent dr
 **For chunk 4:** move `campaign.run` / `campaign.sync` (and `leads.add_test`, which also writes the whole campaign record) to `writeLeadsJob`, never a campaign-record write. **For chunk 8:** `follow_ups` is the P1 snapshot; the `followups_due` filter reads it until chunk 8 keeps it current.
 
 Next: chunk 3 (Leads and Prospects), its own prompt.
+
+## Chunk 3: Leads and Prospects (27 Nov 2026, run A)
+
+Run prompt `p2-reports/p2-runs-prompt.md` (run A = chunks 3 and 4, no stop between plan and build). Plan `p2-reports/chunk3-plan.md`, report `p2-reports/chunk3-report.md`.
+
+| Step | Commit |
+|---|---|
+| 1. Tests and cases first (failing run in `p2-reports/chunk3-failing-run.txt`) | `487b9f2` |
+| 2–3. Reads and writes: `lib/sql/leads.ts`, `search.ts`, `leadrules.ts`; F16, F18, paging, search | `bcb76cb` |
+| 4. `command.ts`: seven guarded lines, four new SQL-only cases, a helper (26 lines added); switch proof | `f700bb3` |
+| 5. README, handoff, report | (this commit) |
+
+**Chunk 3 is finished.** 128/128 tests, `npx tsc -b` clean. No migration. Nothing on `production`, no netlify command, no dependency added, no file deleted.
+
+Decisions I took (to review): copies of four private helpers in `leadrules.ts`; the SQL Prospects list does not re-check drafts on read (chunk 5); paging only with `limit`; new SQL-only actions for facts and global search; lead delete removes the lead's `follow_ups` rows; writes on a merged lead answer 404; lead records gain `stop_state`, Prospects rows `facts`.
+
+Next: chunk 4 (add lead and lead finding), same run.

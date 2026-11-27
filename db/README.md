@@ -90,6 +90,16 @@ Database tests run on `dev` in transactions that are rolled back.
 
 Tests: `campaigns-sql`, `campaigns-f2`, `campaigns-equiv` (R13 cases in `scripts/db/equiv/cases/campaign-*.mjs`, `leads-count.mjs`), `backend-switch` (switch unset = `command.ts` at `4f9338c`).
 
+**Chunk 3, `lib/sql/leads.ts` and `lib/sql/search.ts`:** `outreach.leads.list`, `lead.set_email`, `leads.update`, `prospects.list`, `lead.screenshot.get`, `leads.delete`, `lead.fb_checked`, and four new actions (SQL only; on Blobs they answer `Unknown action` as before): `outreach.lead.facts.list/add/delete`, `outreach.search`.
+- `leadRecord(row)` rebuilds the old lead record from its columns and `data`, plus `stop_state`. Merged leads are never listed and are "not found" for writes (F17).
+- **F16:** one email edit. `leads.update` takes `email` too; it and `set_email` share `writeEmail`, which sends every unsent draft of the lead (any campaign) to the new address, or removes them when the address is cleared. Sent emails are never touched. Writes set only their own columns (`data` merged with `||`).
+- **F18:** `lead_facts` (fact, `source` manual / site_check / google / browser, `noted_on`); only hand-typed facts can be removed. Prospects rows carry `facts`.
+- **Prospects (S0/S6b):** no `limit` = every lead as today; `limit` 1–500 = one page `{ rows, next_cursor }` (keyset on `leads_order`); `q` searches name, owner, email, phone, website and city (`leads_search`); `campaign_id` filters. Two statements per page: the page, then everything else for that page's leads in one statement (no store read whole, F4). Social links come from `lead_social_links`. The SQL list does not re-check drafts on read (moved to chunk 5).
+- **Global search (S6b):** `searchAll`: campaigns and leads, 2–200 characters, up to 50 each.
+- `lib/sql/leadrules.ts`: copies of four helpers private to `command.ts` (`campaignSkipCtx`, `withoutJunkEmail`, `autoNotFit`, `NOT_FIT_REASONS`), identical bodies; the only copy once the Blobs code goes.
+
+Tests: `leads-sql`, `leads-equiv` (cases in `scripts/db/equiv/cases/leads.mjs`), `backend-switch` (chunk 3 part: switch unset = `command.ts` at `4e2eecb`). `scripts/db/equiv/ts-ext.mjs` (test harness only) lets Node load the app's `lib/` files, which use extensionless imports.
+
 ## At the P5 switch
 
 - **Type these in again in Settings:** the Gemini key, the service keys and the agent keys. They were removed from the export and never go into the database from it.
