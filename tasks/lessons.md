@@ -32,3 +32,8 @@
 ## 26 Nov (P1 database, plan review)
 - A send that "failed" (API or network error) is not a bounce. Only a real bounce (bounce event, bounce report, bounced/ contact entry) stops email; list failed sends with their error for the owner to decide.
 - US holidays for this audience are the days home-service offices are really closed (New Year's Day, Memorial Day, 4 July, Labor Day, Thanksgiving and the day after, Christmas Eve, Christmas Day), not the federal list.
+
+## 27 Nov (P2 chunk 1, plan review)
+- Retention rules must name every kind the scope lists: "webhook received" History entries (activity, category system, details.event_id) keep 30 days, not the 90 days of other system entries. Check how each kind is really logged before writing a purge.
+- Any harness that runs the old app code must block all network access (fetch, http/https, the Gemini client) and prove a call is refused, so tests can never reach Gemini, AgentMail or Apify.
+- Plans and reports are saved as files in ~/Documents/ShiftForge HQ/pN-reports/ (e.g. chunk1-plan.md), never only shown in chat.

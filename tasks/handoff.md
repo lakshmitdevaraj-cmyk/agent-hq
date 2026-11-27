@@ -87,3 +87,18 @@ Other agreed rules: US holidays are only New Year's Day, Memorial Day, 4 July, L
 4. **Force certificate checking in the app's connection:** `ssl: { rejectUnauthorized: true }`.
 
 Later, at the P5 switch (after 13 December): the Gemini key, service keys and agent keys must be typed in again in Settings; they were removed from the export. Import into `production` from a fresh export.
+
+---
+
+# P2 progress (branch `rebuild/p2-data-layer`, from `rebuild/p1-database`)
+
+Chunk 1 prompt: `~/Documents/ShiftForge HQ/p2-reports/p2-chunk1-prompt.md`. Plan: `p2-reports/chunk1-plan.md`.
+
+| Item | State |
+|---|---|
+| 1. `CLAUDE.md` | done |
+| 2. `tasks/p2-plan.md` | next |
+| 3. DB client (R8) | to do |
+| 4. Migrations 0008+ | to do |
+| 5. Equivalence harness (R13) | to do |
+| Report `p2-reports/chunk1-report.md` | to do |
