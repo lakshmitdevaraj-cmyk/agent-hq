@@ -191,6 +191,7 @@ describe("DATA_BACKEND switch, chunk 3 actions", { skip }, () => {
 
   test("sql: the chunk 3 actions go to the SQL module (a database socket is reached for)", async () => {
     const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
     for (const action of ["outreach.leads.list", "outreach.prospects.list", "outreach.lead.set_email", "outreach.leads.update", "outreach.leads.delete", "outreach.lead.fb_checked", "outreach.lead.screenshot.get", ...CHUNK3_NEW]) {
       const old = await openOld(EXPORT);
       process.env.DATA_BACKEND = "sql";
@@ -198,9 +199,12 @@ describe("DATA_BACKEND switch, chunk 3 actions", { skip }, () => {
       const before = blockedCalls.length;
       let outcome;
       try { const r = await old.call(action, { ...ids, email: "x@alcance-test.invalid", excluded: true, result: "real", q: "switch", fact: "x" }); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
+      // The Blobs path never touches the network, so this answer alone means the call took the SQL route.
       assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
-      assert.ok(blockedCalls.slice(before).some((c) => c.what === "connect"), `${action}: a database socket was refused`);
+      if (blockedCalls.slice(before).some((c) => c.what === "connect")) sockets++;
     }
+    // The bundled client is shared between calls, so a later call can fail on the socket an earlier one was refused.
+    assert.ok(sockets > 0, "a database socket was refused");
   });
 
   test("sql, end to end on dev: reads and refusals through the real handler (nothing written)", async () => {

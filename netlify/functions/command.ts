@@ -1833,6 +1833,17 @@ async function sqlCampaignCase(action: import("./lib/sql/campaigns.ts").Campaign
   }
 }
 
+// P2 chunk 3: the lead and Prospects actions on Postgres, the same way (only when DATA_BACKEND=sql).
+async function sqlLeadCase(action: import("./lib/sql/leads.ts").LeadAction, params: unknown) {
+  const [{ withTx }, { CampaignError }, leads] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/leads.ts")]);
+  try {
+    return ok(await withTx((tx) => leads.runLeadAction(tx, action, (params ?? {}) as Record<string, unknown>)));
+  } catch (e) {
+    if (e instanceof CampaignError) return fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3822,6 +3833,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.lead.fb_checked": {
+        if (sqlBackend()) return sqlLeadCase("outreach.lead.fb_checked", params);
         // "I looked at this Facebook page": date, what I found and a note. Only this field changes. result null clears it.
         const { campaign_id, lead_id, result, note } = params as { campaign_id?: string; lead_id?: string; result?: string | null; note?: string };
         if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
@@ -4308,6 +4320,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.leads.list": {
+        if (sqlBackend()) return sqlLeadCase("outreach.leads.list", params);
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
         const rows = await listJsonFast<{ created_at?: string; name?: string; email?: string | null; website?: string | null; address?: string | null; category?: string | null; excluded?: boolean; is_test?: boolean; raw?: unknown }>(
@@ -4330,6 +4343,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.lead.set_email": {
+        if (sqlBackend()) return sqlLeadCase("outreach.lead.set_email", params);
         // Edit email (Prospects detail panel): the address you type is saved on the lead itself (source "manual" + date), so the
         // campaign page, CSV and drafting use it. Only the email fields change. A website re-check never replaces it. Unsent drafts
         // for the lead get the new To address. The already-contacted / bounced checks still run on the new address (a warning is returned).
@@ -4378,6 +4392,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.leads.update": {
+        if (sqlBackend()) return sqlLeadCase("outreach.leads.update", params);
         // Per-lead things you control (send only the ones you want to change):
         //   excluded (true = never draft this lead), trade_override (true = include although
         //   it looks like a different trade), owner_name (your own entry; "" clears it).
@@ -4425,6 +4440,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.prospects.list": {
+        if (sqlBackend()) return sqlLeadCase("outreach.prospects.list", params);
         // Every lead across all campaigns in one slim list (no raw Apify blob), for the Prospects page.
         const [leads, emails, campaigns, socials, replyRows, storedTouches] = await Promise.all([
           listJsonFast<Record<string, unknown>>(store(OUTREACH_LEADS)),
@@ -4503,6 +4519,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.lead.screenshot.get": {
+        if (sqlBackend()) return sqlLeadCase("outreach.lead.screenshot.get", params);
         const { campaign_id, lead_id } = params as Record<string, string>;
         if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
         const rec = await readJson<{ jpeg_base64: string; saved_at: string; bytes: number }>(store(LEAD_SCREENSHOTS), `${campaign_id}/${lead_id}`);
@@ -4564,6 +4581,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.leads.delete": {
+        if (sqlBackend()) return sqlLeadCase("outreach.leads.delete", params);
         const { campaign_id, lead_id } = params as Record<string, string>;
         if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
         const leadsStore = store(OUTREACH_LEADS);
@@ -5895,6 +5913,14 @@ export const handler: Handler = async (event) => {
         await store(WEBHOOKS).delete(id);
         return ok({ id, deleted: true });
       }
+
+      case "outreach.lead.facts.list":
+      case "outreach.lead.facts.add":
+      case "outreach.lead.facts.delete":
+      case "outreach.search":
+        // P2 chunk 3: new actions, SQL only. On Blobs they answer exactly as the default case below does today.
+        if (sqlBackend()) return sqlLeadCase(action as import("./lib/sql/leads.ts").LeadAction, params);
+        return fail(400, `Unknown action: ${action}`);
 
       default:
         return fail(400, `Unknown action: ${action}`);
