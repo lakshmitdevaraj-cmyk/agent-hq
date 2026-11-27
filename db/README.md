@@ -109,6 +109,17 @@ Tests: `leads-sql`, `leads-equiv` (cases in `scripts/db/equiv/cases/leads.mjs`),
 
 Tests: `leadgen-sql`, `leadgen-equiv` (cases in `scripts/db/equiv/cases/leadgen.mjs`; the old path gets a made-up Apify key and `fetchRoutes` answering made-up Apify and website responses; the SQL side gets the same private functions from `openPrivates`), `addlead`, `fitflags`, `backend-switch` (chunk 4 part: `ee91060`).
 
+Flag fix (27 Nov, after the chunk 4 review): `not_call_driven` = custom builders and design-build firms (main category, name, Google's full category list `raw.categories`, or the owner's description), shops, suppliers, wholesale and rentals; never a general remodeler. `has_answering_booking` = a booking tool plus a chat widget or a real answering service (`site_check.answering_service`, a P4 fact); "24/7" wording never counts.
+
+**Chunk 5, `lib/sql/emails.ts`, `emailchecks.ts`:** `outreach.emails.list`, `.create`, `.update`, `.delete`, `outreach.footer.preview`, `outreach.draft.start`, `outreach.emails.review.start` (and `.generate_one`, `.generate`, tested with a stand-in writer).
+- **F9:** `create` on a step with an unsent draft updates that draft (`replaced: true`, same id); a step already sent answers 409 `draft_exists` with `email_id`. The insert is `on conflict do nothing` on `emails_one_per_step`, so a race also answers 409, never a 500.
+- **A4 / F46:** `create` never gets an AI dependency. `written_by` is `lakshmi` from the app, `claude` from an agent key; the free code checks run on save (`codeCheckDraft`, the twin of `codeCheckSavedEmail`).
+- **F32:** drafting calls `draftAllowed`: a flagged lead is refused (`fit_flagged`) or left out of the plan; an agent's `create` too. Her own `create` is allowed and returns the flags.
+- **R9:** `footer.preview` adds `postal_address_missing` and a warning when the country needs a postal address and Settings has none.
+- **Not yet on SQL:** the AI writer. Under `DATA_BACKEND=sql`, `generate_one` and `generate` answer 501 until the P4 runners (F43); `draft.start` / `review.start` plan and record the job, but the `ai-background` worker still reads Blobs, so the switch must not flip before P4.
+
+Tests: `emails-sql`, `emails-equiv` (cases in `scripts/db/equiv/cases/emails.mjs`), `backend-switch` (chunk 5 part: `bc04e1e`). Timing script: `scripts/db/bench-emails.mjs` (database time from `EXPLAIN ANALYZE` and time from this Mac).
+
 ## At the P5 switch
 
 - **Type these in again in Settings:** the Gemini key, the service keys and the agent keys. They were removed from the export and never go into the database from it.

@@ -170,3 +170,20 @@ Plan `p2-reports/chunk4-plan.md`, report `p2-reports/chunk4-report.md`.
 Decisions I took (to review): deps passed in from `command.ts`; the SQL sync doesn't refresh email statuses (chunks 6–7); a failed import rolls back whole; flags worked out on read (`fit_flags`), drafting must call `draftAllowed` (chunk 5); `has_answering_booking` uses today's site-check signals until P4; A1 never adds a duplicate (no "add anyway"); a site check runs inside the transaction (fetch time isn't limited by the per-statement timeout; the clean version fetches outside it).
 
 **For chunk 5:** call `draftAllowed(lead)` before drafting; re-check drafts when the rules change (chunk 3 decision). Next: run B (chunks 5 and 5b), its own session.
+
+## Run B (27 Nov 2026): chunk 4 flag fix, chunk 5, chunk 5b
+
+**Flag fix first** (commit `bc04e1e`): `not_call_driven` 27 → 25 leads (general remodelers out, custom builders and design-build firms in, from Google's full category list and the owner's description too); `has_answering_booking` 52 → 14 (needs chat or a real answering service; "24/7" alone no longer counts). All 8 named cases still flagged.
+
+## Chunk 5: Drafts (run B)
+
+Plan `p2-reports/chunk5-plan.md`, report `p2-reports/chunk5-report.md`, failing run `p2-reports/chunk5-failing-run.txt`.
+
+| Step | Commit |
+|---|---|
+| 1–3. Tests, `lib/sql/emailchecks.ts`, `lib/sql/emails.ts`, equivalence cases, timing script | (this commit) |
+| 4. `command.ts`: nine guarded lines and helper `sqlEmailCase` (28 lines added); switch proof; README, handoff, report | (this commit) |
+
+Decisions I took (to review): her own `create` is allowed on a flagged lead (writing it is her say-so), an agent's is refused; `create` refuses a do-not-contact lead; a failed row never blocks a new draft; `generate_one` / `generate` answer 501 on the SQL path until the P4 runners give them the AI writer; the `ai-background` worker is unchanged (P4), so the switch must not flip before P4.
+
+**From now on, timings are reported two ways:** database time (`EXPLAIN ANALYZE`) and time from this Mac.

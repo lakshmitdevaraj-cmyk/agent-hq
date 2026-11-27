@@ -309,3 +309,99 @@ describe("DATA_BACKEND switch, chunk 4 actions", { skip }, () => {
     assert.equal(blockedCalls.length, before, "nothing else reached for the network");
   });
 });
+
+const BASE5 = "bc04e1e"; // the last commit before chunk 5 touched command.ts
+
+describe("DATA_BACKEND switch, chunk 5 actions", { skip }, () => {
+  let openOld, p;
+  before(async () => {
+    ({ openOld } = await import("../equiv/old-path.mjs"));
+    const n = (await import("../equiv/new-path.mjs")).openNew("dev");
+    // A campaign with a drafted email and a sent one (the export and dev share ids).
+    p = await n.call(async (tx) => (await tx`select e.campaign_id, e.id as email_id, e.lead_id from emails e join leads l on l.id = e.lead_id where e.status = 'drafted' and not e.is_duplicate and l.merged_into is null order by e.id limit 1`)[0]);
+    await n.close();
+  });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+
+  const calls = () => [
+    ["outreach.emails.list", { campaign_id: p.campaign_id }],
+    ["outreach.footer.preview", { campaign_id: p.campaign_id, email_id: p.email_id }],
+    ["outreach.emails.update", { campaign_id: p.campaign_id, email_id: p.email_id, subject: "Switch test subject" }],
+    ["outreach.emails.create", { campaign_id: p.campaign_id, lead_id: p.lead_id, subject: "Switch test", body_text: "Switch test body.", sequence_position: 3 }],
+    ["outreach.emails.delete", { campaign_id: p.campaign_id, email_id: p.email_id }],
+    ["outreach.emails.review.start", { campaign_id: p.campaign_id }],
+    ["outreach.draft.start", { campaign_id: p.campaign_id }],
+    ["outreach.emails.generate_one", { campaign_id: p.campaign_id, lead_id: p.lead_id }],
+    ["outreach.emails.generate", { campaign_id: p.campaign_id }],
+    ["outreach.emails.list", { campaign_id: p.campaign_id }],
+  ];
+
+  test("unset: every chunk 5 action answers and writes exactly as command.ts did before chunk 5", async () => {
+    const run = async (old) => {
+      const answers = [];
+      for (const [action, params] of calls()) answers.push({ action, ...(await old.call(action, params)) });
+      const stores = Object.fromEntries([...STORES, "agent-hq-activity"].map((name) => [name, Object.fromEntries([...(storeMap(old.blobs, name))].map(([k, v]) => [k, JSON.parse(v)]))]));
+      return { answers, stores };
+    };
+    const was = await run(await openOld(EXPORT, { commit: BASE5 }));
+    const now = await run(await openOld(EXPORT));
+    // create and update stamp new ids and times; compare with those ignored.
+    const ignoreKeys = ["id", "created_at", "updated_at", "reviewed_at", "at"];
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i], { ignoreKeys });
+      assert.ok(r.same, `${w.action} (call ${i + 1})\n${describeDiff(r)}`);
+    }
+    const strip = (s) => JSON.parse(JSON.stringify(Object.values(s), (k, v) => (ignoreKeys.includes(k) ? undefined : v)));
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(strip(was.stores[name]), strip(now.stores[name]), { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+    }
+    assert.equal(was.answers[2].status, 200, "update really wrote");
+    assert.equal(was.answers[3].status, 200, "create really wrote");
+    console.log(`switch unset (chunk 5): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 5`);
+  });
+
+  test("sql: the chunk 5 actions go to the SQL module; generate_one / generate answer 501 before any database call", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    for (const [action, params] of calls().slice(0, 7)) {
+      const old = await openOld(EXPORT);
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      if (blockedCalls.slice(before).some((c) => c.what === "connect")) sockets++;
+    }
+    assert.ok(sockets > 0, "a database socket was refused");
+    for (const [action, params] of calls().slice(7, 9)) {
+      const old = await openOld(EXPORT);
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      const r = await old.call(action, params);
+      assert.equal(r.status, 501, action);
+      assert.equal(blockedCalls.length, before, `${action} reached for nothing`);
+    }
+  });
+
+  test("sql, end to end on dev: reads and refusals through the real handler (nothing written)", async () => {
+    const { localVar } = await import("../env.mjs");
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    const before = blockedCalls.length;
+    const old = await openOld(EXPORT, { allowDb: true });
+    process.env.DATA_BACKEND = "sql";
+    process.env.DATABASE_URL = localVar("DEV_DATABASE_URL");
+    const list = await old.call("outreach.emails.list", { campaign_id: p.campaign_id });
+    assert.equal(list.status, 200, JSON.stringify(list.body).slice(0, 200));
+    assert.ok(list.body.data.some((e) => e.id === p.email_id));
+    const foot = await old.call("outreach.footer.preview", { campaign_id: p.campaign_id, email_id: p.email_id });
+    assert.equal(foot.status, 200);
+    assert.equal(typeof foot.body.data.footer_text, "string");
+    assert.deepEqual(await old.call("outreach.emails.create", { campaign_id: p.campaign_id, lead_id: p.lead_id }), { status: 400, body: { ok: false, error: "subject required" } });
+    assert.deepEqual(await old.call("outreach.emails.update", { campaign_id: p.campaign_id, email_id: "no-such-email" }), { status: 404, body: { ok: false, error: "email not found" } });
+    assert.deepEqual(await old.call("outreach.emails.delete", { campaign_id: p.campaign_id }), { status: 400, body: { ok: false, error: "campaign_id and email_id required" } });
+    assert.equal(blockedCalls.length, before, "nothing else reached for the network");
+  });
+});

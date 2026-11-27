@@ -1864,6 +1864,25 @@ async function sqlLeadgenCase(action: import("./lib/sql/leadgen.ts").LeadgenActi
   return ok(out.data);
 }
 
+// P2 chunk 5: drafts on Postgres (only when DATA_BACKEND=sql). Writing by hand never gets an AI dependency. The AI
+// writer for generate_one / generate is wired with the P4 runners (F43); until then those two answer 501 on this path.
+async function sqlEmailCase(action: import("./lib/sql/emails.ts").EmailAction, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>) {
+  if (action === "outreach.emails.generate_one" || action === "outreach.emails.generate") return fail(501, "AI drafting on the database comes with the P4 runners. Use Draft (outreach.draft.start).");
+  const [{ withTx }, { CampaignError }, emails] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/emails.ts")]);
+  const ctx = { newId: () => nanoid(12), isAgent: identity?.kind === "agent", createdBy: identity?.kind === "agent" ? identity.agent_id : null };
+  type Out = { data: unknown } | { error: InstanceType<typeof CampaignError> };
+  let out: Out;
+  try {
+    out = await withTx(async (tx): Promise<Out> => {
+      try { return { data: await emails.runEmailAction(tx, action, (params ?? {}) as Record<string, unknown>, { aiAvailable }, ctx) }; } catch (e) { if (e instanceof CampaignError && e.keep) return { error: e }; throw e; }
+    });
+  } catch (e) {
+    if (e instanceof CampaignError) out = { error: e }; else throw e;
+  }
+  if ("error" in out) { const x = out.error as InstanceType<typeof CampaignError> & { extra?: Record<string, unknown>; email_id?: string }; return x.code ? failCode(x.status, x.message, x.code, { ...(x.extra ?? {}), ...(x.email_id ? { email_id: x.email_id } : {}) }) : fail(x.status, x.message); }
+  return ok(out.data);
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3959,6 +3978,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.review.start": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.review.start", params, identity);
         // Records a review job (all unreviewed/"check"/blocked drafts, or the given email_ids); the page then
         // POSTs { task: "review", params: { campaign_id, email_ids } } to the ai-background function.
         const { campaign_id, email_ids } = params as Record<string, unknown>;
@@ -4010,6 +4030,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.draft.start": {
+        if (sqlBackend()) return sqlEmailCase("outreach.draft.start", params, identity);
         // Validates and records a drafting job; the page then POSTs the same parameters to the
         // ai-background function, which does the slow work and writes progress to campaign.job.
         const { campaign_id, framework, leads } = params as Record<string, unknown>;
@@ -4705,6 +4726,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.generate_one": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.generate_one", params, identity);
         // Drafts exactly one email for one lead at one sequence step (see draftOne).
         // Kept for agents that loop with their own pacing. The app itself drafts in
         // the background (outreach.draft.start + the ai-background function).
@@ -4717,6 +4739,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.create": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.create", params, identity);
         // Agent-authored draft — skips Gemini entirely. The calling agent
         // (Claude Code, OpenClaw, Hermes, whatever) writes its own subject
         // and body, we just persist it as a drafted email. Same downstream
@@ -4810,6 +4833,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.generate": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.generate", params, identity);
         // Gemini drafts a per-lead email. We write one email record per
         // lead under OUTREACH_EMAILS and bump the campaign's emails_generated.
         const { campaign_id, sender_name, sender_company, sender_offer } = params as Record<string, string>;
@@ -4907,6 +4931,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.list": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.list", params, identity);
         const { campaign_id, limit = 500 } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string") return fail(400, "campaign_id required");
         // Speed (8c): the drafts and the leads store are read in parallel, many blobs at a time, and the campaign's leads come out of the one
@@ -4942,6 +4967,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.update": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.update", params, identity);
         // Lets the UI tweak a drafted email (subject/body) before send. Only
         // drafts are editable — a sent email is a record of what went out.
         const { campaign_id, email_id, subject, body_text, body_html, to_email, review_status } = params as Record<string, string>;
@@ -4996,6 +5022,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.delete": {
+        if (sqlBackend()) return sqlEmailCase("outreach.emails.delete", params, identity);
         // Deletes one drafted email. Sent emails are kept as history.
         const { campaign_id, email_id } = params as Record<string, string>;
         if (!campaign_id || !email_id) return fail(400, "campaign_id and email_id required");
@@ -5022,6 +5049,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.footer.preview": {
+        if (sqlBackend()) return sqlEmailCase("outreach.footer.preview", params, identity);
         // Exactly what send will append to a draft (sign-off + opt-out line),
         // computed by the same function the sender uses — so the UI preview
         // can't drift from the real email.
