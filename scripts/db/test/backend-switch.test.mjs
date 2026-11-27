@@ -223,3 +223,70 @@ describe("DATA_BACKEND switch, chunk 3 actions", { skip }, () => {
     assert.equal((await old.call("outreach.lead.facts.list", { lead_id: ids.lead_id })).status, 200);
   });
 });
+
+// ── Chunk 4: lead finding, and outreach.leads.add (new, SQL only) ──
+const BASE4 = "ee91060"; // the last commit before chunk 4 touched command.ts
+const CHUNK4 = ["outreach.browsercheck.plan", "outreach.browsercheck.start", "outreach.campaign.run", "outreach.campaign.sync", "outreach.leads.add_test", "outreach.leads.enrich_one", "outreach.leads.check_site"];
+
+describe("DATA_BACKEND switch, chunk 4 actions", { skip }, () => {
+  let openOld, p;
+  before(async () => {
+    ({ openOld } = await import("../equiv/old-path.mjs"));
+    const n = (await import("../equiv/new-path.mjs")).openNew("dev");
+    p = await n.call(async (tx) => (await tx`select l.id as lead_id, l.campaign_id from leads l join campaigns c on c.id = l.campaign_id where l.website is null and l.merged_into is null and not l.is_test order by l.id limit 1`)[0]);
+    await n.close();
+  });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+
+  const calls = () => [
+    ["outreach.browsercheck.plan", { campaign_id: p.campaign_id }],
+    ["outreach.browsercheck.start", { campaign_id: p.campaign_id }],
+    ["outreach.campaign.run", { id: p.campaign_id }],
+    ["outreach.campaign.sync", { id: p.campaign_id }],
+    ["outreach.leads.add_test", { campaign_id: p.campaign_id, email: "switch.four@alcance-test.invalid" }],
+    ["outreach.leads.enrich_one", { campaign_id: p.campaign_id, lead_id: p.lead_id }],
+    ["outreach.leads.check_site", { campaign_id: p.campaign_id, lead_id: p.lead_id }],
+    ["outreach.leads.add", { campaign_id: p.campaign_id, format: "single", lead: { name: "x", phone: "5550100000" } }],
+    ["outreach.leads.list", { campaign_id: p.campaign_id }],
+  ];
+
+  test("unset: every chunk 4 action (and outreach.leads.add) answers and writes exactly as command.ts did before chunk 4", async () => {
+    const run = async (old) => {
+      const answers = [];
+      for (const [action, params] of calls()) answers.push({ action, ...(await old.call(action, params)) });
+      const stores = Object.fromEntries([...STORES, "agent-hq-activity"].map((name) => [name, Object.fromEntries([...(storeMap(old.blobs, name))].map(([k, v]) => [k, JSON.parse(v)]))]));
+      return { answers, stores };
+    };
+    const was = await run(await openOld(EXPORT, { commit: BASE4 }));
+    const now = await run(await openOld(EXPORT));
+    // add_test makes a new id each time; compare with ids and times ignored.
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i], { ignoreKeys: ["id", "lead_id"] });
+      assert.ok(r.same, `${w.action} (call ${i + 1})\n${describeDiff(r)}`);
+    }
+    const strip = (s) => Object.values(s).map((v) => (v && typeof v === "object" ? { ...v, id: undefined, details: v.details ? { ...v.details, lead_id: undefined } : undefined } : v));
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(strip(was.stores[name]), strip(now.stores[name]), { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+    }
+    assert.equal(was.answers[4].status, 200, "add_test really wrote a lead");
+    assert.deepEqual(was.answers[7].body, { ok: false, error: "Unknown action: outreach.leads.add" });
+    console.log(`switch unset (chunk 4): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 4`);
+  });
+
+  test("sql: the chunk 4 actions go to the SQL module (the Blobs path never touches the network)", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    for (const [action, params] of calls().slice(0, 8)) {
+      const old = await openOld(EXPORT);
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      if (blockedCalls.slice(before).some((c) => c.what === "connect")) sockets++;
+    }
+    assert.ok(sockets > 0, "a database socket was refused");
+  });
+});

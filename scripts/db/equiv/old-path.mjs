@@ -4,6 +4,7 @@
 // So the old code can never reach Gemini, AgentMail or Apify.
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fakeBlobs } from "./fake-blobs.mjs";
@@ -81,14 +82,29 @@ export async function probeImport(spec, call) {
 }
 
 /**
- * Opens the old path on an export folder, with fresh in-memory stores each time. From here on, global fetch
- * refuses every call in this process (the new path uses postgres sockets, not fetch). `commit` bundles
- * command.ts as it was at that commit (for the "switch unset = old behaviour" proof); `allowDb` see makePlugin.
+ * The fetch every old-path bundle sees. `routes(url, init)` may answer a request with a Response (made-up Apify or
+ * website answers, for tests); anything it does not answer is refused, as before.
  */
-export async function openOld(exportDir, { commit = null, allowDb = false } = {}) {
+function installFetch(routes) {
   globalThis.__equivNet = { refuse };
-  globalThis.fetch = async (input) => refuse("fetch", typeof input === "string" ? input : input?.url); // async, like the real fetch
-  const blobs = fakeBlobs(exportDir, { "agent-hq-config": { "api-key": { key: TEST_KEY, created_at: "2026-11-27T00:00:00Z" } } });
+  globalThis.fetch = async (input, init) => { // async, like the real fetch
+    const url = typeof input === "string" ? input : input?.url ?? String(input);
+    const hit = routes ? await routes(url, init) : undefined;
+    if (hit) return hit;
+    return refuse("fetch", url);
+  };
+}
+
+/**
+ * Opens the old path on an export folder, with fresh in-memory stores each time. From here on, global fetch
+ * refuses every call in this process (the new path uses postgres sockets, not fetch) unless `fetchRoutes` answers
+ * it. `commit` bundles command.ts as it was at that commit (for the "switch unset = old behaviour" proof);
+ * `allowDb` see makePlugin; `seed` adds records to the in-memory stores (e.g. a made-up Apify key).
+ */
+export async function openOld(exportDir, { commit = null, allowDb = false, fetchRoutes = null, seed = {} } = {}) {
+  installFetch(fetchRoutes);
+  const config = { "agent-hq-config": { "api-key": { key: TEST_KEY, created_at: "2026-11-27T00:00:00Z" } } };
+  const blobs = fakeBlobs(exportDir, { ...seed, ...config });
   globalThis.__equivBlobs = blobs;
   const handler = await loadHandler(commit, allowDb);
   return {
@@ -96,8 +112,23 @@ export async function openOld(exportDir, { commit = null, allowDb = false } = {}
     /** Calls one action the way the app does; returns { status, body }. */
     async call(action, params = {}) {
       globalThis.__equivBlobs = blobs; // several old paths can be open at once; each call uses its own stores
+      installFetch(fetchRoutes);
       const res = await handler({ httpMethod: "POST", headers: { "x-api-key": TEST_KEY }, body: JSON.stringify({ action, params }) });
       return { status: res.statusCode, body: JSON.parse(res.body) };
     },
   };
+}
+
+/**
+ * The given functions that are private to command.ts (working tree), from an in-memory bundle of the file plus one
+ * `export { … }` line; the file on disk is not touched. Same network block; `fetchRoutes` as in openOld. Used to
+ * give the SQL versions the very same Apify, site-check and lead-shaping code as deps.
+ */
+export async function openPrivates(names, { fetchRoutes = null, exportDir = null } = {}) {
+  installFetch(fetchRoutes);
+  if (exportDir) globalThis.__equivBlobs = fakeBlobs(exportDir, {});
+  const contents = `${readFileSync(ENTRY, "utf8")}\nexport { ${names.join(", ")} };\n`;
+  const out = await build({ stdin: { contents, resolveDir: dirname(ENTRY), sourcefile: "command.ts", loader: "ts" }, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", plugins: [plugin] });
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
+  return { ...Object.fromEntries(names.map((n) => [n, mod[n]])), setRoutes: (r) => installFetch(r) };
 }
