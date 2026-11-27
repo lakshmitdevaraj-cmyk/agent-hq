@@ -21,27 +21,27 @@ describe("chunk 3: leads and prospects in SQL", () => {
     await n.callWrite(async (tx) => {
       const { id, campaign_id } = await pick(tx);
       // A second unsent draft of the same lead in another campaign (a P1 merge can do this): it must follow too.
-      await tx`insert into emails (id, campaign_id, lead_id, to_email, to_key, step, status, data) values ('f16-other', 'f16-elsewhere', ${id}, 'old@example.com', 'old@example.com', 2, 'drafted', '{}')`;
+      await tx`insert into emails (id, campaign_id, lead_id, to_email, to_key, step, status, data) values ('f16-other', 'f16-elsewhere', ${id}, 'old@alcance-test.invalid', 'old@alcance-test.invalid', 9, 'drafted', '{}')`;
       const sentBefore = await tx`select id, to_email from emails where lead_id = ${id} and status <> 'drafted' order by id`;
-      const r = await leads.update(tx, { campaign_id, lead_id: id, email: "F16.New@Example.com" });
-      assert.equal(r.email, "f16.new@example.com");
+      const r = await leads.update(tx, { campaign_id, lead_id: id, email: "F16.New@Alcance-Test.invalid" });
+      assert.equal(r.email, "f16.new@alcance-test.invalid");
       assert.equal(r.email_source, "manual");
       assert.ok(r.drafts_updated >= 2);
       const drafts = await tx`select to_email, to_key from emails where lead_id = ${id} and status = 'drafted'`;
-      assert.ok(drafts.length >= 2 && drafts.every((d) => d.to_email === "f16.new@example.com" && d.to_key === "f16.new@example.com"));
+      assert.ok(drafts.length >= 2 && drafts.every((d) => d.to_email === "f16.new@alcance-test.invalid" && d.to_key === "f16.new@alcance-test.invalid"));
       assert.deepEqual(await tx`select id, to_email from emails where lead_id = ${id} and status <> 'drafted' order by id`, sentBefore);
       const [row] = await tx`select email, email_key, email_source from leads where id = ${id}`;
-      assert.deepEqual({ ...row }, { email: "f16.new@example.com", email_key: "f16.new@example.com", email_source: "manual" });
+      assert.deepEqual({ ...row }, { email: "f16.new@alcance-test.invalid", email_key: "f16.new@alcance-test.invalid", email_source: "manual" });
       const listed = (await leads.list(tx, { campaign_id })).find((l) => l.id === id);
-      assert.equal(listed.email, "f16.new@example.com");
+      assert.equal(listed.email, "f16.new@alcance-test.invalid");
     });
   });
 
   test("F16: set_email and update take the same path (the same rows after either)", async () => {
     const after = async (useUpdate) => n.callWrite(async (tx) => {
       const { id, campaign_id } = await pick(tx);
-      if (useUpdate) await leads.update(tx, { campaign_id, lead_id: id, email: "same.path@example.com" });
-      else await leads.setEmail(tx, { campaign_id, lead_id: id, email: "same.path@example.com" });
+      if (useUpdate) await leads.update(tx, { campaign_id, lead_id: id, email: "same.path@alcance-test.invalid" });
+      else await leads.setEmail(tx, { campaign_id, lead_id: id, email: "same.path@alcance-test.invalid" });
       const [l] = await tx`select email, email_key, email_source, data - 'email_manual_at' - 'updated_at' as data from leads where id = ${id}`;
       const d = await tx`select id, to_email, to_key, data->>'original_to_email' as o from emails where lead_id = ${id} order by id`;
       return JSON.stringify({ l, d });
@@ -65,10 +65,10 @@ describe("chunk 3: leads and prospects in SQL", () => {
   test("F16 bad case: a check can never undo a hand-typed address (0007 trigger)", async () => {
     await n.callWrite(async (tx) => {
       const { id, campaign_id } = await pick(tx);
-      await leads.setEmail(tx, { campaign_id, lead_id: id, email: "typed.by.hand@example.com" });
-      await tx`update leads set email = 'found.by.check@example.com', email_key = 'found.by.check@example.com', email_source = 'site_check' where id = ${id}`;
+      await leads.setEmail(tx, { campaign_id, lead_id: id, email: "typed.by.hand@alcance-test.invalid" });
+      await tx`update leads set email = 'found.by.check@alcance-test.invalid', email_key = 'found.by.check@alcance-test.invalid', email_source = 'site_check' where id = ${id}`;
       const [r] = await tx`select email, email_source from leads where id = ${id}`;
-      assert.deepEqual({ ...r }, { email: "typed.by.hand@example.com", email_source: "manual" });
+      assert.deepEqual({ ...r }, { email: "typed.by.hand@alcance-test.invalid", email_source: "manual" });
     });
   });
 
@@ -132,7 +132,7 @@ describe("chunk 3: leads and prospects in SQL", () => {
   test("S6b global search finds campaigns and leads, never merged leads; refusals", async () => {
     await n.call(async (tx) => {
       const [c] = await tx`select name from campaigns where length(name) >= 4 order by id limit 1`;
-      const r1 = await search.searchAll(tx, { q: c.name.slice(0, 4) });
+      const r1 = await search.searchAll(tx, { q: c.name.slice(0, 4), limit: 50 });
       assert.ok(r1.campaigns.some((x) => x.name === c.name));
       const [l] = await tx`select id, name from leads where merged_into is null and length(name) > 6 order by id desc limit 1`;
       const r2 = await search.searchAll(tx, { q: l.name.slice(0, 6), limit: 50 });

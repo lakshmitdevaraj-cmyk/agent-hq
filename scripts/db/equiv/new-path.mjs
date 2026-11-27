@@ -1,5 +1,6 @@
 // R13 new path: runs an action's SQL version on Neon dev through the app's own client (lib/db/client.ts),
 // with certificate checking on. Every call runs inside a transaction that is always rolled back.
+import "./ts-ext.mjs"; // lets the lib/sql modules load the app's lib/ files (extensionless imports)
 import { localVar } from "../env.mjs"; // DNS workaround for *.neon.tech, scripts only
 import { db, closeDb } from "../../../netlify/functions/lib/db/client.ts";
 

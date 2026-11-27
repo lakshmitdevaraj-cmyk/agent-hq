@@ -140,9 +140,9 @@ async function runLeads(old, campaign_id, lead_id, other_id) {
     ["outreach.leads.list", { campaign_id }],
     ["outreach.prospects.list", {}],
     ["outreach.lead.screenshot.get", { campaign_id, lead_id }],
-    ["outreach.lead.set_email", { campaign_id, lead_id, email: "switch.test@example.com" }],
+    ["outreach.lead.set_email", { campaign_id, lead_id, email: "switch.test@alcance-test.invalid" }],
     ["outreach.leads.update", { campaign_id, lead_id, excluded: true, excluded_reason: "other", owner_name: "Switch Owner" }],
-    ["outreach.leads.update", { campaign_id, lead_id, email: "only.email@example.com" }],
+    ["outreach.leads.update", { campaign_id, lead_id, email: "only.email@alcance-test.invalid" }],
     ["outreach.lead.fb_checked", { campaign_id, lead_id, result: "real", note: "switch" }],
     ["outreach.lead.set_email", { campaign_id, lead_id, email: "" }],
     ["outreach.leads.delete", { campaign_id, lead_id: other_id }],
@@ -197,7 +197,7 @@ describe("DATA_BACKEND switch, chunk 3 actions", { skip }, () => {
       process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
       const before = blockedCalls.length;
       let outcome;
-      try { const r = await old.call(action, { ...ids, email: "x@example.com", excluded: true, result: "real", q: "switch", fact: "x" }); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
+      try { const r = await old.call(action, { ...ids, email: "x@alcance-test.invalid", excluded: true, result: "real", q: "switch", fact: "x" }); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
       assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
       assert.ok(blockedCalls.slice(before).some((c) => c.what === "connect"), `${action}: a database socket was refused`);
     }
