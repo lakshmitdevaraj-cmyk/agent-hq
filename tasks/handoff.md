@@ -130,7 +130,7 @@ Prompt `p2-reports/p2-chunk2-prompt.md`, plan `p2-reports/chunk2-plan.md` (appro
 
 **Chunk 2 is finished.** 109/109 tests, `npx tsc -b` clean. No migration. Nothing on `production`, no netlify command, no dependency added.
 
-Decisions (27 Nov): `active` = a running job, searching or sending, or unsent drafts. Delete stays as today (touches, follow-up settings, facts and links are left for R10). No migration. No Blobs hot-fix: the live F2 bug in `campaign.run` / `campaign.sync` stays until P5.
+Decisions (27 Nov): `active` = a running job, searching or sending, or unsent drafts. Delete stays as today (touches, follow-up settings, facts and links are left for R10). No migration. No Blobs hot-fix: the live F2 bug in `campaign.run` / `campaign.sync` stays until P5. After the report: delete also removes the campaign's `follow_ups` rows (worked-out data); `follow_up_state` stays.
 
 **For chunk 4:** move `campaign.run` / `campaign.sync` (and `leads.add_test`, which also writes the whole campaign record) to `writeLeadsJob`, never a campaign-record write. **For chunk 8:** `follow_ups` is the P1 snapshot; the `followups_due` filter reads it until chunk 8 keeps it current.
 
