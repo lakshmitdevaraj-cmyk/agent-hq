@@ -31,19 +31,28 @@ export const request = refuse("request"), get = refuse("get"), connect = refuse(
   createSocket = refuse("createSocket");
 `;
 
-const plugin = {
-  name: "equiv-old-path",
-  setup(b) {
-    b.onResolve({ filter: /^@netlify\/blobs$/ }, () => ({ path: "blobs", namespace: "equiv" }));
-    b.onResolve({ filter: new RegExp(`^(node:)?(${NET_MODULES.join("|")})$`) }, (a) => ({ path: `net:${a.path}`, namespace: "equiv" }));
-    b.onLoad({ filter: /.*/, namespace: "equiv" }, (a) => ({
-      contents: a.path === "blobs"
-        ? "export const getStore = (...a) => globalThis.__equivBlobs.getStore(...a); export const connectLambda = () => {};"
-        : STUB,
-      loader: "js",
-    }));
-  },
+/**
+ * `allowDb`: let net and tls through (the postgres driver's socket) and keep everything else blocked: fetch,
+ * http/https/http2, dgram, child_process, undici. Gemini, AgentMail and Apify are reached through fetch or https,
+ * so they stay refused. Used only to run the SQL route of the handler end to end on dev.
+ */
+const makePlugin = (allowDb = false) => {
+  const blocked = allowDb ? NET_MODULES.filter((m) => m !== "net" && m !== "tls") : NET_MODULES;
+  return {
+    name: "equiv-old-path",
+    setup(b) {
+      b.onResolve({ filter: /^@netlify\/blobs$/ }, () => ({ path: "blobs", namespace: "equiv" }));
+      b.onResolve({ filter: new RegExp(`^(node:)?(${blocked.join("|")})$`) }, (a) => ({ path: `net:${a.path}`, namespace: "equiv" }));
+      b.onLoad({ filter: /.*/, namespace: "equiv" }, (a) => ({
+        contents: a.path === "blobs"
+          ? "export const getStore = (...a) => globalThis.__equivBlobs.getStore(...a); export const connectLambda = () => {};"
+          : STUB,
+        loader: "js",
+      }));
+    },
+  };
 };
+const plugin = makePlugin(false);
 
 const bundled = new Map();
 /** What the bundle was built from (esbuild metafile inputs), so a test can see every network import went to the stub. */
@@ -52,14 +61,14 @@ export const bundleInputs = [];
  * Bundles command.ts: the working tree by default, or the file as it was at git commit `commit` (read with
  * `git show`, never written to disk; its imports resolve against today's netlify/functions folder).
  */
-async function loadHandler(commit = null) {
-  const key = commit ?? "working-tree";
+async function loadHandler(commit = null, allowDb = false) {
+  const key = `${commit ?? "working-tree"}${allowDb ? "+db" : ""}`;
   if (!bundled.has(key)) {
     const source = commit
       ? { stdin: { contents: execFileSync("git", ["show", `${commit}:netlify/functions/command.ts`], { cwd: dirname(ENTRY), encoding: "utf8" }), resolveDir: dirname(ENTRY), sourcefile: "command.ts", loader: "ts" } }
       : { entryPoints: [ENTRY] };
-    const out = await build({ ...source, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [plugin] });
-    if (!commit) bundleInputs.push(...Object.keys(out.metafile.inputs));
+    const out = await build({ ...source, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [makePlugin(allowDb)] });
+    if (!commit && !allowDb) bundleInputs.push(...Object.keys(out.metafile.inputs));
     bundled.set(key, import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`).then((m) => m.handler));
   }
   return bundled.get(key);
@@ -74,14 +83,14 @@ export async function probeImport(spec, call) {
 /**
  * Opens the old path on an export folder, with fresh in-memory stores each time. From here on, global fetch
  * refuses every call in this process (the new path uses postgres sockets, not fetch). `commit` bundles
- * command.ts as it was at that commit (for the "switch unset = old behaviour" proof).
+ * command.ts as it was at that commit (for the "switch unset = old behaviour" proof); `allowDb` see makePlugin.
  */
-export async function openOld(exportDir, { commit = null } = {}) {
+export async function openOld(exportDir, { commit = null, allowDb = false } = {}) {
   globalThis.__equivNet = { refuse };
   globalThis.fetch = async (input) => refuse("fetch", typeof input === "string" ? input : input?.url); // async, like the real fetch
   const blobs = fakeBlobs(exportDir, { "agent-hq-config": { "api-key": { key: TEST_KEY, created_at: "2026-11-27T00:00:00Z" } } });
   globalThis.__equivBlobs = blobs;
-  const handler = await loadHandler(commit);
+  const handler = await loadHandler(commit, allowDb);
   return {
     blobs,
     /** Calls one action the way the app does; returns { status, body }. */

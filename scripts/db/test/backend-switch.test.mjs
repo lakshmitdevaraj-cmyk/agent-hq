@@ -85,13 +85,41 @@ describe("DATA_BACKEND switch", { skip }, () => {
     const old = await openOld(EXPORT);
     process.env.DATA_BACKEND = "sql";
     process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
-    const viaSql = await old.call("outreach.campaign.list");
-    assert.equal(viaSql.status, 500);
-    assert.match(viaSql.body.error, /network access is blocked/, viaSql.body.error);
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    const before = blockedCalls.length;
+    // postgres.js opens its socket outside the handler's await chain, so the refusal can surface either as the
+    // handler's 500 answer or as the thrown NetworkBlocked error; both mean the call took the SQL route.
+    let outcome;
+    try { const r = await old.call("outreach.campaign.list"); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
+    assert.match(outcome, /network access is blocked/, outcome);
+    assert.ok(blockedCalls.slice(before).some((c) => c.what === "connect"), "a database socket was refused");
     delete process.env.DATA_BACKEND;
     const viaBlobs = await old.call("outreach.campaign.list");
     assert.equal(viaBlobs.status, 200);
     assert.ok(viaBlobs.body.data.length > 0);
+  });
+
+  test("sql, end to end on dev: the real handler answers through withTx and maps refusals (reads and refusals only, nothing written)", async () => {
+    const { localVar } = await import("../env.mjs");
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    const before = blockedCalls.length;
+    const old = await openOld(EXPORT, { allowDb: true }); // net/tls for postgres only; fetch and http(s) stay blocked
+    process.env.DATA_BACKEND = "sql";
+    process.env.DATABASE_URL = localVar("DEV_DATABASE_URL");
+    const list = await old.call("outreach.campaign.list", { sort: "name", limit: 3 });
+    assert.equal(list.status, 200, JSON.stringify(list.body).slice(0, 200));
+    assert.equal(list.body.data.length, 3);
+    const names = list.body.data.map((c) => c.name.toLowerCase());
+    assert.deepEqual(names, [...names].sort());
+    assert.deepEqual(await old.call("outreach.campaign.get", { id: "no-such-campaign" }), { status: 404, body: { ok: false, error: "campaign not found" } });
+    assert.deepEqual(await old.call("outreach.campaign.update", { name: "x" }), { status: 400, body: { ok: false, error: "id required" } });
+    assert.deepEqual(await old.call("outreach.campaign.update", { id: "no-such-campaign", name: "x" }), { status: 404, body: { ok: false, error: "campaign not found" } });
+    assert.deepEqual(await old.call("outreach.leads.count", {}), { status: 400, body: { ok: false, error: "campaign_id required" } });
+    assert.equal((await old.call("outreach.campaign.list", { filter: "nope" })).status, 400);
+    const count = await old.call("outreach.leads.count", { campaign_id: ids[0] });
+    assert.equal(count.status, 200);
+    assert.equal(typeof count.body.data.count, "number");
+    assert.equal(blockedCalls.length, before, "nothing else reached for the network");
   });
 
   test("any other value of DATA_BACKEND keeps Blobs", async () => {

@@ -1817,6 +1817,22 @@ async function campaignEmails(id: string): Promise<Array<{ status?: string; clic
   return emails.map((e) => (e.id && ownOnly.has(e.id) ? { ...e, own_reply_only: true } : e));
 }
 
+// ── P2: the campaign actions on Postgres ───────────────────────────────
+// Only when DATA_BACKEND=sql (P2 tests; the switch at P5). Unset or any other value keeps the Blobs code below each
+// case, unchanged. The SQL modules load only on this path, so the Blobs path never opens a database connection.
+const sqlBackend = (): boolean => process.env.DATA_BACKEND === "sql";
+
+async function sqlCampaignCase(action: import("./lib/sql/campaigns.ts").CampaignAction, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>) {
+  const [{ withTx }, campaigns] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts")]);
+  const ctx = { newId: () => nanoid(12), createdBy: identity?.kind === "agent" ? identity.agent_id : null };
+  try {
+    return ok(await withTx((tx) => campaigns.runCampaignAction(tx, action, (params ?? {}) as Record<string, unknown>, ctx)));
+  } catch (e) {
+    if (e instanceof campaigns.CampaignError) return fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3979,6 +3995,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.create": {
+        if (sqlBackend()) return sqlCampaignCase("outreach.campaign.create", params, identity);
         const { name, query, structured_query, description } = params as Record<string, unknown>;
         if (typeof name !== "string" || !name.trim()) return fail(400, "name required");
         if (typeof query !== "string" || !query.trim()) return fail(400, "query required");
@@ -4015,12 +4032,14 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.list": {
+        if (sqlBackend()) return sqlCampaignCase("outreach.campaign.list", params, identity);
         const all = await listJsonFast<{ id: string; created_at: string }>(store(OUTREACH_CAMPAIGNS));
         all.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
         return ok(await Promise.all(all.map(async (c) => deriveCampaign(await withLeadCount(withState(c as Record<string, unknown>, await readState(c.id))), await campaignEmails(c.id)))));
       }
 
       case "outreach.campaign.get": {
+        if (sqlBackend()) return sqlCampaignCase("outreach.campaign.get", params, identity);
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
         const record = await readCampaign<Record<string, unknown>>(id);
@@ -4029,6 +4048,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.update": {
+        if (sqlBackend()) return sqlCampaignCase("outreach.campaign.update", params, identity);
         // Settings (name, any_trade, ...) go to the campaign record; the running job and sender defaults go to the
         // campaign's state record, so a job and a settings change can never overwrite each other (batch 7).
         const { id, ...patch } = params as Record<string, unknown>;
@@ -4064,6 +4084,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.delete": {
+        if (sqlBackend()) return sqlCampaignCase("outreach.campaign.delete", params, identity);
         // Removes the campaign, all its leads and its unsent drafts. Emails that were already sent stay as history.
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
@@ -4490,6 +4511,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.leads.count": {
+        if (sqlBackend()) return sqlCampaignCase("outreach.leads.count", params, identity);
         const { campaign_id } = params as Record<string, string>;
         if (!campaign_id) return fail(400, "campaign_id required");
         const { blobs } = await store(OUTREACH_LEADS).list({ prefix: `${campaign_id}/` });
