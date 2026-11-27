@@ -76,7 +76,19 @@ Delete the branch afterwards.
 
 Database tests run on `dev` in transactions that are rolled back.
 
-**Equivalence checks (R13):** `scripts/db/equiv/` runs an action two ways and compares the answers. The old way is the real `command.ts` bundled with Blobs swapped for the P1 export (read only; writes stay in memory) and every network route blocked (fetch, http/https/net/tls/child_process). The new way is its SQL version on `dev`, in a read-only transaction that is rolled back. Key order and timestamps are ignored. Intended differences are listed per case with a reason, matched narrowly, and still reported. One case so far: `cases/campaign-list.mjs`. The export is read at test time from `~/agent-hq-backups/p1-2026-11-26/` and never committed; the tests skip if it is missing.
+**Equivalence checks (R13):** `scripts/db/equiv/` runs an action two ways and compares the answers. The old way is the real `command.ts` bundled with Blobs swapped for the P1 export (read only; writes stay in memory) and every network route blocked (fetch, http/https/net/tls/child_process). The new way is its SQL version on `dev`, in a read-only transaction that is rolled back. Key order and timestamps are ignored. Intended differences are listed per case with a reason, matched narrowly, and still reported. Cases: `cases/campaign-list.mjs` (chunk 1 proof) and the chunk 2 campaign cases. `openNew().callWrite` runs a write in a transaction that is rolled back; `openOld(dir, { commit })` bundles `command.ts` as it was at a commit; `{ allowDb: true }` lets only net/tls through, for the SQL route of the handler. The export is read at test time from `~/agent-hq-backups/p1-2026-11-26/` and never committed; the tests skip if it is missing.
+
+## App data layer (P2)
+
+`netlify/functions/lib/sql/<area>.ts`: each action's SQL version, a plain function taking `sql` (a client or a transaction). `command.ts` calls it only when `DATA_BACKEND=sql`; unset (or any other value) keeps the Blobs code, unchanged, until P5.
+
+**Chunk 2, `lib/sql/campaigns.ts`:** `outreach.campaign.create/list/get/update/delete` and `outreach.leads.count`.
+- `list` and `get` are one statement. Counters come from the emails (same rules as `deriveCampaign`), and the lead count leaves out merged leads (F17). **S0:** `list` takes `q` (name, niche, area; the `campaigns_search` trigram index works from 3 characters), `filter` (`active`: a running job, searching or sending, or unsent drafts; `has_replies`; `followups_due`: a due row in `follow_ups`, not stopped, lead not merged, today in the campaign's time zone), `sort` (`newest` default, `name`, `replies`) and `limit` (1–200). No new migration: the indexes from 0006 cover it.
+- **F2:** settings live in `campaigns`, job progress in `campaign_jobs`. `update` sets only the columns it is given (`data` merged with `||`). Job writers (`writeJob`, `writeLeadsJob`, for chunks 4, 5 and 8) never read or write the campaigns row. The old Blobs `campaign.run` / `campaign.sync` still write the whole record (the live F2 bug) until chunk 4 moves them.
+- `delete` removes the campaign, its leads (merged too), unsent drafts, jobs, screenshots, social drafts and `follow_ups` rows; sent emails stay. Touches, follow-up settings, facts and social links stay, as in Blobs (settle with R10).
+- `lib/sql/area.ts`: country and time zone from the area, the import's rule.
+
+Tests: `campaigns-sql`, `campaigns-f2`, `campaigns-equiv` (R13 cases in `scripts/db/equiv/cases/campaign-*.mjs`, `leads-count.mjs`), `backend-switch` (switch unset = `command.ts` at `4f9338c`).
 
 ## At the P5 switch
 

@@ -88,6 +88,8 @@ Other agreed rules: US holidays are only New Year's Day, Memorial Day, 4 July, L
 
 Later, at the P5 switch (after 13 December): the Gemini key, service keys and agent keys must be typed in again in Settings; they were removed from the export. Import into `production` from a fresh export.
 
+- **P5:** move `postgres` from devDependencies to dependencies before the switch (needs Lakshmi's approval).
+
 ---
 
 # P2 progress (branch `rebuild/p2-data-layer`, from `rebuild/p1-database`)
@@ -113,3 +115,23 @@ Decisions made 27 Nov (after the chunk 1 report):
 Also noted: Neon's pooler ignores `statement_timeout` sent at connect, so use `withTx` / `timed` from `lib/db/client.ts`. `postgres` is still a devDependency; moving it needs approval.
 
 Next: chunk 2 (campaign reads and writes), see `tasks/p2-plan.md`. Add each rewritten action as a case in `scripts/db/equiv/cases/`.
+
+## Chunk 2: campaign reads and writes (27 Nov 2026)
+
+Prompt `p2-reports/p2-chunk2-prompt.md`, plan `p2-reports/chunk2-plan.md` (approved with decisions), report `p2-reports/chunk2-report.md`.
+
+| Step | Commit |
+|---|---|
+| 1. Tests and equivalence cases first (failing run saved in the report) | `b6bc8ff` |
+| 2. Reads: `lib/sql/campaigns.ts` list / get / leads.count / S0, `lib/sql/area.ts` | `7ebe3a2` |
+| 3. Writes: create / update / delete, job writers, F2 | `83c6443` |
+| 4. `command.ts`: six guarded lines plus a helper (22 lines added); switch proof | `e91c8d3` |
+| 5. README, handoff, report | (this commit) |
+
+**Chunk 2 is finished.** 109/109 tests, `npx tsc -b` clean. No migration. Nothing on `production`, no netlify command, no dependency added.
+
+Decisions (27 Nov): `active` = a running job, searching or sending, or unsent drafts. Delete stays as today (touches, follow-up settings, facts and links are left for R10). No migration. No Blobs hot-fix: the live F2 bug in `campaign.run` / `campaign.sync` stays until P5.
+
+**For chunk 4:** move `campaign.run` / `campaign.sync` (and `leads.add_test`, which also writes the whole campaign record) to `writeLeadsJob`, never a campaign-record write. **For chunk 8:** `follow_ups` is the P1 snapshot; the `followups_due` filter reads it until chunk 8 keeps it current.
+
+Next: chunk 3 (Leads and Prospects), its own prompt.
