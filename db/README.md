@@ -118,7 +118,9 @@ Flag fix (27 Nov, after the chunk 4 review): `not_call_driven` = custom builders
 - **R9:** `footer.preview` adds `postal_address_missing` and a warning when the country needs a postal address and Settings has none.
 - **Not yet on SQL:** the AI writer. Under `DATA_BACKEND=sql`, `generate_one` and `generate` answer 501 until the P4 runners (F43); `draft.start` / `review.start` plan and record the job, but the `ai-background` worker still reads Blobs, so the switch must not flip before P4.
 
-Tests: `emails-sql`, `emails-equiv` (cases in `scripts/db/equiv/cases/emails.mjs`), `backend-switch` (chunk 5 part: `bc04e1e`). Timing script: `scripts/db/bench-emails.mjs` (database time from `EXPLAIN ANALYZE` and time from this Mac).
+Tests: `emails-sql`, `emails-equiv` (cases in `scripts/db/equiv/cases/emails.mjs`), `backend-switch` (chunk 5 part: `bc04e1e`).
+
+**Chunk 5b, `lib/sql/messagechecks.ts`:** F35 (address domain vs website; greeting vs a personal address), F36 (greeting read from the address, no owner) and "your assistant" give "Check this"; email 4 pitching, opening hours with no saved source (F37) and tap-to-call claims (F40) are Blocked. `codeCheckDraft` runs them on every save and passes the business name to the rating rule (F38). A re-check lifts a stale "code checks" block to "Check this". F38 / F39 themselves are in `lib/messagerules.ts` and `lib/angle.ts` (both paths); `RULES_VERSION` is 5. Tests: `messagechecks`, `rules-f38-f39`; the switch proof lists the old-path change as intended (`RULES5_KNOWN`), and its base side now loads every app file at the base commit. Timing script: `scripts/db/bench-emails.mjs` (database time from `EXPLAIN ANALYZE` and time from this Mac).
 
 ## At the P5 switch
 

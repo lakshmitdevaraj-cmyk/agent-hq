@@ -37,11 +37,20 @@ export const request = refuse("request"), get = refuse("get"), connect = refuse(
  * http/https/http2, dgram, child_process, undici. Gemini, AgentMail and Apify are reached through fetch or https,
  * so they stay refused. Used only to run the SQL route of the handler end to end on dev.
  */
-const makePlugin = (allowDb = false) => {
+const makePlugin = (allowDb = false, commit = null) => {
   const blocked = allowDb ? NET_MODULES.filter((m) => m !== "net" && m !== "tls") : NET_MODULES;
+  const functionsDir = dirname(ENTRY);
   return {
     name: "equiv-old-path",
     setup(b) {
+      // With a commit, every app file under netlify/functions/ is read as it was at that commit (git show, never written
+      // to disk), so a change inside lib/ shows up in the "switch unset" proof (27 Nov: until then only command.ts was old).
+      // A file that did not exist at the commit (e.g. a new lib/sql module) falls back to the working tree.
+      if (commit) b.onLoad({ filter: /\.(ts|mjs|js)$/ }, (a) => {
+        if (!a.path.startsWith(`${functionsDir}/`) || a.namespace !== "file") return undefined;
+        const rel = `netlify/functions/${a.path.slice(functionsDir.length + 1)}`;
+        try { return { contents: execFileSync("git", ["show", `${commit}:${rel}`], { cwd: functionsDir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }), loader: a.path.endsWith(".ts") ? "ts" : "js", resolveDir: dirname(a.path) }; } catch { return undefined; }
+      });
       b.onResolve({ filter: /^@netlify\/blobs$/ }, () => ({ path: "blobs", namespace: "equiv" }));
       b.onResolve({ filter: new RegExp(`^(node:)?(${blocked.join("|")})$`) }, (a) => ({ path: `net:${a.path}`, namespace: "equiv" }));
       b.onLoad({ filter: /.*/, namespace: "equiv" }, (a) => ({
@@ -60,7 +69,7 @@ const bundled = new Map();
 export const bundleInputs = [];
 /**
  * Bundles command.ts: the working tree by default, or the file as it was at git commit `commit` (read with
- * `git show`, never written to disk; its imports resolve against today's netlify/functions folder).
+ * `git show`, never written to disk), together with every netlify/functions file it imports as it was at that commit.
  */
 async function loadHandler(commit = null, allowDb = false) {
   const key = `${commit ?? "working-tree"}${allowDb ? "+db" : ""}`;
@@ -68,7 +77,7 @@ async function loadHandler(commit = null, allowDb = false) {
     const source = commit
       ? { stdin: { contents: execFileSync("git", ["show", `${commit}:netlify/functions/command.ts`], { cwd: dirname(ENTRY), encoding: "utf8" }), resolveDir: dirname(ENTRY), sourcefile: "command.ts", loader: "ts" } }
       : { entryPoints: [ENTRY] };
-    const out = await build({ ...source, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [makePlugin(allowDb)] });
+    const out = await build({ ...source, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [makePlugin(allowDb, commit)] });
     if (!commit && !allowDb) bundleInputs.push(...Object.keys(out.metafile.inputs));
     bundled.set(key, import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`).then((m) => m.handler));
   }

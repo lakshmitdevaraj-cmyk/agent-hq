@@ -14,6 +14,17 @@ const EXPORT = join(homedir(), "agent-hq-backups", "p1-2026-11-26");
 /** One store of a fake-blobs set (stores load on first use). */
 const storeMap = (blobs, name) => (blobs.getStore(name), blobs.stores.get(name));
 const skip = !existsSync(join(EXPORT, "manifest.json")) && "P1 export folder not found";
+/**
+ * Intended differences on the OLD path since run B (27 Nov, approved by Lakshmi): F38 ("5 Star" names are not a rating) and
+ * F39 (sameness ignores the offer's sentence; "busy service schedules") changed lib/messagerules.ts and lib/angle.ts, and
+ * RULES_VERSION went 4 → 5, so the old path re-checks each unsent draft once when it lists drafts. Listed, never hidden:
+ * the version stamp, and any review result the new rules give. Every hit is counted and printed.
+ */
+const RULES5_KNOWN = [
+  { path: /\.rules_version$/, when: (d) => d.old === 4 && d.new === 5, why: "RULES_VERSION 4 → 5: old drafts re-checked once (F38/F39)" },
+  { path: /\.(review_status|reviewed_by|review_reasons(\.length|\[\d+\])?)$/, why: "a draft's code-check result under the F38/F39 rules" },
+];
+const knownSummary = (hits) => Object.entries(hits.reduce((m, h) => ((m[h.why] = (m[h.why] ?? 0) + 1), m), {})).map(([why, k]) => `${k} × ${why}`).join("; ");
 const STORES = ["agent-hq-outreach-campaigns", "agent-hq-outreach-campaign-state", "agent-hq-outreach-leads", "agent-hq-outreach-emails", "agent-hq-outreach-social", "agent-hq-lead-screenshots"];
 
 /** The same calls, in the same order, on one old path. Returns the answers and the stores afterwards. */
@@ -173,14 +184,18 @@ describe("DATA_BACKEND switch, chunk 3 actions", { skip }, () => {
     delete process.env.DATA_BACKEND;
     const was = await runLeads(await openOld(EXPORT, { commit: BASE3 }), ids.campaign_id, ids.lead_id, ids.other_id);
     const now = await runLeads(await openOld(EXPORT), ids.campaign_id, ids.lead_id, ids.other_id);
+    const known3 = [];
     for (const [i, w] of was.answers.entries()) {
-      const r = compare(w, now.answers[i]);
+      const r = compare(w, now.answers[i], { known: RULES5_KNOWN });
       assert.ok(r.same, `${w.action} (call ${i + 1})\n${describeDiff(r)}`);
+      known3.push(...r.known);
     }
     for (const name of Object.keys(was.stores)) {
-      const r = compare(was.stores[name], now.stores[name]);
+      const r = compare(was.stores[name], now.stores[name], { known: RULES5_KNOWN });
       assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+      known3.push(...r.known);
     }
+    console.log(`switch unset (chunk 3), intended differences: ${knownSummary(known3) || "none"}`);
     // Real data and real writes, not two empty answers.
     assert.ok(was.answers[0].body.data.length > 0 && was.answers[1].body.data.length > 100);
     assert.ok(was.answers[3].body.data.drafts_updated > 0);
@@ -347,15 +362,21 @@ describe("DATA_BACKEND switch, chunk 5 actions", { skip }, () => {
     const now = await run(await openOld(EXPORT));
     // create and update stamp new ids and times; compare with those ignored.
     const ignoreKeys = ["id", "created_at", "updated_at", "reviewed_at", "at"];
+    const known5 = [];
     for (const [i, w] of was.answers.entries()) {
-      const r = compare(w, now.answers[i], { ignoreKeys });
+      const r = compare(w, now.answers[i], { ignoreKeys, known: RULES5_KNOWN });
       assert.ok(r.same, `${w.action} (call ${i + 1})\n${describeDiff(r)}`);
+      known5.push(...r.known);
     }
-    const strip = (s) => JSON.parse(JSON.stringify(Object.values(s), (k, v) => (ignoreKeys.includes(k) ? undefined : v)));
+    // Stores keep their keys, so each draft is compared with itself.
+    const strip = (s) => JSON.parse(JSON.stringify(s, (k, v) => (ignoreKeys.includes(k) ? undefined : v)));
     for (const name of Object.keys(was.stores)) {
-      const r = compare(strip(was.stores[name]), strip(now.stores[name]), { unordered: ["$"] });
+      const r = compare(strip(was.stores[name]), strip(now.stores[name]), { known: RULES5_KNOWN });
       assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+      known5.push(...r.known);
     }
+    const statusChanges = known5.filter((h) => /review_status$/.test(h.path)).map((h) => `${h.old} → ${h.new}`);
+    console.log(`switch unset (chunk 5), intended differences: ${knownSummary(known5) || "none"}; review status changes: ${statusChanges.length ? statusChanges.join(", ") : "none"}`);
     assert.equal(was.answers[2].status, 200, "update really wrote");
     assert.equal(was.answers[3].status, 200, "create really wrote");
     console.log(`switch unset (chunk 5): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 5`);

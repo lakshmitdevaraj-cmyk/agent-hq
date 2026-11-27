@@ -38,7 +38,8 @@ describe("chunk 5 email actions: old vs new", { skip }, () => {
     let compared = 0, hiddenDups = 0, annotated = 0, rechecked = 0;
     for (const campaign_id of campaigns) {
       const o = await old.call("outreach.emails.list", { campaign_id, limit: 100000 });
-      const n = await fresh.call(cs.list, { campaign_id, limit: 100000 });
+      // A write transaction (rolled back): since RULES_VERSION 5 the list re-checks dev's version-4 drafts and saves the stamp, as the old path does.
+      const n = await fresh.callWrite(cs.list, { campaign_id, limit: 100000 });
       assert.equal(n.status, o.status);
       const kept = o.body.data.filter((e) => !dups.has(e.id));
       hiddenDups += o.body.data.length - kept.length;
@@ -105,7 +106,12 @@ describe("chunk 5 email actions: old vs new", { skip }, () => {
       return out;
     });
     for (const [i, [label, p]] of steps.entries()) {
-      same(`update ${label}`, await old.call("outreach.emails.update", { campaign_id, email_id, ...p }), n[i], { known: cs.emailKnown("\\$\\.body\\.data", { moved, merged }) });
+      // Intended: after an edit the SQL path stamps the rules version its check just used; the old path keeps the older number
+      // (and re-checks the draft again later). Hidden until RULES_VERSION 5, because the export and the code were both at 4.
+      // Intended (5b, SQL path only): an address on another domain than the website adds the F35 "Check this" reason, from that step on (the address stays).
+      const f35 = { path: /\.body\.data\.review_reasons(\.length|\[\d+\])$/, why: "5b F35: the new address is not on the website's domain (Check this)" };
+      const stamp = { path: /\.body\.data\.rules_version$/, when: (d) => d.old === 4 && d.new === 5, why: "SQL stamps the rules version an edit was checked with" };
+      same(`update ${label}`, await old.call("outreach.emails.update", { campaign_id, email_id, ...p }), n[i], { known: [...cs.emailKnown("\\$\\.body\\.data", { moved, merged }), stamp, ...(i >= steps.findIndex(([l]) => l === "address") ? [f35] : [])] });
     }
     same("update a sent email", await old.call("outreach.emails.update", { campaign_id: sent.campaign_id, email_id: sent.id, subject: "x" }), n[steps.length]);
     const oldRow = (await old.call("outreach.emails.list", { campaign_id, limit: 100000 })).body.data.find((e) => e.id === email_id);

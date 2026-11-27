@@ -181,9 +181,19 @@ Plan `p2-reports/chunk5-plan.md`, report `p2-reports/chunk5-report.md`, failing 
 
 | Step | Commit |
 |---|---|
-| 1–3. Tests, `lib/sql/emailchecks.ts`, `lib/sql/emails.ts`, equivalence cases, timing script | (this commit) |
-| 4. `command.ts`: nine guarded lines and helper `sqlEmailCase` (28 lines added); switch proof; README, handoff, report | (this commit) |
+| 1–4. Tests, `lib/sql/emailchecks.ts`, `lib/sql/emails.ts`, equivalence cases, timing script; `command.ts`: nine guarded lines and helper `sqlEmailCase` (28 lines added); switch proof; README, handoff | `12fa871` |
 
 Decisions I took (to review): her own `create` is allowed on a flagged lead (writing it is her say-so), an agent's is refused; `create` refuses a do-not-contact lead; a failed row never blocks a new draft; `generate_one` / `generate` answer 501 on the SQL path until the P4 runners give them the AI writer; the `ai-background` worker is unchanged (P4), so the switch must not flip before P4.
 
 **From now on, timings are reported two ways:** database time (`EXPLAIN ANALYZE`) and time from this Mac.
+
+## Chunk 5b: Message checks (run B)
+
+Plan `p2-reports/chunk5b-plan.md`, report `p2-reports/chunk5b-report.md`, failing run `p2-reports/chunk5b-failing-run.txt`. Lakshmi approved the edits to `lib/messagerules.ts` and `lib/angle.ts` (27 Nov).
+
+- **F38** (`messagerules.ts`): "N Star <Name>" and the lead's own name are left out before the rating rule; "5-star" now counts as a rating. **F39** (`angle.ts`): sameness leaves out runs of 5+ words shared with the offer or examples; "busy service schedules" is not the assistant scheduling. **`RULES_VERSION` 4 → 5.** Both behave the same on the old path (listed in the switch proof as intended).
+- **F35, F36, F37, F40**: new `lib/sql/messagechecks.ts`, run on every save by `codeCheckDraft` (SQL path only). A re-check now lifts a stale "code checks" block to "Check this" (SQL path only).
+- **Switch proof harness:** `old-path.mjs` now loads every `netlify/functions/` file at the base commit, so `lib/` changes show up (they could not before).
+- Named cases: message cases added to `~/agent-hq-backups/p2-named-cases.json` (outside the repo).
+
+**Run B is finished.** Next: run C (chunks 6 and 7), its own session. **For chunk 8:** the F41 named case (social reviewer) is checked there, not in 5b. **For P4:** wire the AI writer into `lib/sql/emails.ts` (`deps.writeDraft`) and move `ai-background`; then `generate_one` / `generate` stop answering 501.

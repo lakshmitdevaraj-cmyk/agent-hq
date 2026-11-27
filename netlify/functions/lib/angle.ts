@@ -239,7 +239,7 @@ const QUICK_Q = /quick question\s*:\s*([^.!?\n]*)([.!?]?)/i;
 const UNOFFERED: Array<[RegExp, string]> = [
   [/\b(?:texts?|texting|sms)\b/i, "texting"],
   // Only when the assistant (or "we"/"it") is said to schedule, book, dispatch, quote, invoice or take payments; "busy schedule" is fine.
-  [/\b(?:assistant|shiftforge(?: ai)?|we|it|our \w+)\b[^.!?\n]{0,50}?\b(?:schedul(?:es|ing)|books?|booking|dispatch(?:es|ing)?|quot(?:es|ing)|invoic(?:es|ing)|takes? payments?|collects? payments?|sends? (?:them |you |customers? )?(?:a )?quotes?)\b(?!\s+(?:an?\s+|the\s+|your\s+)?(?:30|free|quick|short|brief|call|chat|time)\b)/i, "scheduling, dispatch, quotes or payments"],
+  [/\b(?:assistant|shiftforge(?: ai)?|we|it|our \w+)\b[^.!?\n]{0,50}?\b(?<!\b(?:busy|hectic|packed|full|tight|service|work|crew|team|job|daily|weekly)\s)(?:schedul(?:es|ing)|books?|booking|dispatch(?:es|ing)?|quot(?:es|ing)|invoic(?:es|ing)|takes? payments?|collects? payments?|sends? (?:them |you |customers? )?(?:a )?quotes?)\b(?!\s+(?:an?\s+|the\s+|your\s+)?(?:30|free|quick|short|brief|call|chat|time)\b)/i, "scheduling, dispatch, quotes or payments"],
 ];
 
 /** Hours facts (weekend closure, 24/7, after hours) are saved in the site check but are not in the details list. */
@@ -275,7 +275,7 @@ export function checkModelDraft(d: ModelDraft, factCount: number, opts: DraftChe
   }
   const copied = copiedFrom(d.body, opts.copySources ?? []);
   if (copied) fails.push(`it repeats 8+ words from the examples or the offer ("${copied}"): write your own sentences`);
-  const same = opts.others?.length ? samenessProblem(d, opts.others, opts.ignoreWords ?? []) : null;
+  const same = opts.others?.length ? samenessProblem(d, opts.others, opts.ignoreWords ?? [], opts.copySources ?? []) : null;
   if (same) fails.push(same);
   if (opts.callsOnly && WEB_CHANNEL_RX.test(d.body)) fails.push("the body mentions website messages, chat, forms or booking: talk about phone calls only");
   const words = wordCount(d.body);
@@ -390,11 +390,36 @@ let svcMark = 0;
 /** Each removed phrase becomes a one-off marker word, so two emails never "share" a run across the gap. */
 const withoutServiceDescription = (body: string): string => SERVICE_PHRASES.reduce((t, rx) => t.replace(rx, () => ` svcgap${svcMark++}x `), body);
 
+/** F39: words a draft shares with the offer or the writer examples (a run of 5+) become one-off markers too. Copying those
+ * is checked on its own (8 words, `copiedFrom`); between two emails, saying the offer the same way is not sameness. */
+const SHARED_SOURCE_RUN = 5;
+const normWord = (w: string) => w.toLowerCase().replace(/[^a-z0-9']/g, "");
+function withoutSourceRuns(body: string, sources: string[]): string {
+  const grams = new Set<string>();
+  for (const src of sources) {
+    const w = src.split(/\s+/).map(normWord).filter(Boolean);
+    for (let i = 0; i + SHARED_SOURCE_RUN <= w.length; i++) grams.add(w.slice(i, i + SHARED_SOURCE_RUN).join(" "));
+  }
+  if (!grams.size) return body;
+  return body.split("\n").map((line) => {
+    const toks = line.split(/(\s+)/); // words and the spaces between them
+    const idx = toks.map((t, i) => (/\S/.test(t) && normWord(t) ? i : -1)).filter((i) => i >= 0);
+    const drop = new Set<number>();
+    for (let k = 0; k + SHARED_SOURCE_RUN <= idx.length; k++) {
+      const gram = idx.slice(k, k + SHARED_SOURCE_RUN).map((i) => normWord(toks[i])).join(" ");
+      if (grams.has(gram)) for (let j = k; j < k + SHARED_SOURCE_RUN; j++) drop.add(idx[j]);
+    }
+    return drop.size ? toks.map((t, i) => (drop.has(i) ? `svcgap${svcMark++}x` : t)).join("") : line;
+  }).join("\n");
+}
+
 /** Too close to another first email in the same campaign (12+ shared words, same opening as the last two, same subject pattern). */
-export function samenessProblem(d: { subject: string; body: string }, others: Array<{ subject: string; body: string }>, ignoreWords: string[] = []): string | null {
+export function samenessProblem(d: { subject: string; body: string }, others: Array<{ subject: string; body: string }>, ignoreWords: string[] = [], sharedSources: string[] = []): string | null {
+  const plain = (body: string) => withoutSourceRuns(withoutServiceDescription(body), sharedSources);
   for (const o of others) {
-    // Between emails the limit is 12 words, and plain descriptions of the service are ignored (nearly every email says the same true thing).
-    const r = sharedRun(withoutServiceDescription(d.body), withoutServiceDescription(o.body), CROSS_EMAIL_WORDS);
+    // Between emails the limit is 12 words, and plain descriptions of the service are ignored (nearly every email says the same true thing),
+    // and so is wording taken from the offer or the examples (F39).
+    const r = sharedRun(plain(d.body), plain(o.body), CROSS_EMAIL_WORDS);
     if (r) return `it repeats ${CROSS_EMAIL_WORDS}+ words from another email in this campaign ("${r}"): use different wording`;
   }
   // At most 1 in 4 emails of a campaign may open with "Quick question".

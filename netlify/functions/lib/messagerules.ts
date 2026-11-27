@@ -75,6 +75,8 @@ export type StepCtx = {
   earlierTexts?: string[];
   /** Figures the sender has put a named source behind in Settings (these demo and statistic figures may then be quoted). */
   namedSources?: string;
+  /** The lead's business name: left out before the rating rule (F38, "5 Star ..." names). */
+  businessName?: string | null;
 };
 
 const PROOF_STOP = new Set(["that", "this", "with", "from", "your", "have", "about", "their", "which", "where", "would", "there", "them", "they", "then", "than", "into", "does", "being", "what"]);
@@ -100,7 +102,17 @@ const ADDRESS_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
 const PHONE_RE = /\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/;
 const CALL_ASK_RE = /\b(?:book|schedule|set up|hop on|jump on|grab|arrange|have|take|get on|do|fit in)\s+(?:a|an|some|\d+|\d+-minute|\d+ minutes?)\s+(?:quick |short |brief |free |discovery |intro |30-minute |15-minute )*(?:call|chat|demo|meeting|sync|zoom|walkthrough|conversation)\b|\b(?:30|15|20)[- ]?minute (?:free )?(?:call|chat|demo|meeting)\b|\b(?:free )?(?:call|demo|meeting) (?:with me|this week|next week|tomorrow)\b|\bcan we (?:talk|speak|chat|meet)\b|\bwould you (?:be )?(?:open|up) (?:to|for) a (?:call|chat|demo|meeting)\b|\bdiscussion calls?\b/i;
 const OFFER_RE = /\b(?:we set up|we build|i set up|i build|i built|i help|i can set up|ai (?:receptionist|assistant|agent|phone)|answering service|our (?:service|product|software)|virtual receptionist|shiftforge)\b/i;
-const RATING_RE = /\b\d(?:\.\d)?\s*(?:stars?|\/\s*5|rating)\b|\b\d[\d,]*\s+(?:google\s+)?reviews?\b|★/i;
+const RATING_RE = /\b\d(?:\.\d)?\s*-?\s*(?:stars?|\/\s*5|rating)\b|\b\d[\d,]*\s+(?:google\s+)?reviews?\b|★/i;
+// F38: "5 Star" as part of a name ("5 Star Made-up Air", "5 Star Plumbing") is not a rating: a capital-S "Star(s)" followed by
+// another capitalised word (not Google, Rating, Reviews, Yelp, On, In). The lead's own name, when known, is left out too.
+const NAME_STAR_RE = /\b\d\s*-?\s*Stars?(?=\s+(?!(?:Google|Ratings?|Reviews?|Yelp|On|In|And)\b)[A-Z0-9])/g;
+const escRx = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** The text the rating rule reads: without the business's own name and without "N Star <Name>" name parts. */
+export function ratingText(text: string, businessName?: string | null): string {
+  const name = (businessName ?? "").trim();
+  const t = name.length >= 3 ? text.replace(new RegExp(escRx(name), "gi"), " ") : text;
+  return t.replace(NAME_STAR_RE, " ");
+}
 const CRITICISM_RE = /\byour (?:web ?site|site|page|contact form|form|live chat|chat|online booking|booking (?:form|page))\b[^.?!]{0,60}\b(?:is|looks|seems|feels|has)\b[^.?!]{0,30}\b(?:outdated|old|dated|bad|poor|slow|ugly|broken|confusing|clunky|lacking|weak|missing|terrible)\b|\b(?:your (?:web ?site|site|contact form|form)) (?:doesn(?:'|’)?t|does not|fails to|lacks)\b|\b(?:wrong|bad|poor|broken) with your (?:web ?site|site)\b/i;
 // Figures that belong to a demo or to a chatbot's own statistics: never quoted as results unless a named source is saved in Settings.
 // What their website lacks ("offers a form but no live chat or online booking", "phone only", "only a contact form"): never said, only lost calls and customers.
@@ -151,7 +163,7 @@ export function checkStep(kind: StepKind, text: string, ctx: StepCtx = {}): Hit[
   if (UNSOURCED_RE.test(t) && !(ctx.namedSources ?? "").trim()) hits.push(H("unsourced-figure", "hard", "A demo or statistic figure with no named source", "Demo figures and chatbot statistics are not results. Add a named source in Settings or leave them out."));
   if (CRITICISM_RE.test(t) || SITE_LACKS_RE.test(t)) hits.push(H("site-criticism", "hard", "Criticises their website", "Describe the problem as lost calls or customers, never as what their website, form, chat or booking lacks."));
   if ((t.match(/\?/g) ?? []).length > 1) hits.push(H("one-ask", "soft", "More than one question", "One ask only."));
-  if (RATING_RE.test(t) && ctx.ratingAlready) hits.push(H("rating-twice", "hard", "Rating or review count repeated", "State the rating or review count at most once across all of a lead's messages (email and every social channel). Use a different true detail."));
+  if (RATING_RE.test(ratingText(t, ctx.businessName)) && ctx.ratingAlready) hits.push(H("rating-twice", "hard", "Rating or review count repeated", "State the rating or review count at most once across all of a lead's messages (email and every social channel). Use a different true detail."));
 
   // A claim that the sender built or uses the assistant must stay close to the Settings proof line (their own website, never "my business").
   if (ctx.proofLine?.trim()) {
@@ -233,7 +245,7 @@ export type StepStatus = "ready" | "check" | "blocked";
 
 /** Hard hits block the draft; soft hits make it "check". */
 /** Bump this whenever a check rule changes: unsent drafts last checked under an older version are re-checked once (and saved). */
-export const RULES_VERSION = 4;
+export const RULES_VERSION = 5; // 5: F38 ("5 Star" names) and F39 (sameness ignores the offer; "busy schedules"), 27 Nov
 
 export function statusOf(hits: Hit[]): { status: StepStatus; reasons: string[] } {
   // Every reason is kept (the screens show them all), but the same rule is never listed twice and a reason never repeats itself.
@@ -265,7 +277,7 @@ export function dedupeReasons(list: string[]): string[] {
 }
 
 /** Does this text state the rating or the review count? (for the once-per-lead rule) */
-export const mentionsRating = (t: string): boolean => RATING_RE.test(t);
+export const mentionsRating = (t: string, businessName?: string | null): boolean => RATING_RE.test(ratingText(t, businessName));
 
 /** Safe repair of an email 1 subject before it is checked: lowercase, no question mark or leading Re:/Fwd:, first two words. */
 export function tidySubject(subject: string): string {

@@ -1,4 +1,4 @@
-// P2 chunk 5: the free code checks on a saved email, on Postgres. The SQL twins of codeCheckSavedEmail,
+// P2 chunk 5 (5b: lead-aware checks, business name for the rating rule, stale code blocks lifted): the free code checks on a saved email, on Postgres. The SQL twins of codeCheckSavedEmail,
 // leadRatingUsed and recheckDraftRows in command.ts (copies of the logic, so the old Blobs code is not touched; when
 // the Blobs code is removed this file is the only copy). The pure rules come from lib/messagerules.ts and
 // lib/fourstep.ts and are imported, not copied.
@@ -10,6 +10,7 @@
 import type { Sql, Tx } from "../db/client.ts";
 import { scanBanned, checkStep, checkSubject, statusOf, mentionsRating, RULES_VERSION, type Hit } from "../messagerules.ts";
 import { resolveInputs } from "../fourstep.ts";
+import { messageChecks, type MsgLead } from "./messagechecks.ts";
 
 type Q = Sql | Tx;
 type Row = Record<string, unknown>;
@@ -30,9 +31,9 @@ const hitLine = (h: Hit): string => `${h.label}${h.excerpt ? ` ("${h.excerpt}")`
  * Has another message to this lead on a social channel already stated the rating or review count? (SQL twin of
  * leadRatingUsed with `skip.emails`, which is the only way codeCheckSavedEmail calls it.)
  */
-async function socialRatingUsed(sql: Q, campaignId: string, leadId: string): Promise<boolean> {
+async function socialRatingUsed(sql: Q, campaignId: string, leadId: string, businessName?: string | null): Promise<boolean> {
   const rows = await sql`select body from social_messages where lead_id = ${leadId} and campaign_id = ${campaignId} and not is_duplicate`;
-  return rows.some((r) => mentionsRating(String(r.body ?? "")));
+  return rows.some((r) => mentionsRating(String(r.body ?? ""), businessName));
 }
 
 /**
@@ -54,14 +55,19 @@ export async function codeCheckDraft(sql: Q, row: Row, settings?: Row): Promise<
     : [];
   const body = String(row.body_text ?? "");
   const subject = String(row.subject ?? "");
+  // 5b: the lead, for the business name (F38) and the lead-aware checks (F35–F37, F40).
+  const [lead] = row.lead_id ? await sql`select name, email, website, owner_name, contact_name, site_check, data->'raw' as raw from leads where id = ${leadId}` : [];
+  const businessName = (lead?.name as string | null | undefined) ?? (row.to_name as string | null | undefined) ?? null;
   const earlierTexts = earlier.map((e) => String(e.body_text ?? ""));
-  const ratingAlready = (row.lead_id ? await socialRatingUsed(sql, campaignId, leadId) : false) || earlierTexts.some((t) => mentionsRating(t));
+  const ratingAlready = (row.lead_id ? await socialRatingUsed(sql, campaignId, leadId, businessName) : false) || earlierTexts.some((t) => mentionsRating(t, businessName));
   const kinds = ["email1", "email2", "email3", "email4"] as const;
-  let hits = checkStep(four ? kinds[pos - 1] : "email1", body, { channel: "email", earlierChars: earlierTexts.map((t) => t.length), ratingAlready, freeAsset: pos === 2 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, earlierTexts, namedSources: inp.namedSources });
+  let hits = checkStep(four ? kinds[pos - 1] : "email1", body, { channel: "email", earlierChars: earlierTexts.map((t) => t.length), ratingAlready, freeAsset: pos === 2 ? inp.freeAsset2 : inp.freeAsset1, proofLine: inp.proofLine, earlierTexts, namedSources: inp.namedSources, businessName });
   // Older frameworks have no length or structure rules: only hard hits count for them.
   if (!four) hits = hits.filter((h) => h.level === "hard");
   const subjectHits = four && pos === 1 ? checkSubject(subject) : [...scanBanned(subject).filter((h) => h.level === "hard" && h.id !== "dash"), ...checkSubject(subject).filter((h) => h.id === "fake-re" || h.id === "empty-subject")];
   hits = [...hits, ...subjectHits.filter((h) => !hits.some((x) => x.id === h.id))];
+  // 5b: every framework gets the lead-aware checks (a wrong recipient matters for any email).
+  if (lead) hits = [...hits, ...messageChecks(kinds[four ? pos - 1 : 0], body, lead as MsgLead, (row.to_email as string | null | undefined) ?? null)];
   const st = statusOf(hits);
   return { status: st.status, reasons: st.reasons, hard: hits.filter((h) => h.level === "hard").map(hitLine), hits };
 }
@@ -89,6 +95,12 @@ export async function recheckStaleDrafts(sql: Q, rows: Row[]): Promise<Downgrade
                   where id = ${String(r.id)} and status = 'drafted'`;
         Object.assign(r, patch);
         out.push({ id: String(r.id), campaign_id: String(r.campaign_id), lead_id: String(r.lead_id ?? ""), step: Number(r.sequence_position ?? r.step ?? 1), name: String(r.to_name ?? ""), was, reasons: ck.reasons });
+      } else if (r.review_status === "blocked" && r.reviewed_by === "code checks") {
+        // A block the code checks made, which the current rules no longer find (F38, F39): it needs a fresh look, not a send.
+        const reasons = ["The rules changed and this draft no longer breaks a hard rule. Review it again, or mark it ready yourself.", ...ck.reasons];
+        await sql`update emails set review_status = 'check', review_reasons = ${sql.json(reasons as never)}, reviewed_by = null, reviewed_at = null, rules_version = ${RULES_VERSION}
+                  where id = ${String(r.id)} and status = 'drafted'`;
+        Object.assign(r, { review_status: "check", review_reasons: reasons, reviewed_by: null, reviewed_at: null, rules_version: RULES_VERSION });
       } else {
         await sql`update emails set rules_version = ${RULES_VERSION} where id = ${String(r.id)} and status = 'drafted'`;
         r.rules_version = RULES_VERSION;
