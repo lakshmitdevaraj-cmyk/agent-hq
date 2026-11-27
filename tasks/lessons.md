@@ -37,3 +37,6 @@
 - Retention rules must name every kind the scope lists: "webhook received" History entries (activity, category system, details.event_id) keep 30 days, not the 90 days of other system entries. Check how each kind is really logged before writing a purge.
 - Any harness that runs the old app code must block all network access (fetch, http/https, the Gemini client) and prove a call is refused, so tests can never reach Gemini, AgentMail or Apify.
 - Plans and reports are saved as files in ~/Documents/ShiftForge HQ/pN-reports/ (e.g. chunk1-plan.md), never only shown in chat.
+
+## 27 Nov (P2 chunk 2, planning)
+- Chunk plans don't use plan mode: plan mode could only write its own file, so the plan never reached p2-reports/. Write `chunkN-plan.md` to the reports folder first, then stop and wait for the go.

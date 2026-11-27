@@ -11,6 +11,7 @@ This repo is **public**. Never commit keys, connection strings, export data, rea
 
 ## Plans and reports
 Save every plan and report as a file in `~/Documents/ShiftForge HQ/p2-reports/` (`pN-reports/` for later phases), e.g. `chunk1-plan.md` and `chunk1-report.md`, so Lakshmi never has to paste them. Mask email addresses.
+For chunk plans, don't use plan mode. Write the plan file to the reports folder first, then stop and wait for the go.
 
 ## Working rules
 - **Branch:** P2 work goes on `rebuild/p2-data-layer`. Push only that branch. Never push to `main`, and never deploy or make previews.

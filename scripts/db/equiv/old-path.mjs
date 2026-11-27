@@ -3,6 +3,8 @@
 //   - ALL network access blocked: global fetch, and http/https/http2/net/tls/dgram/child_process imports, throw.
 // So the old code can never reach Gemini, AgentMail or Apify.
 import { build } from "esbuild";
+import { execFileSync } from "node:child_process";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fakeBlobs } from "./fake-blobs.mjs";
 
@@ -43,16 +45,24 @@ const plugin = {
   },
 };
 
-let bundled = null;
+const bundled = new Map();
 /** What the bundle was built from (esbuild metafile inputs), so a test can see every network import went to the stub. */
 export const bundleInputs = [];
-async function loadHandler() {
-  if (!bundled) {
-    const out = await build({ entryPoints: [ENTRY], bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [plugin] });
-    bundleInputs.push(...Object.keys(out.metafile.inputs));
-    bundled = import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`).then((m) => m.handler);
+/**
+ * Bundles command.ts: the working tree by default, or the file as it was at git commit `commit` (read with
+ * `git show`, never written to disk; its imports resolve against today's netlify/functions folder).
+ */
+async function loadHandler(commit = null) {
+  const key = commit ?? "working-tree";
+  if (!bundled.has(key)) {
+    const source = commit
+      ? { stdin: { contents: execFileSync("git", ["show", `${commit}:netlify/functions/command.ts`], { cwd: dirname(ENTRY), encoding: "utf8" }), resolveDir: dirname(ENTRY), sourcefile: "command.ts", loader: "ts" } }
+      : { entryPoints: [ENTRY] };
+    const out = await build({ ...source, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [plugin] });
+    if (!commit) bundleInputs.push(...Object.keys(out.metafile.inputs));
+    bundled.set(key, import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`).then((m) => m.handler));
   }
-  return bundled;
+  return bundled.get(key);
 }
 
 /** Builds a one-line module that imports `spec` through the same plugin and calls `call` on it (tests only). */
@@ -62,19 +72,21 @@ export async function probeImport(spec, call) {
 }
 
 /**
- * Opens the old path on an export folder. From here on, global fetch refuses every call in this process
- * (the new path uses postgres sockets, not fetch).
+ * Opens the old path on an export folder, with fresh in-memory stores each time. From here on, global fetch
+ * refuses every call in this process (the new path uses postgres sockets, not fetch). `commit` bundles
+ * command.ts as it was at that commit (for the "switch unset = old behaviour" proof).
  */
-export async function openOld(exportDir) {
+export async function openOld(exportDir, { commit = null } = {}) {
   globalThis.__equivNet = { refuse };
   globalThis.fetch = async (input) => refuse("fetch", typeof input === "string" ? input : input?.url); // async, like the real fetch
   const blobs = fakeBlobs(exportDir, { "agent-hq-config": { "api-key": { key: TEST_KEY, created_at: "2026-11-27T00:00:00Z" } } });
   globalThis.__equivBlobs = blobs;
-  const handler = await loadHandler();
+  const handler = await loadHandler(commit);
   return {
     blobs,
     /** Calls one action the way the app does; returns { status, body }. */
     async call(action, params = {}) {
+      globalThis.__equivBlobs = blobs; // several old paths can be open at once; each call uses its own stores
       const res = await handler({ httpMethod: "POST", headers: { "x-api-key": TEST_KEY }, body: JSON.stringify({ action, params }) });
       return { status: res.statusCode, body: JSON.parse(res.body) };
     },
