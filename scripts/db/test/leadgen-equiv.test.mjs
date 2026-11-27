@@ -133,6 +133,7 @@ describe("chunk 4 lead finding: old vs new", { skip }, () => {
         site: await one(`website is not null and (email is null or email = '') and coalesce(email_source, '') <> 'manual' and name !~* '(chain|franchise)'`),
         noSite: await one(`website is null and email is null`),
         hasEmail: await one(`email is not null and site_check->>'checked_at' is not null`),
+        chain: await one(`not not_fit_kept and website is not null and site_check->>'error' = 'Skipped: chain / franchise store'`),
       };
     });
     const host = new URL(/^https?:/.test(leads.site.website) ? leads.site.website : `https://${leads.site.website}`).hostname.replace(/^www\./, "");

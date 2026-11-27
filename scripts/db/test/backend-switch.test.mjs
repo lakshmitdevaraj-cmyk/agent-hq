@@ -289,4 +289,23 @@ describe("DATA_BACKEND switch, chunk 4 actions", { skip }, () => {
     }
     assert.ok(sockets > 0, "a database socket was refused");
   });
+
+  test("sql, end to end on dev: reads and refusals through the real handler and its deps (nothing written)", async () => {
+    const { localVar } = await import("../env.mjs");
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    const before = blockedCalls.length;
+    const old = await openOld(EXPORT, { allowDb: true });
+    process.env.DATA_BACKEND = "sql";
+    process.env.DATABASE_URL = localVar("DEV_DATABASE_URL");
+    const plan = await old.call("outreach.browsercheck.plan", { campaign_id: p.campaign_id });
+    assert.equal(plan.status, 200, JSON.stringify(plan.body).slice(0, 200));
+    assert.equal(typeof plan.body.data.cap, "number");
+    assert.deepEqual(await old.call("outreach.campaign.run", { id: "no-such-campaign" }), { status: 404, body: { ok: false, error: "campaign not found" } });
+    assert.deepEqual(await old.call("outreach.browsercheck.start", { campaign_id: p.campaign_id }), { status: 400, body: { ok: false, error: "Apify key not configured. Add it in Settings to use the browser check." } });
+    assert.deepEqual(await old.call("outreach.leads.add", { format: "single" }), { status: 400, body: { ok: false, error: "campaign_id required" } });
+    const sync = await old.call("outreach.campaign.sync", { id: p.campaign_id });
+    assert.equal(sync.status, 200);
+    assert.equal(sync.body.data.changed, false);
+    assert.equal(blockedCalls.length, before, "nothing else reached for the network");
+  });
 });

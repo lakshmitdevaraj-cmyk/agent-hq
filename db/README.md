@@ -100,6 +100,15 @@ Tests: `campaigns-sql`, `campaigns-f2`, `campaigns-equiv` (R13 cases in `scripts
 
 Tests: `leads-sql`, `leads-equiv` (cases in `scripts/db/equiv/cases/leads.mjs`), `backend-switch` (chunk 3 part: switch unset = `command.ts` at `4e2eecb`). `scripts/db/equiv/ts-ext.mjs` (test harness only) lets Node load the app's `lib/` files, which use extensionless imports.
 
+**Chunk 4, `lib/sql/leadgen.ts`, `addlead.ts`, `fitflags.ts`:** `outreach.campaign.run`, `campaign.sync`, `leads.add_test`, `leads.enrich_one`, `leads.check_site`, `browsercheck.plan`, `browsercheck.start`, and the new SQL-only `outreach.leads.add` (A1).
+- **No network in `lib/sql/`:** the Apify calls, the website check and the lead helpers private to `command.ts` are passed in as `deps` by the guarded helper `sqlLeadgenCase`. A refusal marked `keep` (a failed run saved as failed) keeps its writes; any other refusal rolls back, so a failed import leaves nothing half done.
+- **F2:** run, sync and add_test write the `leads` job only (`writeLeadsJob`), never the campaigns row. The sync's import claim is one `update … where`, so two syncs can't import twice. The sync no longer refreshes email statuses from AgentMail (chunks 6–7).
+- **F3:** a site check writes only site fields (`site_check`, `gap_score`, `enriched_at`, other result keys in `data`), never a flag, never over a hand-typed owner name, email (0007) or link (links trigger). Links go to `lead_social_links` with source `site_check`.
+- **A1:** `addLeads` (single, paste, CSV) checks every row across all campaigns on email, website, phone and link (Google Maps place id or link; Facebook / Instagram / LinkedIn page) and adds no duplicate; nothing is fetched. **Migration 0012:** indexes `leads_phone_key` (last 10 digits) and `leads_place_id` (`data->'raw'->>'placeId'`).
+- **F32/F33:** `leadFlags(lead)` (chain, not_home_service, too_big, has_answering_booking, not_call_driven, template_site), worked out on read and shown as `fit_flags` on lead and Prospects rows; `draftAllowed(lead)` (no flag, or kept by her) is for drafting in chunk 5. The fix list's named cases are checked from `~/agent-hq-backups/p2-named-cases.json`, outside the repo.
+
+Tests: `leadgen-sql`, `leadgen-equiv` (cases in `scripts/db/equiv/cases/leadgen.mjs`; the old path gets a made-up Apify key and `fetchRoutes` answering made-up Apify and website responses; the SQL side gets the same private functions from `openPrivates`), `addlead`, `fitflags`, `backend-switch` (chunk 4 part: `ee91060`).
+
 ## At the P5 switch
 
 - **Type these in again in Settings:** the Gemini key, the service keys and the agent keys. They were removed from the export and never go into the database from it.

@@ -145,10 +145,28 @@ Run prompt `p2-reports/p2-runs-prompt.md` (run A = chunks 3 and 4, no stop betwe
 | 1. Tests and cases first (failing run in `p2-reports/chunk3-failing-run.txt`) | `487b9f2` |
 | 2–3. Reads and writes: `lib/sql/leads.ts`, `search.ts`, `leadrules.ts`; F16, F18, paging, search | `bcb76cb` |
 | 4. `command.ts`: seven guarded lines, four new SQL-only cases, a helper (26 lines added); switch proof | `f700bb3` |
-| 5. README, handoff, report | (this commit) |
+| 5. README, handoff, report | `ee91060` |
 
 **Chunk 3 is finished.** 128/128 tests, `npx tsc -b` clean. No migration. Nothing on `production`, no netlify command, no dependency added, no file deleted.
 
 Decisions I took (to review): copies of four private helpers in `leadrules.ts`; the SQL Prospects list does not re-check drafts on read (chunk 5); paging only with `limit`; new SQL-only actions for facts and global search; lead delete removes the lead's `follow_ups` rows; writes on a merged lead answer 404; lead records gain `stop_state`, Prospects rows `facts`.
 
 Next: chunk 4 (add lead and lead finding), same run.
+
+## Chunk 4: Add lead and lead finding (27 Nov 2026, run A)
+
+Plan `p2-reports/chunk4-plan.md`, report `p2-reports/chunk4-report.md`.
+
+| Step | Commit |
+|---|---|
+| 1. Tests, cases, harness `fetchRoutes` / `openPrivates` (failing run in `p2-reports/chunk4-failing-run.txt`) | `9b014fe` |
+| 2. Migration **0012** (phone and place-id indexes), applied to `dev`; row counts unchanged | `e992da0` |
+| 3. `fitflags.ts` (F32/F33), `addlead.ts` (A1) | `c2028be` |
+| 4. `leadgen.ts` (run, sync, add_test, site check with F3, browser check); `fit_flags` on lead rows | `7ae6261` |
+| 5. `command.ts`: seven guarded lines, `outreach.leads.add` (SQL only), helper `sqlLeadgenCase` (31 lines added); switch proof; README, handoff, report | (this commit) |
+
+**Chunk 4 is finished; run A is finished.** Migrations 0001–0012 are on `dev`. Nothing on `production`, no netlify command, no dependency, no file deleted. The named-case list for F32/F33 is outside the repo: `~/agent-hq-backups/p2-named-cases.json`.
+
+Decisions I took (to review): deps passed in from `command.ts`; the SQL sync doesn't refresh email statuses (chunks 6–7); a failed import rolls back whole; flags worked out on read (`fit_flags`), drafting must call `draftAllowed` (chunk 5); `has_answering_booking` uses today's site-check signals until P4; A1 never adds a duplicate (no "add anyway"); a site check runs inside the transaction (fetch time isn't limited by the per-statement timeout; the clean version fetches outside it).
+
+**For chunk 5:** call `draftAllowed(lead)` before drafting; re-check drafts when the rules change (chunk 3 decision). Next: run B (chunks 5 and 5b), its own session.

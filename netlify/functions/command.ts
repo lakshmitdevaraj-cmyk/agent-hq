@@ -1844,6 +1844,26 @@ async function sqlLeadCase(action: import("./lib/sql/leads.ts").LeadAction, para
   }
 }
 
+// P2 chunk 4: lead finding and adding leads on Postgres (only when DATA_BACKEND=sql). The Apify calls, the website
+// check and the lead helpers below stay as they are; the SQL versions get them passed in. A refusal marked `keep`
+// (a failed run saved as failed, as today) keeps what was written before it; any other refusal rolls back.
+async function sqlLeadgenCase(action: import("./lib/sql/leadgen.ts").LeadgenAction, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>) {
+  const [{ withTx }, { CampaignError }, leadgen] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/leadgen.ts")]);
+  const deps = { apifyKey: () => readServiceKey("apify"), startRun: startApifyGoogleMapsRun, runStatus: getApifyRunStatus, datasetItems: getApifyDatasetItems, extractLead: extractLeadFromApify, checkSite: checkLeadSite, noWebsiteFields, pickBestEmail, browserEligible } as unknown as import("./lib/sql/leadgen.ts").LeadgenDeps;
+  const ctx = { newId: () => nanoid(10), createdBy: identity?.kind === "agent" ? identity.agent_id : null };
+  type Out = { data: unknown } | { error: InstanceType<typeof CampaignError> };
+  let out: Out;
+  try {
+    out = await withTx(async (tx): Promise<Out> => {
+      try { return { data: await leadgen.runLeadgenAction(tx, action, (params ?? {}) as Record<string, unknown>, deps, ctx) }; } catch (e) { if (e instanceof CampaignError && e.keep) return { error: e }; throw e; }
+    });
+  } catch (e) {
+    if (e instanceof CampaignError) out = { error: e }; else throw e;
+  }
+  if ("error" in out) return out.error.code ? failCode(out.error.status, out.error.message, out.error.code) : fail(out.error.status, out.error.message);
+  return ok(out.data);
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3959,6 +3979,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.browsercheck.plan": {
+        if (sqlBackend()) return sqlLeadgenCase("outreach.browsercheck.plan", params, identity);
         // How many leads a browser check would open and what it would cost (an estimate), shown before anything starts.
         const { campaign_id, lead_id } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
@@ -3970,6 +3991,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.browsercheck.start": {
+        if (sqlBackend()) return sqlLeadgenCase("outreach.browsercheck.start", params, identity);
         // Records the job; the page then POSTs { task: "browsercheck", params: { campaign_id, lead_ids } } to ai-background.
         const { campaign_id, lead_id } = params as Record<string, unknown>;
         if (typeof campaign_id !== "string" || !campaign_id) return fail(400, "campaign_id required");
@@ -4120,6 +4142,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.run": {
+        if (sqlBackend()) return sqlLeadgenCase("outreach.campaign.run", params, identity);
         // Starts the Apify actor asynchronously and returns immediately.
         // Netlify's ~26s function cap means we can't block on a scrape
         // that typically runs 30s–3min. The client polls
@@ -4172,6 +4195,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.campaign.sync": {
+        if (sqlBackend()) return sqlLeadgenCase("outreach.campaign.sync", params, identity);
         // Called by the UI on its poll loop while a campaign is "searching".
         // Queries Apify for run status, imports leads when SUCCEEDED, marks
         // failed when ABORTED/FAILED/TIMED-OUT. Safe no-op if the campaign
@@ -4536,6 +4560,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.leads.add_test": {
+        if (sqlBackend()) return sqlLeadgenCase("outreach.leads.add_test", params, identity);
         // Self-seed a test lead so the attendee can demo the full send-→-reply
         // loop using their own email. Shows as 🧪 TEST in the UI.
         const { campaign_id, name, email, notes } = params as Record<string, string>;
@@ -4624,6 +4649,7 @@ export const handler: Handler = async (event) => {
 
       case "outreach.leads.enrich_one":
       case "outreach.leads.check_site": {
+        if (sqlBackend()) return sqlLeadgenCase(action === "outreach.leads.check_site" ? "outreach.leads.check_site" : "outreach.leads.enrich_one", params, identity);
         // enrich_one: the "Find emails" pass. One website check per lead (homepage, contact and
         // About pages): finds an email when the lead has none, and records chat/booking signals,
         // social links, the owner's name and the gap score. Runs one lead at a time so the UI can
@@ -5913,6 +5939,11 @@ export const handler: Handler = async (event) => {
         await store(WEBHOOKS).delete(id);
         return ok({ id, deleted: true });
       }
+
+      case "outreach.leads.add":
+        // P2 chunk 4: new action (A1 add lead), SQL only. On Blobs it answers exactly as the default case does today.
+        if (sqlBackend()) return sqlLeadgenCase("outreach.leads.add", params, identity);
+        return fail(400, `Unknown action: ${action}`);
 
       case "outreach.lead.facts.list":
       case "outreach.lead.facts.add":
