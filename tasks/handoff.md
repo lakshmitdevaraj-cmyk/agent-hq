@@ -107,7 +107,7 @@ Chunk 1 prompt: `~/Documents/ShiftForge HQ/p2-reports/p2-chunk1-prompt.md`. Plan
 
 Decisions made 27 Nov (after the chunk 1 report):
 1. `any_trade`: missing means true. Migration **0011** (applied to `dev`) sets the default to true and fixes the 9 campaigns from before 19 Nov; `transform.mjs` imports a missing value as true (for P5). Commit `d7f9b41`.
-2. Fix list: `~/Documents/ShiftForge HQ/scope-reports/alcance-master-fix-list.md`. Every R1 item is placed in `tasks/p2-plan.md`, with a new chunk **5b** (message checks F35–F40). Open: **F32** (flags before drafting) isn't in R1; Lakshmi decides chunk 4 or P4.
+2. Fix list: `~/Documents/ShiftForge HQ/scope-reports/alcance-master-fix-list.md`. Every R1 item is placed in `tasks/p2-plan.md`, with a new chunk **5b** (message checks F35–F40). **F32** (flags before drafting) goes in chunk 4 with F33; its site facts stay in P4.
 3. `DATA_BACKEND` switch kept as planned; the old code is removed about 2 weeks after P5.
 
 Also noted: Neon's pooler ignores `statement_timeout` sent at connect, so use `withTx` / `timed` from `lib/db/client.ts`. `postgres` is still a devDependency; moving it needs approval.
