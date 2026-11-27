@@ -201,3 +201,231 @@ export async function leadsCount(sql: Q, campaignId: unknown): Promise<{ count: 
   const [{ n }] = await sql`select count(*)::int as n from leads where campaign_id = ${campaignId} and merged_into is null`;
   return { count: n as number };
 }
+
+// ── Writes ─────────────────────────────────────────────────────────────────
+// Callers run these inside one transaction (command.ts uses withTx), so a write is all or nothing.
+
+export type WriteCtx = { newId: () => string; createdBy?: string | null };
+
+const ZERO_COUNTERS = { emails_generated: 0, emails_sent: 0, emails_delivered: 0, emails_bounced: 0, emails_clicked: 0, emails_replied: 0 };
+
+const locationOf = (sq: unknown): string | null => {
+  const loc = sq && typeof sq === "object" ? (sq as Row).location : null;
+  return typeof loc === "string" ? loc : null;
+};
+
+/** outreach.campaign.create: the campaign, its lead-search job (status draft) and the activity entry. */
+export async function create(sql: Q, input: Row, ctx: WriteCtx): Promise<Row> {
+  const { name, query, structured_query, description } = input ?? {};
+  if (typeof name !== "string" || !name.trim()) throw new CampaignError(400, "name required");
+  if (typeof query !== "string" || !query.trim()) throw new CampaignError(400, "query required");
+  const id = ctx.newId();
+  const now = new Date();
+  const area = locationOf(structured_query);
+  const { country, time_zone } = areaCountry(area);
+  const createdBy = ctx.createdBy ?? null;
+  await sql`
+    insert into campaigns (id, blob_key, name, description, niche, area, country, time_zone, created_by, any_trade, created_at, updated_at, data)
+    values (${id}, ${id}, ${name.trim()}, ${typeof description === "string" ? description : ""}, ${query.trim()}, ${area}, ${country}, ${time_zone},
+            ${createdBy}, true, ${now}, ${now}, ${sql.json({ structured_query: (structured_query ?? null) as never, ...ZERO_COUNTERS })})`;
+  await sql`
+    insert into campaign_jobs (campaign_id, kind, status, total, done, data)
+    values (${id}, 'leads', 'draft', 0, 0, ${sql.json({ total_leads_found: 0, leads_imported: 0 })})`;
+  const activityId = ctx.newId();
+  await sql`
+    insert into activity (id, blob_key, agent_id, category, summary, details, created_at)
+    values (${activityId}, ${`${now.toISOString()}-${activityId}`}, ${createdBy}, 'content', ${`Outreach campaign created: "${name.trim()}"`},
+            ${sql.json({ campaign_id: id, query: query.trim() })}, ${now})`;
+  return (await storedRecord(sql, id))!;
+}
+
+/** Setting keys with their own column, and what each may hold. */
+const COLUMNS: Record<string, { col: string; ok: (v: unknown) => boolean; what: string }> = {};
+const text = (v: unknown) => v === null || typeof v === "string";
+for (const k of ["name", "description", "agentmail_inbox_id", "created_by", "default_sender_name", "default_sender_company", "default_sender_offer", "default_framework"]) COLUMNS[k] = { col: k, ok: text, what: "text or null" };
+COLUMNS.query = { col: "niche", ok: text, what: "text or null" };
+COLUMNS.any_trade = { col: "any_trade", ok: (v) => typeof v === "boolean", what: "true or false" };
+COLUMNS.default_sequence_total = { col: "default_sequence_total", ok: (v) => v === null || Number.isInteger(v), what: "a whole number or null" };
+COLUMNS.created_at = { col: "created_at", ok: (v) => typeof v === "string" && !Number.isNaN(Date.parse(v)), what: "a date-time" };
+
+/** Fields of the lead search run (old code kept them in the campaign record; here they live in its 'leads' job). */
+const LEADS_JOB_KEYS = new Set(["status", "total_leads_found", "leads_imported", "last_run_at", "apify_run_id", "apify_dataset_id", "apify_status", "error_message", "last_status_refresh_at", "leads_skipped_duplicate", "leads_skipped_by", "import_started_at"]);
+
+/**
+ * outreach.campaign.update (F2). Never a whole-record write: each key goes to its own place and only the given
+ * columns are set. Settings → `campaigns` columns (or `data`, merged with ||); `job` → that job's row;
+ * `browser_checked_ids` → its row; lead-search fields → the 'leads' job. Answers with the stored record, as before.
+ */
+export async function update(sql: Q, input: Row): Promise<Row> {
+  const { id, ...patch } = input ?? {};
+  if (!id || typeof id !== "string") throw new CampaignError(400, "id required");
+  const cols: Row = {};
+  const data: Row = {};
+  const leadsJob: Row = {};
+  let job: unknown = undefined;
+  let checked: unknown = undefined;
+  let settings = false; // a key the old code wrote to the campaign record (it then bumped updated_at)
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === "job") job = v;
+    else if (k === "browser_checked_ids") checked = v;
+    else if (k in COLUMNS) {
+      if (!COLUMNS[k].ok(v)) throw new CampaignError(400, `bad value for ${k}: must be ${COLUMNS[k].what}`);
+      cols[COLUMNS[k].col] = v;
+      if (!STATE_KEYS.includes(k)) settings = true;
+    } else if (k === "structured_query") {
+      if (v !== null && typeof v !== "object") throw new CampaignError(400, "bad value for structured_query: must be an object or null");
+      data.structured_query = v;
+      const area = locationOf(v);
+      Object.assign(cols, { area, ...areaCountry(area) });
+      settings = true;
+    } else if (LEADS_JOB_KEYS.has(k)) { leadsJob[k] = v; settings = true; }
+    else if (k === "updated_at") settings = true; // the old code replaced it with the server clock
+    else { data[k] = v; settings = true; }
+  }
+  if (job !== undefined) checkJob(job);
+  const [found] = await sql`select 1 from campaigns where id = ${id}`;
+  if (!found) throw new CampaignError(404, "campaign not found");
+  const now = new Date();
+  if (settings) cols.updated_at = now;
+  if (Object.keys(cols).length) {
+    await sql`update campaigns set ${sql(cols)}${Object.keys(data).length ? sql`, data = data || ${sql.json(data as never)}` : sql``} where id = ${id}`;
+  }
+  if (Object.keys(leadsJob).length) await writeLeadsJob(sql, id, leadsJob);
+  if (job !== undefined) await setJob(sql, id, job as Row | null, now);
+  if (checked !== undefined) {
+    await sql`
+      insert into campaign_jobs (campaign_id, kind, data) values (${id}, 'browser_check', ${sql.json({ browser_checked_ids: checked as never })})
+      on conflict (campaign_id, kind) do update set data = excluded.data`;
+  }
+  return (await storedRecord(sql, id))!;
+}
+
+const JOB_INTS = ["total", "done", "made"];
+const JOB_TIMES = ["started_at", "progress_at", "finished_at"];
+const isTime = (v: unknown) => typeof v === "string" && !Number.isNaN(Date.parse(v));
+
+function checkJob(job: unknown): void {
+  if (job === null) return;
+  if (typeof job !== "object" || Array.isArray(job)) throw new CampaignError(400, "bad value for job: must be an object or null");
+  const j = job as Row;
+  if (typeof j.kind !== "string" || !j.kind || NOT_THE_JOB.includes(j.kind)) throw new CampaignError(400, "job.kind required (not leads or browser_check)");
+  if (j.status != null && typeof j.status !== "string") throw new CampaignError(400, "bad value for job.status");
+  for (const k of JOB_INTS) if (j[k] != null && !Number.isInteger(j[k])) throw new CampaignError(400, `bad value for job.${k}: must be a whole number`);
+  for (const k of JOB_TIMES) if (j[k] != null && !isTime(j[k])) throw new CampaignError(400, `bad value for job.${k}: must be a date-time`);
+}
+
+/**
+ * The page sets the whole job (start, progress, finish), replacing that job's row, as the old state record did.
+ * A job that starts running gets the server clock; a resume, or a finishing update, keeps the current job's start
+ * (command.ts rule, batch 7). null clears the job.
+ */
+async function setJob(sql: Q, id: string, job: Row | null, now: Date): Promise<void> {
+  if (job === null) {
+    await sql`delete from campaign_jobs where campaign_id = ${id} and kind not in ('leads', 'browser_check')`;
+    return;
+  }
+  const { kind, status, total, done, made, started_at, progress_at, finished_at, ...rest } = job;
+  const running = status === "running";
+  const resume = job.resume === true;
+  await sql`
+    insert into campaign_jobs (campaign_id, kind, status, total, done, made, started_at, progress_at, finished_at, data)
+    select ${id}, ${kind as string}, ${(status ?? null) as string | null}::text, ${(total ?? null) as number | null}::int,
+      ${(done ?? null) as number | null}::int, ${(made ?? null) as number | null}::int,
+      case
+        when ${running}::boolean and ${resume}::boolean and cur.started_at is not null then cur.started_at
+        when ${running}::boolean then ${now}::timestamptz
+        when cur.started_at is not null then cur.started_at
+        else ${(started_at ?? null) as string | null}::timestamptz
+      end,
+      ${(progress_at ?? null) as string | null}::timestamptz, ${(finished_at ?? null) as string | null}::timestamptz,
+      ${sql.json({ ...rest, written_at: now.toISOString() } as never)}
+    from (select (
+      select j.started_at from campaign_jobs j
+      where j.campaign_id = ${id} and j.kind not in ('leads', 'browser_check')
+      order by j.data->>'written_at' desc nulls last, coalesce(j.progress_at, j.started_at) desc nulls last, j.kind
+      limit 1) as started_at) cur
+    on conflict (campaign_id, kind) do update set status = excluded.status, total = excluded.total, done = excluded.done,
+      made = excluded.made, started_at = excluded.started_at, progress_at = excluded.progress_at,
+      finished_at = excluded.finished_at, data = excluded.data`;
+}
+
+/**
+ * For background jobs (draft, review, social; chunks 4, 5, 8): merges progress into the job's row. Only the
+ * given columns change, `data` is merged with ||, and the campaigns row is never read or written (F2).
+ */
+export async function writeJob(sql: Q, campaignId: string, kind: string, patch: Row): Promise<void> {
+  if (!kind || NOT_THE_JOB.includes(kind)) throw new CampaignError(400, "writeJob is for draft, review and social jobs");
+  checkJob({ ...patch, kind });
+  const now = new Date();
+  const cols: Row = {};
+  const data: Row = { written_at: now.toISOString() };
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === "kind") continue;
+    if (k === "status" || JOB_INTS.includes(k) || JOB_TIMES.includes(k)) cols[k] = v ?? null;
+    else data[k] = v;
+  }
+  cols.progress_at = now;
+  const json = sql.json(data as never);
+  await sql`
+    insert into campaign_jobs ${sql({ campaign_id: campaignId, kind, ...cols, data: json })}
+    on conflict (campaign_id, kind) do update set ${sql(cols)}, data = campaign_jobs.data || ${json}`;
+}
+
+/**
+ * For the lead search (campaign.run / campaign.sync, chunk 4): the fields the old code wrote into the campaign
+ * record (status, apify_*, counts, ...) go to the 'leads' job instead, merged, so a sync can never undo a setting (F2).
+ */
+export async function writeLeadsJob(sql: Q, campaignId: string, patch: Row): Promise<void> {
+  const cols: Row = {};
+  const data: Row = {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === "status") { if (v != null && typeof v !== "string") throw new CampaignError(400, "bad value for status"); cols.status = v ?? null; continue; }
+    data[k] = v;
+    if (k === "total_leads_found") cols.total = Number.isInteger(v) ? v : null;
+    if (k === "leads_imported") cols.done = Number.isInteger(v) ? v : null;
+    if (k === "last_run_at") cols.started_at = isTime(v) ? new Date(v as string) : null;
+  }
+  const json = sql.json(data as never);
+  const row = sql({ campaign_id: campaignId, kind: "leads", ...cols, data: json });
+  await (Object.keys(cols).length
+    ? sql`insert into campaign_jobs ${row} on conflict (campaign_id, kind) do update set ${sql(cols)}, data = campaign_jobs.data || ${json}`
+    : sql`insert into campaign_jobs ${row} on conflict (campaign_id, kind) do update set data = campaign_jobs.data || ${json}`);
+}
+
+/**
+ * outreach.campaign.delete, as today: the campaign, its leads (merged rows too), its unsent drafts, jobs, screenshots,
+ * social drafts and worked-out follow-ups go; sent emails stay as history. The leads' touches, follow-up settings,
+ * facts and social links stay too (as in Blobs today; to be settled with the orphans, R10). One statement.
+ */
+export async function remove(sql: Q, id: unknown): Promise<Row> {
+  if (!id || typeof id !== "string") throw new CampaignError(400, "id required");
+  const [r] = await sql`
+    with l as (delete from leads where campaign_id = ${id} returning 1),
+      d as (delete from emails where campaign_id = ${id} and status = 'drafted' returning 1),
+      s as (delete from lead_screenshots where campaign_id = ${id} returning 1),
+      m as (delete from social_messages where campaign_id = ${id} returning 1),
+      f as (delete from follow_ups where campaign_id = ${id} returning 1),
+      j as (delete from campaign_jobs where campaign_id = ${id} returning 1),
+      c as (delete from campaigns where id = ${id} returning 1)
+    select (select count(*) from l)::int as leads_deleted, (select count(*) from d)::int as drafts_deleted,
+      (select count(*) from emails where campaign_id = ${id} and status is distinct from 'drafted')::int as sent_kept,
+      (select count(*) from s) + (select count(*) from m) + (select count(*) from f) + (select count(*) from j) + (select count(*) from c) as others`;
+  return { id, deleted: true, leads_deleted: r.leads_deleted, drafts_deleted: r.drafts_deleted, sent_kept: r.sent_kept };
+}
+
+// ── The six actions, for command.ts ────────────────────────────────────────
+
+export const CAMPAIGN_ACTIONS = ["outreach.campaign.create", "outreach.campaign.list", "outreach.campaign.get", "outreach.campaign.update", "outreach.campaign.delete", "outreach.leads.count"] as const;
+export type CampaignAction = (typeof CAMPAIGN_ACTIONS)[number];
+
+/** Runs one action. Refusals are thrown as CampaignError (status + message), as the Blobs code answers them. */
+export function runCampaignAction(sql: Q, action: CampaignAction, params: Row, ctx: WriteCtx): Promise<unknown> {
+  switch (action) {
+    case "outreach.campaign.create": return create(sql, params, ctx);
+    case "outreach.campaign.list": return list(sql, params);
+    case "outreach.campaign.get": return get(sql, params.id);
+    case "outreach.campaign.update": return update(sql, params);
+    case "outreach.campaign.delete": return remove(sql, params.id);
+    case "outreach.leads.count": return leadsCount(sql, params.campaign_id);
+  }
+}
