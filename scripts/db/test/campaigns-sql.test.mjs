@@ -56,7 +56,7 @@ describe("create, then read straight back (F1)", () => {
     const [job] = await tx`select status, total, done from campaign_jobs where campaign_id = ${c.id} and kind = 'leads'`;
     assert.deepEqual({ ...job }, { status: "draft", total: 0, done: 0 });
     assert.equal((await tx`select 1 from activity where details->>'campaign_id' = ${c.id}`).length, 1);
-    assert.equal(await m.leadsCount(tx, c.id), 0);
+    assert.deepEqual(await m.leadsCount(tx, c.id), { count: 0 });
   }));
 
   test("name and query are required", async () => {
@@ -133,7 +133,7 @@ describe("F17: merged leads are never counted or listed", () => {
   test("leadsCount and list leave out merged rows", () => inTx(async (tx) => {
     const [{ campaign_id: id, live, all }] = await tx`select campaign_id, count(*) filter (where merged_into is null)::int as live, count(*)::int as all from leads group by campaign_id having count(*) filter (where merged_into is not null) > 0 order by 1 limit 1`;
     assert.ok(all > live);
-    assert.equal(await m.leadsCount(tx, id), live);
+    assert.deepEqual(await m.leadsCount(tx, id), { count: live });
     assert.equal((await m.get(tx, id)).leads_imported, live);
     assert.equal((await m.list(tx, {})).find((c) => c.id === id).leads_imported, live);
   }));
