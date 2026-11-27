@@ -97,8 +97,8 @@ Chunk 1 prompt: `~/Documents/ShiftForge HQ/p2-reports/p2-chunk1-prompt.md`. Plan
 | Item | State |
 |---|---|
 | 1. `CLAUDE.md` | done |
-| 2. `tasks/p2-plan.md` | next |
-| 3. DB client (R8) | to do |
+| 2. `tasks/p2-plan.md` | done (111 actions mapped; fix-list definitions missing locally) |
+| 3. DB client (R8) | next |
 | 4. Migrations 0008+ | to do |
 | 5. Equivalence harness (R13) | to do |
 | Report `p2-reports/chunk1-report.md` | to do |
