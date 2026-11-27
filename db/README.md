@@ -10,6 +10,10 @@ Neon project `alcance`, AWS US East 2 (Ohio). Branches: `production` (stays empt
 
 **For P2:** the `postgres` driver turns certificate checking off when a string says `sslmode=require`, as Neon's do. The app must pass `ssl: { rejectUnauthorized: true }` itself (see `scripts/db/env.mjs`). The scripts also look up `*.neon.tech` through public DNS, because one home router refuses those names; the app does not need that.
 
+## App connection (P2)
+
+`netlify/functions/lib/db/client.ts` is the app's one client. It reads `DATABASE_URL` (the pooled string), always checks the certificate and host name (whatever `sslmode` says), uses `prepare: false` for the pooler, and limits the connect time to 5 s and each query to 8 s. Neon's pooler ignores a `statement_timeout` sent when connecting, so `withTx(fn)` sets it per transaction and `timed(query)` cancels a single query from the client side. Proof: `scripts/db/test/db-client.test.mjs`, where a fake server with a self-signed or wrong-name certificate is refused.
+
 ## Migrations
 
 Plain SQL in `db/migrations`, forward only. Never edit an applied file; add the next number.
