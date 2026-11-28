@@ -506,3 +506,78 @@ describe("DATA_BACKEND switch, chunk 6 actions (sending and the plan)", { skip }
     assert.equal(blockedCalls.length, before, "nothing reached for the network");
   });
 });
+
+const BASE7 = "7fcf026"; // the last commit before chunk 7 touched command.ts and webhook-receive.ts
+
+describe("DATA_BACKEND switch, chunk 7 actions (replies and webhooks)", { skip }, () => {
+  let openOld;
+  before(async () => { ({ openOld } = await import("../equiv/old-path.mjs")); });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+  const STORES7 = ["agent-hq-outreach-replies", "agent-hq-outreach-emails", "agent-hq-outreach-leads", "agent-hq-webhooks", "agent-hq-webhook-events", "agent-hq-outreach-contacts"];
+
+  /** The chunk 7 calls, then one raw AgentMail event through webhook-receive.ts. Ids made by nanoid are swapped out. */
+  async function run7(commit) {
+    const old = await openOld(EXPORT, commit ? { commit } : {});
+    const recv = await openOld(EXPORT, commit ? { commit, fn: "webhook-receive" } : { fn: "webhook-receive" });
+    const replies = (await old.call("outreach.replies.list")).body.data;
+    const hook = (await old.call("webhook.list")).body.data[0];
+    const calls = [
+      ["outreach.replies.list", { limit: 5 }],
+      ["outreach.replies.get", { id: replies[0].id }],
+      ["outreach.reply.send", { id: replies[0].id, text: "Thanks, a short call?", preview: true }],
+      ["outreach.replies.delete", { id: replies[1].id }],
+      ["outreach.replies.get", { id: "no-such-reply" }],
+      ["webhook.list", {}],
+      ["webhook.events", { id: hook.id }],
+      ["webhook.set_secret", { id: hook.id, secret: "whsec_bm90LWEtcmVhbC1zZWNyZXQ=" }],
+      ["webhook.delete", { id: "no-such-hook" }],
+    ];
+    const answers = [];
+    for (const [action, params] of calls) answers.push({ action, ...(await old.call(action, params)) });
+    const ev = { event_type: "message.delivered", event_id: "switch-7", delivery: { message_id: "switch-test-no-such-message" } };
+    const r = await recv.raw({ httpMethod: "POST", path: `/.netlify/functions/webhook-receive/${hook.id}`, headers: {}, body: JSON.stringify(ev) });
+    answers.push({ action: "webhook-receive", status: r.status, ok: r.body?.ok });
+    const stores = Object.fromEntries(STORES7.map((name) => [name, Object.fromEntries([...(storeMap(name === "agent-hq-webhooks" || name === "agent-hq-webhook-events" ? recv.blobs : old.blobs, name))].map(([k, v]) => [k.replace(/-[A-Za-z0-9_-]{12}$/, "-<id>"), (() => { try { return JSON.parse(v); } catch { return v; } })()]))])); // contacts hold plain text
+    // The event just received has a key and id made from the clock and nanoid: give it a fixed name.
+    stores["agent-hq-webhook-events"] = Object.fromEntries(Object.entries(stores["agent-hq-webhook-events"]).map(([k, e]) => (e.body?.event_id === "switch-7" ? ["<switch event>", { ...e, id: "<id>", received_at: "<now>" }] : [k, e])));
+    return { answers, stores };
+  }
+
+  test("unset: the chunk 7 actions and webhook-receive.ts answer and write exactly as before chunk 7", async () => {
+    const was = await run7(BASE7);
+    const now = await run7(null);
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i]);
+      assert.ok(r.same, `${w.action}\n${describeDiff(r)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+    }
+    assert.deepEqual(was.answers[7].body, { ok: false, error: "Unknown action: webhook.set_secret" });
+    console.log(`switch unset (chunk 7): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 7`);
+  });
+
+  test("sql: the chunk 7 actions and webhook-receive.ts go to the SQL module (a database socket is reached for, never AgentMail)", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    const tryOne = async (fn) => {
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { outcome = JSON.stringify(await fn()); } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, outcome);
+      const tried = blockedCalls.slice(before);
+      if (tried.some((c) => c.what === "connect")) sockets++;
+      assert.ok(!tried.some((c) => /agentmail/i.test(JSON.stringify(c))), "AgentMail was never called");
+    };
+    for (const [action, params] of [["outreach.replies.list", {}], ["outreach.replies.get", { id: "x" }], ["webhook.list", {}], ["webhook.set_secret", { id: "x", secret: "whsec_eA==" }]]) {
+      const old = await openOld(EXPORT);
+      await tryOne(() => old.call(action, params));
+    }
+    const recv = await openOld(EXPORT, { fn: "webhook-receive" });
+    await tryOne(() => recv.raw({ httpMethod: "POST", path: "/.netlify/functions/webhook-receive/x", headers: {}, body: "{}" }));
+    assert.ok(sockets > 0, "a database socket was refused");
+  });
+});

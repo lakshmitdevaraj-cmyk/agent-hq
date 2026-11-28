@@ -5,7 +5,7 @@
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fakeBlobs } from "./fake-blobs.mjs";
 
@@ -71,12 +71,13 @@ export const bundleInputs = [];
  * Bundles command.ts: the working tree by default, or the file as it was at git commit `commit` (read with
  * `git show`, never written to disk), together with every netlify/functions file it imports as it was at that commit.
  */
-async function loadHandler(commit = null, allowDb = false) {
-  const key = `${commit ?? "working-tree"}${allowDb ? "+db" : ""}`;
+async function loadHandler(commit = null, allowDb = false, fn = "command") {
+  const entry = fn === "command" ? ENTRY : join(dirname(ENTRY), `${fn}.ts`);
+  const key = `${fn}:${commit ?? "working-tree"}${allowDb ? "+db" : ""}`;
   if (!bundled.has(key)) {
     const source = commit
-      ? { stdin: { contents: execFileSync("git", ["show", `${commit}:netlify/functions/command.ts`], { cwd: dirname(ENTRY), encoding: "utf8" }), resolveDir: dirname(ENTRY), sourcefile: "command.ts", loader: "ts" } }
-      : { entryPoints: [ENTRY] };
+      ? { stdin: { contents: execFileSync("git", ["show", `${commit}:netlify/functions/${fn}.ts`], { cwd: dirname(ENTRY), encoding: "utf8" }), resolveDir: dirname(ENTRY), sourcefile: `${fn}.ts`, loader: "ts" } }
+      : { entryPoints: [entry] };
     const out = await build({ ...source, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent", metafile: true, plugins: [makePlugin(allowDb, commit)] });
     if (!commit && !allowDb) bundleInputs.push(...Object.keys(out.metafile.inputs));
     bundled.set(key, import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`).then((m) => m.handler));
@@ -110,15 +111,23 @@ function installFetch(routes) {
  * it. `commit` bundles command.ts as it was at that commit (for the "switch unset = old behaviour" proof);
  * `allowDb` see makePlugin; `seed` adds records to the in-memory stores (e.g. a made-up Apify key).
  */
-export async function openOld(exportDir, { commit = null, allowDb = false, fetchRoutes = null, seed = {} } = {}) {
+export async function openOld(exportDir, { commit = null, allowDb = false, fetchRoutes = null, seed = {}, fn = "command" } = {}) {
   installFetch(fetchRoutes);
   const config = { "agent-hq-config": { "api-key": { key: TEST_KEY, created_at: "2026-11-27T00:00:00Z" } } };
   const blobs = fakeBlobs(exportDir, { ...seed, ...config });
   globalThis.__equivBlobs = blobs;
-  const handler = await loadHandler(commit, allowDb);
+  const handler = await loadHandler(commit, allowDb, fn);
   return {
     blobs,
     /** Calls one action the way the app does; returns { status, body }. */
+    /** Calls another function file's handler (fn: "webhook-receive") with a raw Netlify event; returns { status, body }. */
+    async raw(event) {
+      globalThis.__equivBlobs = blobs;
+      installFetch(fetchRoutes);
+      const res = await handler(event);
+      let body = res.body; try { body = JSON.parse(res.body); } catch { /* plain text */ }
+      return { status: res.statusCode, body };
+    },
     async call(action, params = {}) {
       globalThis.__equivBlobs = blobs; // several old paths can be open at once; each call uses its own stores
       installFetch(fetchRoutes);
