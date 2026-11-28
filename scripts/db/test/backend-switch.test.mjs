@@ -480,7 +480,7 @@ describe("DATA_BACKEND switch, chunk 6 actions (sending and the plan)", { skip }
       try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
       assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       const tried = blockedCalls.slice(before);
-      if (tried.some((c) => c.what === "connect")) sockets++;
+      if (tried.some((c) => c.what === "connect") || /network access is blocked \(connect\)/.test(outcome)) sockets++; // a client kept from an earlier call fails with the same refusal, without a new socket
       assert.ok(!tried.some((c) => /agentmail/i.test(JSON.stringify(c))), `${action}: AgentMail was never called`);
     }
     assert.ok(sockets > 0, "a database socket was refused");
@@ -569,7 +569,7 @@ describe("DATA_BACKEND switch, chunk 7 actions (replies and webhooks)", { skip }
       try { outcome = JSON.stringify(await fn()); } catch (e) { outcome = `${e.code} ${e.message}`; }
       assert.match(outcome, /network access is blocked/, outcome);
       const tried = blockedCalls.slice(before);
-      if (tried.some((c) => c.what === "connect")) sockets++;
+      if (tried.some((c) => c.what === "connect") || /network access is blocked \(connect\)/.test(outcome)) sockets++; // a client kept from an earlier call fails with the same refusal, without a new socket
       assert.ok(!tried.some((c) => /agentmail/i.test(JSON.stringify(c))), "AgentMail was never called");
     };
     for (const [action, params] of [["outreach.replies.list", {}], ["outreach.replies.get", { id: "x" }], ["webhook.list", {}], ["webhook.set_secret", { id: "x", secret: "whsec_eA==" }]]) {
@@ -665,7 +665,7 @@ describe("DATA_BACKEND switch, chunk 8 actions (follow-ups, social and touches)"
       try { outcome = JSON.stringify(await old.call(action, params)); } catch (e) { outcome = `${e.code} ${e.message}`; }
       assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       const tried = blockedCalls.slice(before);
-      if (tried.some((c) => c.what === "connect")) sockets++;
+      if (tried.some((c) => c.what === "connect") || /network access is blocked \(connect\)/.test(outcome)) sockets++; // a client kept from an earlier call fails with the same refusal, without a new socket
       assert.ok(tried.every((c) => c.what === "connect"), `${action}: only the database was reached for`);
     }
     assert.ok(sockets > 0, "a database socket was refused");
@@ -749,7 +749,7 @@ describe("DATA_BACKEND switch, chunk 9 actions (settings, keys and access)", { s
       try { outcome = JSON.stringify(await old.call(action, params)); } catch (e) { outcome = `${e.code} ${e.message}`; }
       assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       const tried = blockedCalls.slice(before);
-      if (tried.some((c) => c.what === "connect")) sockets++;
+      if (tried.some((c) => c.what === "connect") || /network access is blocked \(connect\)/.test(outcome)) sockets++; // a client kept from an earlier call fails with the same refusal, without a new socket
       assert.ok(tried.every((c) => c.what === "connect"), `${action}: only the database was reached for`);
     }
     assert.ok(sockets > 0, "a database socket was refused (each call above was refused at the network)");
