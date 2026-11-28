@@ -1903,6 +1903,28 @@ async function sqlSendCase(action: import("./lib/sql/send.ts").SendAction, param
   }
 }
 
+// P2 chunk 7: replies and webhooks on Postgres (only when DATA_BACKEND=sql). AgentMail goes through the same helpers as the
+// Blobs path; the key is read only by the actions that call AgentMail. Alerts are outbox rows, sent after the commit.
+async function sqlReplyCase(action: string, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>, baseUrl: string) {
+  const [{ withTx }, { CampaignError }, replies, webhooks, { OWN_ADDRESSES }] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/replies.ts"), import("./lib/sql/webhooks.ts"), import("./lib/replies.ts")]);
+  const p = (params ?? {}) as Record<string, unknown>;
+  const callsAgentMail = (action === "outreach.reply.send" && !p.preview) || action === "outreach.replies.sync" || (action === "outreach.webhook.test" && !p.check_only);
+  const key = callsAgentMail ? await readServiceKey("agentmail") : null;
+  const agentmail: import("./lib/sql/replies.ts").AgentMailApi | null = key ? {
+    inbox: async (name) => getOrCreateCampaignInbox(key, name, (await readOutreachSettings()).sending_inbox_id || undefined),
+    post: async (path, body) => { const r = await agentmailFetch(key, path, { method: "POST", body: JSON.stringify(body) }); return r.ok ? { ok: true, ...((await r.json()) as { message_id?: string; thread_id?: string }) } : { ok: false, status: r.status, text: await r.text() }; },
+    get: async (path) => { const r = await agentmailFetch(key, path); return r.ok ? { ok: true, body: (await r.json()) as Record<string, unknown> } : { ok: false, status: r.status, text: await r.text() }; },
+  } : null;
+  const deps = { newId: () => nanoid(12), ownAddresses: [...OWN_ADDRESSES], agentmail, baseUrl, agentId: identity?.kind === "agent" ? identity.agent_id : null };
+  try {
+    if ((webhooks.WEBHOOK_ACTIONS as string[]).includes(action)) return ok(await withTx((tx) => webhooks.runWebhookAction(tx, action as import("./lib/sql/webhooks.ts").WebhookAction, p, deps)));
+    return ok(await replies.runReplyAction((fn) => withTx(fn), action as import("./lib/sql/replies.ts").ReplyAction, p, deps));
+  } catch (e) {
+    if (e instanceof CampaignError) return fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3374,6 +3396,7 @@ export const handler: Handler = async (event) => {
 
       // ── WEBHOOKS ──────────────────────────────────────────────
       case "webhook.create": {
+        if (sqlBackend()) return sqlReplyCase("webhook.create", params, identity, "");
         const { name, description = "" } = params as Record<string, string>;
         if (!name) return fail(400, "name required");
         const id = nanoid(12);
@@ -3382,9 +3405,11 @@ export const handler: Handler = async (event) => {
         return ok(w);
       }
       case "webhook.list": {
+        if (sqlBackend()) return sqlReplyCase("webhook.list", params, identity, "");
         return ok(await listJson(store(WEBHOOKS)));
       }
       case "webhook.events": {
+        if (sqlBackend()) return sqlReplyCase("webhook.events", params, identity, "");
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
         return ok(await listJson(store(WEBHOOK_EVENTS), `${id}/`));
@@ -5473,6 +5498,7 @@ export const handler: Handler = async (event) => {
 
       // ── INBOX (AgentMail inbound replies) ─────────────────────────
       case "outreach.replies.list": {
+        if (sqlBackend()) return sqlReplyCase("outreach.replies.list", params, identity, "");
         const { campaign_id, limit = 200 } = params as Record<string, unknown>;
         const s = store(OUTREACH_REPLIES);
         const prefix = typeof campaign_id === "string" && campaign_id ? `${campaign_id}/` : undefined;
@@ -5485,6 +5511,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.replies.delete": {
+        if (sqlBackend()) return sqlReplyCase("outreach.replies.delete", params, identity, "");
         // Removes one inbound reply from the Inbox. Does not touch the lead,
         // so a do-not-contact flag set by this reply stays in force.
         const { id } = params as Record<string, string>;
@@ -5502,6 +5529,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.replies.get": {
+        if (sqlBackend()) return sqlReplyCase("outreach.replies.get", params, identity, "");
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
         const s = store(OUTREACH_REPLIES);
@@ -5630,6 +5658,7 @@ export const handler: Handler = async (event) => {
 
       // Draft a reply to an inbound answer: the AI writes two short parts, code adds three call times and the booking link. Never sent.
       case "outreach.reply.draft": {
+        if (sqlBackend()) return sqlReplyCase("outreach.reply.draft", params, identity, "");
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
         const settings = await readOutreachSettings();
@@ -5675,6 +5704,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.reply.send": {
+        if (sqlBackend()) return sqlReplyCase("outreach.reply.send", params, identity, "");
         // Sends the edited reply draft through AgentMail as a reply in the SAME thread, from the inbox the original email went out from.
         // Never automatic: the Inbox asks first (recipient, subject and the full text). `preview: true` returns exactly what would go out and sends nothing.
         const { id, text: rawText, preview, resend } = params as { id?: string; text?: string; preview?: boolean; resend?: boolean };
@@ -5823,6 +5853,7 @@ export const handler: Handler = async (event) => {
 
       // ── MISSED REPLIES (read-only toward AgentMail) ───────────────
       case "outreach.replies.sync": {
+        if (sqlBackend()) return sqlReplyCase("outreach.replies.sync", params, identity, "");
         // Reads the last N days of messages from every AgentMail inbox and stores the inbound ones HQ does not have yet
         // (same record, flag and opt-out rules as the webhook). Never sends, deletes or changes anything in AgentMail.
         const { days = 14, max_new = 40 } = params as { days?: number; max_new?: number };
@@ -5920,6 +5951,7 @@ export const handler: Handler = async (event) => {
 
       // ── WEBHOOK HEALTH TEST ───────────────────────────────────────
       case "outreach.webhook.test": {
+        if (sqlBackend()) return sqlReplyCase("outreach.webhook.test", params, identity, event.headers["x-forwarded-proto"] && event.headers["x-forwarded-host"] ? `${event.headers["x-forwarded-proto"]}://${event.headers["x-forwarded-host"]}` : (process.env.URL ?? ""));
         // The "Run test" button. First call sends a closed-loop email (AgentMail inbox -> same inbox) and watches the
         // webhook's event log for ~8 s; the page repeats the call with check_only (no new email) until 45 s have passed.
         // Events have been seen arriving about 20 s late, so one short wait is not enough.
@@ -5973,6 +6005,7 @@ export const handler: Handler = async (event) => {
       // Note: base webhook.create/list/events are defined above. We add
       // a typed creation path here so the UI can tag a webhook as AgentMail.
       case "webhook.create_typed": {
+        if (sqlBackend()) return sqlReplyCase("webhook.create_typed", params, identity, "");
         const { name, description = "", service = "generic" } = params as Record<string, string>;
         if (!name) return fail(400, "name required");
         const id = nanoid(12);
@@ -5988,11 +6021,17 @@ export const handler: Handler = async (event) => {
         return ok(w);
       }
       case "webhook.delete": {
+        if (sqlBackend()) return sqlReplyCase("webhook.delete", params, identity, "");
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
         await store(WEBHOOKS).delete(id);
         return ok({ id, deleted: true });
       }
+
+      case "webhook.set_secret":
+        // P2 chunk 7: new action (R4, the AgentMail signing secret), SQL only. On Blobs it answers exactly as the default case does today.
+        if (sqlBackend()) return sqlReplyCase("webhook.set_secret", params, identity, "");
+        return fail(400, `Unknown action: ${action}`);
 
       case "outreach.leads.add":
         // P2 chunk 4: new action (A1 add lead), SQL only. On Blobs it answers exactly as the default case does today.

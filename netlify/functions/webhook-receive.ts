@@ -147,6 +147,7 @@ async function processAgentMailEvent(event: AgentMailEvent, baseUrl = ""): Promi
 
 export const handler: Handler = async (event) => {
   connectLambda(event as unknown as Parameters<typeof connectLambda>[0]);
+  if (process.env.DATA_BACKEND === "sql") return sqlReceive(event); // P2 chunk 7: the SQL path (R4 signature, F47), below
   const webhookId = (event.path.split("/").pop() ?? "").trim();
   if (!webhookId) return { statusCode: 400, body: "Missing webhook id" };
 
@@ -209,3 +210,21 @@ export const handler: Handler = async (event) => {
 
 // Small helper — compiled out at runtime, kept here to prove intent.
 export const __listJson = listJson;
+
+// P2 chunk 7: the receive path on Postgres (only when DATA_BACKEND=sql): lib/sql/webhooks.ts checks the AgentMail signature
+// on the exact raw body, stores and applies the event in one transaction, then sends the alerts it queued (outbox).
+// The AgentMail key (for the alerts) is still read from the service-config store until chunk 9 moves the keys.
+async function sqlReceive(event: Parameters<Handler>[0]) {
+  const [{ withTx }, webhooks, { OWN_ADDRESSES }] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/webhooks.ts"), import("./lib/replies.ts")]);
+  const rawBody = event.body ? (event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body) : "";
+  const key = (await readJson<{ key?: string }>(store("agent-hq-service-config"), "agentmail"))?.key ?? null;
+  const agentmail = key ? {
+    post: async (path: string, body: Record<string, unknown>) => {
+      const r = await fetch(`https://api.agentmail.to/v0${path}`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(8000) });
+      return r.ok ? { ok: true as const } : { ok: false as const, status: r.status, text: await r.text() };
+    },
+  } : null;
+  const r = await webhooks.receive((fn) => withTx(fn), { webhookId: (event.path.split("/").pop() ?? "").trim(), headers: (event.headers ?? {}) as Record<string, unknown>, rawBody, host: event.headers?.host },
+    { newId: () => nanoid(12), ownAddresses: [...OWN_ADDRESSES], agentmail, baseUrl: event.headers?.host ? `https://${event.headers.host}` : "" });
+  return { statusCode: r.statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(r.body) };
+}

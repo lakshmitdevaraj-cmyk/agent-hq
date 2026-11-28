@@ -247,6 +247,7 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
       const tracked = rewriteLinksForTracking(String(em.body_html || textToHtml(String(em.body_text || ""))), deps.baseUrl, cid, em.lead_id, em.id);
       const withFooter = appendFooter(String(em.body_text || ""), tracked, postal, String(em.sender_name || senderName));
       let path = `/inboxes/${inbox.inbox_id}/messages/send`;
+      let usedInbox = inbox.inbox_id; // F47: the inbox the email really goes out from is the one stored
       let body: Row = { to: [em.to_email], subject: em.subject, text: withFooter.text, html: withFooter.html };
       if (em.framework === "four-step" && em.step > 1) {
         const first = firstOf.get(em.lead_id);
@@ -256,7 +257,8 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
           await run((q) => q`update emails set status = 'drafted', error = ${msg}, updated_at = now() where id = ${em.id} and status = 'sending'`);
           continue;
         }
-        path = `/inboxes/${encodeURIComponent(first.inbox_id || inbox.inbox_id)}/messages/${encodeURIComponent(first.message_id)}/reply`;
+        usedInbox = first.inbox_id || inbox.inbox_id;
+        path = `/inboxes/${encodeURIComponent(usedInbox)}/messages/${encodeURIComponent(first.message_id)}/reply`;
         body = { text: withFooter.text, html: withFooter.html };
       }
       let res: AgentMailResult;
@@ -277,7 +279,7 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
       const at = new Date().toISOString();
       const ok = res;
       await run((q) => q`update emails set status = 'sent', error = null, agentmail_message_id = ${ok.message_id ?? null}, agentmail_thread_id = ${ok.thread_id ?? null},
-                                  agentmail_inbox_id = ${inbox!.inbox_id}, sent_at = ${at}::timestamptz, updated_at = ${at}::timestamptz
+                                  agentmail_inbox_id = ${usedInbox}, sent_at = ${at}::timestamptz, updated_at = ${at}::timestamptz
                          where id = ${em.id} and status = 'sending'`);
       sent++;
       sentLeadIds.add(em.lead_id);
