@@ -96,6 +96,12 @@ const STOP_REASON: Record<string, string> = {
   bounced: "This lead's address bounced, so email stops (social messages stay open)",
 };
 
+/** The old campaign record's `status` is the lead-search job's status on Postgres. */
+async function setCampaignStatus(q: Q, cid: string, status: string): Promise<void> {
+  await q`insert into campaign_jobs (campaign_id, kind, status) values (${cid}, 'leads', ${status})
+          on conflict (campaign_id, kind) do update set status = excluded.status`;
+}
+
 async function send(run: Runner, params: Row, deps: SendDeps) {
   const { campaign_id, email_ids, sequence_position, limit, allow_check } = params;
   if (typeof campaign_id !== "string" || !campaign_id) fail(400, "campaign_id required");
@@ -108,7 +114,7 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
 
   // ── 1. Decide and claim, in one committed transaction ──
   const decided = await run(async (q) => {
-    const [campaign] = await q`select c.id, c.name, c.default_sender_name, c.status, known_country(c.country) as country, p.postal_address_required
+    const [campaign] = await q`select c.id, c.name, c.default_sender_name, known_country(c.country) as country, p.postal_address_required
                                from campaigns c left join country_profiles p on p.code = known_country(c.country) where c.id = ${cid}`;
     if (!campaign) fail(404, "campaign not found");
     const settings = await readSettings(q);
@@ -203,7 +209,8 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
                             returning id`;
     const got = new Set(claimed.map((r) => String(r.id)));
     for (const e of toSend) if (!got.has(e.id)) notSent.push({ email_id: e.id, to_email: e.to_email, step: e.step, code: "not_draft", reason: "Another send took this draft first" });
-    await q`update campaigns set status = 'sending', updated_at = now() where id = ${cid}`;
+    // The campaign's status is its lead-search job's status (campaign_jobs, kind 'leads'), as lib/sql/campaigns.ts reads it.
+    await setCampaignStatus(q, cid, "sending");
     // Email 1 of each lead with a later step, for the thread.
     const leadIds = [...new Set(toSend.filter((e) => e.framework === "four-step" && e.step > 1).map((e) => e.lead_id))];
     const firsts = leadIds.length
@@ -284,7 +291,8 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
                                 and not l.excluded and not l.do_not_contact and l.stop_state = 'none' and l.merged_into is null`;
       const status = sent > 0 ? (n > 0 ? "ready" : "completed") : "failed";
       // last_send_at lives in the campaign's data (no column), as the old record kept it.
-      await q`update campaigns set status = ${status}, updated_at = now(),
+      await setCampaignStatus(q, cid, status);
+      await q`update campaigns set updated_at = now(),
                                    data = case when ${inbox !== null} then data || jsonb_build_object('last_send_at', now()) else data end,
                                    agentmail_inbox_id = coalesce(${inbox?.inbox_id ?? null}, agentmail_inbox_id) where id = ${cid}`;
     });
