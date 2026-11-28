@@ -297,3 +297,22 @@ Migrations 0001–0017 on `dev`. Shown refused on `dev` through the real handler
 Decisions I took (to review): R7 is a random token kept in `click_links` (no HMAC: the destination never comes from the token); "interested" is `leads.data.interested` and the lead is stopped as `replied`; spam-trap posts look like a success; rate limits 5/10 min per address and form, 20/h per address, 3/day per link; old April forms answer until chunk 12.
 
 **For P3:** the page at `/form/<slug>?l=<token>` (and a `netlify.toml` redirect, with approval). **For chunk 12 (X8):** the old April forms and their one submission.
+
+## Chunk 11: The Alcance client and the rest (run E)
+
+Plan `p2-reports/chunk11-plan.md`, report `p2-reports/chunk11-report.md`, failing run `p2-reports/chunk11-failing-run.txt`.
+
+| Step | Commit |
+|---|---|
+| 1–4. Tests first; migration **0018** `approvals` (applied to `dev`); `lib/alcance/client.ts` (C1, 17 functions + 2 stubs), `lib/alcance/approvals.ts`; `lib/sql/activity.ts`, `jobs.ts`, `analytics.ts`, `data.ts`; `command.ts` 35 added / 0 removed (8 guarded lines, `approval.create` master only) | `97e9333` |
+| 5. README, handoff, reports, full suite | (this commit) |
+
+Migrations 0001–0018 on `dev`. Shown refused: `send` without a covering `send_plan` approval (AgentMail never called), `markReady` without a `mark_ready` approval (draft unchanged), `data.export` of a table with keys or tokens, `data.import` on SQL.
+
+Decisions I took (to review): an approval lists exact email ids, lasts 24 h and is used once; `switchToSocial` blocks the unsent email drafts; `stopLead` is do-not-contact with a reason; analytics `leads_imported` is the live count (old 301 vs SQL 576 in total); `data.import` never runs on SQL.
+
+**For P3:** an Approve button on the send plan and on Check this (calls `approval.create`). **For P4:** the runners use `lib/alcance/client.ts`; `checkWebsite` is theirs. **For P6:** `sendToCrm` drains the outbox's `crm.*` rows.
+
+**Run E full suite (InstaBox `shiftforge`):** 413/414 in 13 min 41 s at `97e9333`, nothing skipped, `npx tsc -b` clean. The one failure was a test-side flake in the chunk 11 switch proof (a fresh id with no digit was not masked); fixed, and the whole switch-proof file then passed 26/26. Logs in `p2-reports/run-e-suite/`.
+
+**Run E is finished. Next: run F (chunk 12, alone; ask before editing `netlify.toml` or deleting anything)**, its own session.

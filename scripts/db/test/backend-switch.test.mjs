@@ -765,7 +765,8 @@ describe("DATA_BACKEND switch, chunk 10 actions (forms, links and clicks)", { sk
   const settle = (v) => JSON.parse(JSON.stringify(v)
     .replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - Date.now()) < 3_600_000 ? "<now>" : t))
     .replace(/(?<=\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, (s) => (/[0-9]/.test(s) && /[A-Za-z]/.test(s) ? "<id>" : s))
-    .replace(/(?<=\\?"[^"\\]*-)[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>"));
+    .replace(/(?<=\\?"[^"\\]*-)[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>")
+    .replace(/(?<=\\?"(?:id|submission_id)\\?":\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>")); // a fresh nanoid may have no digit
   const oldTok = Buffer.from(JSON.stringify({ c: "switch-c", l: "switch-l", e: "switch-e", u: "https://madeup-link.test/x" })).toString("base64url");
 
   async function run10(commit) {
@@ -845,7 +846,8 @@ describe("DATA_BACKEND switch, chunk 11 actions (activity, jobs, analytics, data
   const settle = (v) => JSON.parse(JSON.stringify(v)
     .replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - Date.now()) < 3_600_000 ? "<now>" : t))
     .replace(/(?<=\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, (s) => (/[0-9]/.test(s) && /[A-Za-z]/.test(s) ? "<id>" : s))
-    .replace(/(?<=\\?"[^"\\]*-)[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>"));
+    .replace(/(?<=\\?"[^"\\]*-)[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>")
+    .replace(/(?<=\\?"(?:id|submission_id)\\?":\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>")); // a fresh nanoid may have no digit
   async function run11(commit) {
     const old = await openOld(EXPORT, commit ? { commit } : {});
     const answers = [];

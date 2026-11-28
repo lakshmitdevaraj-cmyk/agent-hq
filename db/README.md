@@ -164,6 +164,14 @@ Tests: `access-sql` (including the real handler on `dev`: a read-only key sendin
 
 Tests: `clicks-sql` and `forms-sql` (both also through the real handlers on `dev`), `links-sql`, `followups-refresh`, `forms-equiv`, `backend-switch` (chunk 10 part: `59c97d5`).
 
+**Chunk 11, `lib/alcance/`, `lib/sql/activity.ts`, `jobs.ts`, `analytics.ts`, `data.ts`, migration 0018:** the Alcance client and the last actions.
+- **C1 (`lib/alcance/client.ts`):** `alcance(run, deps)` gives `today`, `planSend`, `send`, `repliesSince`, `sentList`, `dueFollowUps`, `recordSocialSent`, `recordReply`, `createDraft`, `markReady`, `addLead`, `importLeads`, `searchLeads`, `stopLead`, `switchToSocial`, `weeklyReport`, `health`; `checkWebsite` and `sendToCrm` answer 501 (P4, P6). Each calls the lib/sql module that holds the rule.
+- **Say-so (`approvals`, `lib/alcance/approvals.ts`):** `send(plan, approvalId)` and `markReady(ids, approvalId)` need an approval of the right kind (`send_plan` / `mark_ready`) that lists every email, is unused and not expired (24 h); it is used in the same statement. `approval.create` is master only.
+- **activity, jobs, analytics:** one indexed query each; analytics in one grouped query (F4). `leads_imported` is the live lead count (merged left out), as the campaign list counts it.
+- **data.\*:** counts and a keyset export of an allow-list of tables (never `service_config`, `access_keys`, `config`, `voice_config`, `form_links`, `click_links`, `approvals`; webhooks without signing secrets). `data.import` is refused on SQL (409 `use_p5_import`).
+
+Tests: `alcance-client`, `data-sql` (with the real handler on `dev`), `activity-sql`, `jobs-sql`, `analytics-sql`, `chunk11-equiv`, `backend-switch` (chunk 11 part: `8ba205f`).
+
 **Running one area while building:** run that area's files only, e.g. `node --test --test-concurrency=1 scripts/db/test/{webhooks-sql,replies-sql,replies-equiv}.test.mjs`, and the switch proof for one chunk with `--test-name-pattern="chunk 7" scripts/db/test/backend-switch.test.mjs`. The full suite runs once at the end of the run. The equivalence harness has its own pool (8 connections, `EQUIV_POOL` to change) and `pmap` for independent calls side by side.
 
 ## At the P5 switch
