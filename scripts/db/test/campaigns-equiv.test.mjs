@@ -45,7 +45,8 @@ describe("chunk 2 campaign actions: old vs new", { skip }, () => {
   test("campaign.get for every campaign, a missing id and no id", async () => {
     const cs = await import(C + "campaign-get.mjs");
     const old = await openOld(EXPORT);
-    for (const { id } of oldList) same(`get ${id}`, await old.call(cs.action, { id }), await fresh.call(cs.sqlVersion, { id }), { known: cs.known(id, merged, "\\$\\.body\\.data") });
+    const { pmap } = await import("../equiv/new-path.mjs"); // campaigns are independent: six side by side, the same checks
+    for (const [id, o, n] of await pmap(oldList, 6, async ({ id }) => [id, await old.call(cs.action, { id }), await fresh.call(cs.sqlVersion, { id })])) same(`get ${id}`, o, n, { known: cs.known(id, merged, "\\$\\.body\\.data") });
     for (const p of [{ id: cs.MISSING_ID }, {}]) same(`get ${JSON.stringify(p)}`, await old.call(cs.action, p), await fresh.call(cs.sqlVersion, p));
   });
 
@@ -53,9 +54,8 @@ describe("chunk 2 campaign actions: old vs new", { skip }, () => {
     const cs = await import(C + "leads-count.mjs");
     const old = await openOld(EXPORT);
     let f17 = 0;
-    for (const { id } of oldList) {
-      const o = await old.call(cs.action, { campaign_id: id });
-      const n = await fresh.call(cs.sqlVersion, { campaign_id: id });
+    const { pmap } = await import("../equiv/new-path.mjs");
+    for (const [id, o, n] of await pmap(oldList, 6, async ({ id }) => [id, await old.call(cs.action, { campaign_id: id }), await fresh.call(cs.sqlVersion, { campaign_id: id })])) {
       const r = compare(o.body, n.body, { known: cs.known(id, merged) });
       assert.ok(r.same, describeDiff(r));
       assert.equal(n.status, o.status);
@@ -69,8 +69,11 @@ describe("chunk 2 campaign actions: old vs new", { skip }, () => {
   test("S0: search, filters and sort give the same campaigns in the same order as the written rule", async () => {
     const cs = await import(C + "campaign-search.mjs");
     const due = await fresh.call(cs.followupsDueIds);
-    for (const p of cs.combos(oldList)) {
-      const got = (await fresh.call(cs.sqlVersion, p)).map((c) => c.id);
+    const { pmap } = await import("../equiv/new-path.mjs");
+    const combos = cs.combos(oldList);
+    const results = await pmap(combos, 6, (p) => fresh.call(cs.sqlVersion, p)); // read only and independent: six side by side
+    for (const [i, p] of combos.entries()) {
+      const got = results[i].map((c) => c.id);
       const want = cs.reference(oldList, p, due);
       assert.deepEqual(got, want, `search ${JSON.stringify(p.filter ?? p.sort ?? "")} q-length ${String(p.q ?? "").length}`);
     }

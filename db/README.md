@@ -131,6 +131,17 @@ Tests: `emails-sql`, `emails-equiv` (cases in `scripts/db/equiv/cases/emails.mjs
 
 Tests: `send-sql`, `send-equiv` (cases in `scripts/db/equiv/cases/send.mjs`), `backend-switch` (chunk 6 part: `bb7e285`). Timings: `node scripts/db/bench-send.mjs` (seeds 1,500 leads / 6,000 emails in a rolled-back transaction). Draft re-check dry run: `node scripts/db/recheck-dryrun.mjs`.
 
+**Chunk 7, `lib/sql/webhooks.ts`, `lib/sql/replies.ts`, `lib/sql/outbox.ts`:** the reply and webhook actions, the new SQL-only `webhook.set_secret`, and the SQL path of `webhook-receive.ts` (`sqlReceive`, one guarded line).
+- **R4:** AgentMail signs the Svix way (`svix-id`, `svix-timestamp`, `svix-signature: v1,<base64 HMAC-SHA256 of "id.timestamp.raw body">`, secret `whsec_…`, 5-minute window). An AgentMail webhook with no secret saved refuses every event (401, nothing stored, `refused_count` / `last_refused_at` on the webhook). A generic webhook with no secret logs the raw event but never applies an AgentMail-looking body. Each receive deletes that webhook's events older than 30 days. The secret lives in `webhooks.data.signing_secret` and is never returned.
+- **F47:** outbound events match `emails.agentmail_message_id`; thread id only when exactly one email of the thread has no message id. A webhook never changes `sent_at`; status only moves forward; the event's `inbox_id` is stored. `send.ts` stores the inbox a follow-up really went from (email 1's).
+- **Stop states:** bounce → `contacts` bounced entry and `stop_state = 'bounced'` for leads with that address; complaint → do-not-contact; rejection → `failed` with the reason (never a bounce); a person's reply → `replied`; an opt-out → every lead with that address do-not-contact, unsent drafts deleted.
+- **R12 / F31:** `outbox` rows in the same transaction: `alert.reply`, `alert.fyi` (opt-out, bounce, complaint: "FYI, no action needed"), `crm.reply_received` (P6). `outbox.drain` sends `alert.*` rows after commit, at most 3 tries, `last_error` kept.
+- `outreach.reply.draft` answers 501 until P4. `outreach.webhook.events` (AgentMail only) is not rewritten. Health check subject: "Alcance webhook health check" (the old subject is still recognised).
+
+Tests: `webhooks-sql`, `replies-sql`, `replies-equiv`, `backend-switch` (chunk 7 part: `7fcf026`). Ready drafts a fresh F35/F36 check would flag (read only, list written outside the repo): `node scripts/db/recheck-list.mjs <file outside the repo>`.
+
+**Running one area while building:** run that area's files only, e.g. `node --test --test-concurrency=1 scripts/db/test/{webhooks-sql,replies-sql,replies-equiv}.test.mjs`, and the switch proof for one chunk with `--test-name-pattern="chunk 7" scripts/db/test/backend-switch.test.mjs`. The full suite runs once at the end of the run. The equivalence harness has its own pool (8 connections, `EQUIV_POOL` to change) and `pmap` for independent calls side by side.
+
 ## At the P5 switch
 
 - **Type these in again in Settings:** the Gemini key, the service keys and the agent keys. They were removed from the export and never go into the database from it.

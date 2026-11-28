@@ -52,3 +52,7 @@
 - An exception to a claim check must not swallow the claim itself: "busy/team/crew" before "books" is their schedule only when "our"/"we" is not the one doing it ("our team books jobs" is still a scheduling claim). Every exception gets a hit test that names "our"/"we" as the subject.
 - Check table columns before writing SQL against them: `campaigns` has no `status` (it is the `campaign_jobs` row of kind `leads`). Write the tests first; they caught it.
 - A SQL function that calls settings helpers or `next_working_day` per row is slow (36 s at 6,000 emails): work those out once per call (plpgsql variables), then time it at the target size.
+
+## 28 Nov (P2 run C, chunk 7 start)
+- Tests first is a rule in every chunk, not only when there is time: write the tests, run them, and save the failing run to `p2-reports/chunkN-failing-run.txt` before any code. It was skipped in chunks 5b and 6.
+- A slow suite is a bug to fix, not a cost to report: the full suite took 41 min because equivalence tests made one Neon call after another (about 225 ms a round trip from India) on a pool of 2. Run independent calls side by side (the harness's own pool and `pmap`), and while building run only the area's files and that chunk's switch-proof block; the whole suite once at the end of the run.

@@ -219,3 +219,21 @@ Decisions I took (to review): a failed row goes again only when named in `email_
 **Gotcha:** the campaign's status is the `campaign_jobs` row of kind `leads`; `campaigns` has no `status` column.
 
 **Next: chunk 7 (replies and webhooks)**, not started: R4 (AgentMail signature, raw events 30 days), V8, D2, R12 (outbox), F31, F47; `lib/sql/replies.ts`, `lib/sql/webhooks.ts`, `webhook-receive.ts` (listed in `tasks/p2-plan.md` for chunk 7). Network stays blocked in every test.
+
+## Chunk 7: Replies and webhooks (run C, 28 Nov 2026)
+
+Plan `p2-reports/chunk7-plan.md`, report `p2-reports/chunk7-report.md`, failing run `p2-reports/chunk7-failing-run.txt`, timings `p2-reports/chunk7-timing/`, the 18 Ready drafts `p2-reports/chunk7-ready-drafts.md` (outside the repo: business names).
+
+| Step | Commit |
+|---|---|
+| 1. Tests first (webhooks-sql, replies-sql, replies-equiv, switch proof chunk 7), harness bundles `webhook-receive.ts`, `recheck-list.mjs` | `0ba79aa` |
+| 2–3. `lib/sql/webhooks.ts`, `replies.ts`, `outbox.ts`; `send.ts` F47 inbox; `command.ts` 13 guarded lines + `sqlReplyCase` (39 lines); `webhook-receive.ts` one guarded line + `sqlReceive` | `d0fb582` |
+| 4. Suite speed-up (harness pool of 8, `pmap` for independent calls), README, handoff, report | (this commit) |
+
+No migration (0001–0014 on `dev`). Nothing on `production`, no netlify command, no dependency, no file deleted, no real email or AgentMail call.
+
+Decisions I took (to review): an AgentMail webhook with no signing secret refuses everything (fail closed: **set the secret with `webhook.set_secret` before P5**, from the AgentMail webhook's `secret`); a generic webhook still logs unsigned events but never applies them; a rejection is a failed send, not a bounce; one short FYI alert per opt-out/bounce/complaint (no daily summary); alerts go through the outbox, drained after commit, 3 tries; a person's reply sets `stop_state = 'replied'`; a delivery failure report counts as a bounce of the matched address; `webhook.delete` also removes its raw events; `reply.draft` 501 until P4; reply ties in the same second: later blob key first.
+
+**For P4:** `outreach.reply.draft` on SQL (needs the AI writer). **For chunk 9:** the AgentMail key is still read from the service-config store (`sqlReplyCase`, `sqlReceive`). **Before P5:** save each AgentMail webhook's signing secret; run the F31 real alert test with Lakshmi.
+
+**Next: run D (chunks 8 and 9)**, its own session.

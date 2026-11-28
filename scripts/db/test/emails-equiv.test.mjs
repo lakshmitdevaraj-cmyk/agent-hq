@@ -36,10 +36,12 @@ describe("chunk 5 email actions: old vs new", { skip }, () => {
   test("emails.list for every campaign: the same rows and annotations (duplicate rows left out; P1 merges and step fixes known)", async () => {
     const old = await openOld(EXPORT);
     let compared = 0, hiddenDups = 0, annotated = 0, rechecked = 0;
-    for (const campaign_id of campaigns) {
-      const o = await old.call("outreach.emails.list", { campaign_id, limit: 100000 });
+    // Campaigns are independent, so six run side by side (each its own rolled-back transaction); the checks are unchanged.
+    const { pmap } = await import("../equiv/new-path.mjs");
+    const pairs = await pmap(campaigns, 6, async (campaign_id) => [campaign_id, await old.call("outreach.emails.list", { campaign_id, limit: 100000 }),
       // A write transaction (rolled back): since RULES_VERSION 5 the list re-checks dev's version-4 drafts and saves the stamp, as the old path does.
-      const n = await fresh.callWrite(cs.list, { campaign_id, limit: 100000 });
+      await fresh.callWrite(cs.list, { campaign_id, limit: 100000 })]);
+    for (const [campaign_id, o, n] of pairs) {
       assert.equal(n.status, o.status);
       const kept = o.body.data.filter((e) => !dups.has(e.id));
       hiddenDups += o.body.data.length - kept.length;

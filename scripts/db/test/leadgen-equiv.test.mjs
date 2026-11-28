@@ -165,9 +165,9 @@ describe("chunk 4 lead finding: old vs new", { skip }, () => {
     const campaigns = (await old.call("outreach.campaign.list")).body.data.map((c) => c.id);
     const nw = cs.world(); const deps = depsFor(nw);
     let withLeads = null;
-    for (const campaign_id of campaigns) {
-      const o = await old.call("outreach.browsercheck.plan", { campaign_id });
-      same(`browsercheck.plan ${campaign_id}`, o, await fresh.call(cs.browserPlan, { params: { campaign_id }, deps }));
+    const { pmap } = await import("../equiv/new-path.mjs"); // read only and independent: six side by side
+    for (const [campaign_id, o, n] of await pmap(campaigns, 6, async (campaign_id) => [campaign_id, await old.call("outreach.browsercheck.plan", { campaign_id }), await fresh.call(cs.browserPlan, { params: { campaign_id }, deps })])) {
+      same(`browsercheck.plan ${campaign_id}`, o, n);
       if (!withLeads && o.body.data?.leads > 0) withLeads = campaign_id;
     }
     same("browsercheck.plan no id", await old.call("outreach.browsercheck.plan", {}), await fresh.call(cs.browserPlan, { params: {}, deps }));

@@ -53,8 +53,9 @@ describe("chunk 7 replies and webhooks: old vs new", { skip }, () => {
 
   test("replies.get for every reply, a missing id and no id", async () => {
     const ids = (await old.call("outreach.replies.list")).body.data.map((r) => r.id);
-    for (const id of ids) {
-      const r = compare(await old.call("outreach.replies.get", { id }), await sqlReply("outreach.replies.get", { id }), { known: REPLY_KNOWN("\\$\\.body\\.data") });
+    const { pmap } = await import("../equiv/new-path.mjs");
+    for (const [id, a, b] of await pmap(ids, 6, async (id) => [id, await old.call("outreach.replies.get", { id }), await sqlReply("outreach.replies.get", { id })])) {
+      const r = compare(a, b, { known: REPLY_KNOWN("\\$\\.body\\.data") });
       assert.ok(r.same, `${id}: ${describeDiff(r)}`);
     }
     for (const p of [{ id: "no-such-reply" }, {}]) {

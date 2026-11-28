@@ -32,9 +32,8 @@ describe("chunk 3 lead actions: old vs new", { skip }, () => {
   test("leads.list for every campaign (merged leads left out), plus no id", async () => {
     const old = await openOld(EXPORT);
     let hidden = 0, compared = 0;
-    for (const campaign_id of campaigns) {
-      const o = await old.call("outreach.leads.list", { campaign_id });
-      const n = await fresh.call(cs.list, { campaign_id });
+    const { pmap } = await import("../equiv/new-path.mjs"); // campaigns are independent: six side by side, the same checks
+    for (const [campaign_id, o, n] of await pmap(campaigns, 6, async (campaign_id) => [campaign_id, await old.call("outreach.leads.list", { campaign_id }), await fresh.call(cs.list, { campaign_id })])) {
       assert.equal(n.status, o.status);
       const kept = o.body.data.filter((l) => !merged.has(l.id));
       hidden += o.body.data.length - kept.length;
