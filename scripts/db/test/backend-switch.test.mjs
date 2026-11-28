@@ -426,3 +426,79 @@ describe("DATA_BACKEND switch, chunk 5 actions", { skip }, () => {
     assert.equal(blockedCalls.length, before, "nothing else reached for the network");
   });
 });
+
+const BASE6 = "bb7e285"; // the last commit before chunk 6 touched command.ts
+
+describe("DATA_BACKEND switch, chunk 6 actions (sending and the plan)", { skip }, () => {
+  let openOld, p;
+  before(async () => {
+    ({ openOld } = await import("../equiv/old-path.mjs"));
+    const n = (await import("../equiv/new-path.mjs")).openNew("dev");
+    p = await n.call(async (tx) => (await tx`select campaign_id from emails where status = 'drafted' and not is_duplicate order by campaign_id limit 1`)[0]);
+    await n.close();
+  });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+
+  const calls = () => [
+    ["outreach.emails.send", { campaign_id: p.campaign_id, limit: 1 }],
+    ["outreach.send.today", {}],
+    ["outreach.send.plan", {}],
+  ];
+
+  test("unset: emails.send, send.today and the new send.plan answer and write exactly as command.ts did before chunk 6", async () => {
+    const run = async (old) => {
+      const answers = [];
+      for (const [action, params] of calls()) answers.push({ action, ...(await old.call(action, params)) });
+      const stores = Object.fromEntries([...STORES, "agent-hq-activity"].map((name) => [name, Object.fromEntries([...(storeMap(old.blobs, name))].map(([k, v]) => [k, JSON.parse(v)]))]));
+      return { answers, stores };
+    };
+    const was = await run(await openOld(EXPORT, { commit: BASE6 }));
+    const now = await run(await openOld(EXPORT));
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i]);
+      assert.ok(r.same, `${w.action}\n${describeDiff(r)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+    }
+    assert.deepEqual(was.answers[2].body, { ok: false, error: "Unknown action: outreach.send.plan" });
+    console.log(`switch unset (chunk 6): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 6`);
+  });
+
+  test("sql: the chunk 6 actions go to the SQL module (a database socket is reached for, never AgentMail)", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    for (const [action, params] of calls().slice(1)) {
+      const old = await openOld(EXPORT);
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      const tried = blockedCalls.slice(before);
+      assert.ok(tried.some((c) => c.what === "connect"), `${action}: a database socket was refused`);
+      assert.ok(!tried.some((c) => /agentmail/i.test(JSON.stringify(c))), `${action}: AgentMail was never called`);
+    }
+  });
+
+  test("sql, end to end on dev: today and plan read, send is refused without an AgentMail key (nothing sent, nothing written)", async () => {
+    const { localVar } = await import("../env.mjs");
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    const before = blockedCalls.length;
+    const old = await openOld(EXPORT, { allowDb: true });
+    process.env.DATA_BACKEND = "sql";
+    process.env.DATABASE_URL = localVar("DEV_DATABASE_URL");
+    const today = await old.call("outreach.send.today", {});
+    assert.equal(today.status, 200, JSON.stringify(today.body).slice(0, 200));
+    assert.equal(typeof today.body.data.sent_today, "number");
+    assert.equal(typeof today.body.data.limit, "number");
+    const plan = await old.call("outreach.send.plan", { day: "2026-12-05" });
+    assert.equal(plan.status, 200, JSON.stringify(plan.body).slice(0, 200));
+    assert.equal(plan.body.data.working_day, false, "a Saturday");
+    assert.deepEqual(plan.body.data.items, []);
+    assert.deepEqual(await old.call("outreach.send.plan", { day: "not-a-day" }), { status: 400, body: { ok: false, error: "day must be a date like 2026-12-01" } });
+    assert.deepEqual(await old.call("outreach.emails.send", { campaign_id: p.campaign_id }), { status: 400, body: { ok: false, error: "AgentMail key not configured" } });
+    assert.equal(blockedCalls.length, before, "nothing reached for the network");
+  });
+});

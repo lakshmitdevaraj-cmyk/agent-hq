@@ -1883,6 +1883,26 @@ async function sqlEmailCase(action: import("./lib/sql/emails.ts").EmailAction, p
   return ok(out.data);
 }
 
+// P2 chunk 6: sending and the send plan on Postgres (only when DATA_BACKEND=sql). Each step is its own short
+// transaction (the drafts are claimed and committed before AgentMail is called). AgentMail goes through the same
+// helpers as the Blobs path; nothing else here calls it.
+async function sqlSendCase(action: import("./lib/sql/send.ts").SendAction, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>, baseUrl: string) {
+  const [{ withTx }, { CampaignError }, send, { OWN_ADDRESSES }] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/send.ts"), import("./lib/replies.ts")]);
+  const key = action === "outreach.emails.send" ? await readServiceKey("agentmail") : null;
+  const agentmail: import("./lib/sql/send.ts").AgentMail | null = key ? {
+    inbox: async (name) => getOrCreateCampaignInbox(key, name, (await readOutreachSettings()).sending_inbox_id || undefined),
+    setDisplayName: async (id, name, current) => { await ensureInboxDisplayName(key, id, name, current); },
+    post: async (path, body) => { const r = await agentmailFetch(key, path, { method: "POST", body: JSON.stringify(body) }); return r.ok ? { ok: true, ...((await r.json()) as { message_id?: string; thread_id?: string }) } : { ok: false, status: r.status, text: await r.text() }; },
+  } : null;
+  const deps = { agentmail, baseUrl, ownAddresses: [...OWN_ADDRESSES], newId: () => nanoid(12), createdBy: identity?.kind === "agent" ? identity.agent_id : null };
+  try {
+    return ok(await send.runSendAction((fn) => withTx(fn), action, (params ?? {}) as Record<string, unknown>, deps));
+  } catch (e) {
+    if (e instanceof CampaignError) return e.code ? failCode(e.status, e.message, e.code) : fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -5221,6 +5241,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.emails.send": {
+        if (sqlBackend()) return sqlSendCase("outreach.emails.send", params, identity, event.headers["x-forwarded-proto"] && event.headers["x-forwarded-host"] ? `${event.headers["x-forwarded-proto"]}://${event.headers["x-forwarded-host"]}` : (process.env.URL ?? ""));
         // Sends drafted emails via AgentMail. Rewrites outbound links
         // through the /t/:token tracker first, records AgentMail's
         // message_id + thread_id for later webhook correlation.
@@ -5493,7 +5514,12 @@ export const handler: Handler = async (event) => {
       }
 
       // ── Follow-up reminders (batch 8c). Read-time: due dates come from what was sent and the Settings gaps; nothing here sends. ──
+      case "outreach.send.plan":
+        // P2 chunk 6: new action (C1 planSend), SQL only. On Blobs it answers exactly as the default case does today.
+        if (sqlBackend()) return sqlSendCase("outreach.send.plan", params, identity, "");
+        return fail(400, `Unknown action: ${action}`);
       case "outreach.send.today": {
+        if (sqlBackend()) return sqlSendCase("outreach.send.today", params, identity, "");
         // Real emails sent today (all campaigns; the day is in the Settings time zone, India when blank; mock, test-lead and own-address sends excluded) and the daily limit. Read-only; used by the send confirm boxes.
         const st = await readOutreachSettings();
         const tzs = (st.time_zone ?? "").trim();
