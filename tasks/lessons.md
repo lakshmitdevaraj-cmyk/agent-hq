@@ -46,3 +46,9 @@
 - `has_answering_booking` needs a booking tool AND a real answering service or chat widget. "24/7" or "24/7 emergency service" on the site is not an answering service. When a rule is approximate, check what each signal really means before counting it.
 - Report timings two ways from now on: the database's own time (`EXPLAIN ANALYZE`) and the time measured from this Mac.
 - Named cases from the fix list are real leads: never copy their names, first names or email domains into code, comments or test fixtures (run B caught three before commit). Make up names for fixtures, and keep the real ones only in `~/agent-hq-backups/p2-named-cases.json`.
+
+## 28 Nov (P2 run C, start)
+- Real prospect names also hide in plan files and older test fixtures (`tasks/p2-plan.md`, `tasks/tests-8b/`), not only in new code. Before a commit, grep every changed file for the named cases; use fix-list IDs in docs and made-up names (and made-up towns) in fixtures.
+- An exception to a claim check must not swallow the claim itself: "busy/team/crew" before "books" is their schedule only when "our"/"we" is not the one doing it ("our team books jobs" is still a scheduling claim). Every exception gets a hit test that names "our"/"we" as the subject.
+- Check table columns before writing SQL against them: `campaigns` has no `status` (it is the `campaign_jobs` row of kind `leads`). Write the tests first; they caught it.
+- A SQL function that calls settings helpers or `next_working_day` per row is slow (36 s at 6,000 emails): work those out once per call (plpgsql variables), then time it at the target size.

@@ -197,3 +197,25 @@ Plan `p2-reports/chunk5b-plan.md`, report `p2-reports/chunk5b-report.md`, failin
 - Named cases: message cases added to `~/agent-hq-backups/p2-named-cases.json` (outside the repo).
 
 **Run B is finished.** Next: run C (chunks 6 and 7), its own session. **For chunk 8:** the F41 named case (social reviewer) is checked there, not in 5b. **For P4:** wire the AI writer into `lib/sql/emails.ts` (`deps.writeDraft`) and move `ai-background`; then `generate_one` / `generate` stop answering 501.
+
+## Run C (28 Nov 2026): three fixes, chunk 6 (chunk 7 not started)
+
+**Fixes first** (commit `bb7e285`): real names out of `tasks/p2-plan.md` and `tasks/tests-8b/dataquality.test.ts` (fix-list IDs, made-up names); `lib/angle.ts` catches "our team books jobs" again (the busy/team/crew exception is their schedule only), hit and near-miss tests; `scripts/db/recheck-dryrun.mjs`: no draft changes on the list-time re-check, a fresh check would move 18 of 87 Ready drafts to Check this (F35 recipient-domain 12, greeting-from-address 8). Full suite 230/230 in 41 min.
+
+## Chunk 6: Sending and the plan (run C)
+
+Plan `p2-reports/chunk6-plan.md`, report `p2-reports/chunk6-report.md`.
+
+| Step | Commit |
+|---|---|
+| 1–3. Migration **0013** (`send_today`, `plan_send`), `lib/sql/send.ts`, `command.ts`: three guarded lines and helper `sqlSendCase` (26 lines added); switch proof | `3807061` |
+| 4–5. Campaign status on `campaign_jobs`; migration **0014** (36 s → 30 ms); send tests, equivalence, timing script | `b789f50` |
+| 6. README, handoff, report | (this commit) |
+
+Migrations 0001–0014 are on `dev`. Nothing on `production`, no netlify command, no dependency, no file deleted, no real email or AgentMail call.
+
+Decisions I took (to review): a failed row goes again only when named in `email_ids`; no answer from AgentMail leaves the row `sending` (never re-sent on its own); the daily limit stays a warning on `emails.send`, `plan_send` respects it; `send.plan` is read only; an AgentMail "failed" label is not a bounce on the SQL path; `last_send_at` in `campaigns.data`.
+
+**Gotcha:** the campaign's status is the `campaign_jobs` row of kind `leads`; `campaigns` has no `status` column.
+
+**Next: chunk 7 (replies and webhooks)**, not started: R4 (AgentMail signature, raw events 30 days), V8, D2, R12 (outbox), F31, F47; `lib/sql/replies.ts`, `lib/sql/webhooks.ts`, `webhook-receive.ts` (listed in `tasks/p2-plan.md` for chunk 7). Network stays blocked in every test.

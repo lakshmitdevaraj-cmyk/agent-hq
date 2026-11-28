@@ -468,6 +468,9 @@ describe("DATA_BACKEND switch, chunk 6 actions (sending and the plan)", { skip }
 
   test("sql: the chunk 6 actions go to the SQL module (a database socket is reached for, never AgentMail)", async () => {
     const { blockedCalls } = await import("../equiv/old-path.mjs");
+    // As in the chunk 4 block: a pool opened earlier in the same process may already hold the refused connection, so at
+    // least one socket over all the calls; every call is refused and none reaches for AgentMail.
+    let sockets = 0;
     for (const [action, params] of calls().slice(1)) {
       const old = await openOld(EXPORT);
       process.env.DATA_BACKEND = "sql";
@@ -477,9 +480,10 @@ describe("DATA_BACKEND switch, chunk 6 actions (sending and the plan)", { skip }
       try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
       assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
       const tried = blockedCalls.slice(before);
-      assert.ok(tried.some((c) => c.what === "connect"), `${action}: a database socket was refused`);
+      if (tried.some((c) => c.what === "connect")) sockets++;
       assert.ok(!tried.some((c) => /agentmail/i.test(JSON.stringify(c))), `${action}: AgentMail was never called`);
     }
+    assert.ok(sockets > 0, "a database socket was refused");
   });
 
   test("sql, end to end on dev: today and plan read, send is refused without an AgentMail key (nothing sent, nothing written)", async () => {

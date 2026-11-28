@@ -122,6 +122,15 @@ Tests: `emails-sql`, `emails-equiv` (cases in `scripts/db/equiv/cases/emails.mjs
 
 **Chunk 5b, `lib/sql/messagechecks.ts`:** F35 (address domain vs website; greeting vs a personal address), F36 (greeting read from the address, no owner) and "your assistant" give "Check this"; email 4 pitching, opening hours with no saved source (F37) and tap-to-call claims (F40) are Blocked. `codeCheckDraft` runs them on every save and passes the business name to the rating rule (F38). A re-check lifts a stale "code checks" block to "Check this". F38 / F39 themselves are in `lib/messagerules.ts` and `lib/angle.ts` (both paths); `RULES_VERSION` is 5. Tests: `messagechecks`, `rules-f38-f39`; the switch proof lists the old-path change as intended (`RULES5_KNOWN`), and its base side now loads every app file at the base commit. Timing script: `scripts/db/bench-emails.mjs` (database time from `EXPLAIN ANALYZE` and time from this Mac).
 
+**Chunk 6, `lib/sql/send.ts`, migrations 0013–0014:** `outreach.emails.send`, `outreach.send.today`, and the new SQL-only `outreach.send.plan`.
+- **C2:** `send_today(own)` and `plan_send(day, own, campaign)` are one database call each (0013; 0014 makes them work out Settings and the open countries once per call: 30 ms at 1,500 leads / 6,000 emails, was 36 s). Helpers: `settings_time_zone()`, `settings_daily_limit()`, `settings_email_gaps()`, `own_base(addr)`, `known_country(c)`.
+- **Plan:** nothing on weekends, holidays or blackout dates (`next_working_day`); email 1s first, then follow-ups due on email 1's day + the Settings gap (or `moved_to`), up to `limit − sent today`; only ready drafts of leads with `stop_state = 'none'`, not excluded or merged; an address emailed from another campaign is not a new email 1.
+- **F45:** `emails.send` claims the drafts (`drafted → sending`) in a committed transaction before any AgentMail call; a row becomes `sent` only from `sending`. **R2:** an AgentMail error → `failed` + `emails.error`, never a bounce; no answer → stays `sending` (never re-sent on its own; `send.today` counts `sending_unknown`). **R9:** a country that needs a postal address with none in Settings → 409 `postal_address_required`, nothing sent.
+- The campaign's status is its `campaign_jobs` row of kind `leads` (there is no `campaigns.status`); `last_send_at` is in `campaigns.data`.
+- AgentMail comes in as `deps.agentmail` from `command.ts` (`sqlSendCase`); tests pass a stub and the harness refuses the network.
+
+Tests: `send-sql`, `send-equiv` (cases in `scripts/db/equiv/cases/send.mjs`), `backend-switch` (chunk 6 part: `bb7e285`). Timings: `node scripts/db/bench-send.mjs` (seeds 1,500 leads / 6,000 emails in a rolled-back transaction). Draft re-check dry run: `node scripts/db/recheck-dryrun.mjs`.
+
 ## At the P5 switch
 
 - **Type these in again in Settings:** the Gemini key, the service keys and the agent keys. They were removed from the export and never go into the database from it.
