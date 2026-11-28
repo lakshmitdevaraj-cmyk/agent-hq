@@ -1982,6 +1982,28 @@ async function sqlFormCase(action: string, params: unknown) {
   }
 }
 
+// P2 chunk 11: activity, paused jobs, analytics, data moves and Lakshmi's approvals on Postgres (only when DATA_BACKEND=sql).
+// approval.create is master only (lib/sql/access.ts): the Alcance client's send and markReady need one.
+async function sqlRestCase(action: string, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>) {
+  const [{ withTx }, { CampaignError }, activity, jobs, analytics, data, approvals] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"),
+    import("./lib/sql/activity.ts"), import("./lib/sql/jobs.ts"), import("./lib/sql/analytics.ts"), import("./lib/sql/data.ts"), import("./lib/alcance/approvals.ts")]);
+  const p = (params ?? {}) as Record<string, unknown>;
+  const agentId = identity?.kind === "agent" ? identity.agent_id : null;
+  try {
+    return ok(await withTx(async (tx) => {
+      if ((activity.ACTIVITY_ACTIONS as string[]).includes(action)) return activity.runActivityAction(tx, action as import("./lib/sql/activity.ts").ActivityAction, p, { newId: () => nanoid(12), agentId });
+      if ((jobs.JOB_ACTIONS as string[]).includes(action)) return jobs.runJobAction(tx, action as import("./lib/sql/jobs.ts").JobAction, p, {});
+      if ((analytics.ANALYTICS_ACTIONS as string[]).includes(action)) return analytics.runAnalyticsAction(tx, action as never, p);
+      if ((data.DATA_ACTIONS as string[]).includes(action)) return data.runDataAction(tx, action as import("./lib/sql/data.ts").DataAction, p);
+      if (action === "approval.create") return approvals.createApproval(tx, p, { newId: () => nanoid(12), approvedBy: identity?.kind === "master" ? "lakshmi" : String(agentId) });
+      throw new CampaignError(400, `Unknown action: ${action}`);
+    }));
+  } catch (e) {
+    if (e instanceof CampaignError) return e.code ? failCode(e.status, e.message, e.code) : fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3246,6 +3268,7 @@ export const handler: Handler = async (event) => {
       // Secrets (service keys, master key, agent keys) and webhook event logs are not in
       // MOVABLE_STORES on purpose; they are never exported.
       case "data.counts": {
+        if (sqlBackend()) return sqlRestCase("data.counts", params, identity); // P2 chunk 11
         if (identity?.kind !== "master") return fail(403, "Only the master key can use data move");
         const counts: Record<string, number> = {};
         for (const name of MOVABLE_STORES) {
@@ -3255,6 +3278,7 @@ export const handler: Handler = async (event) => {
         return ok({ counts });
       }
       case "data.export": {
+        if (sqlBackend()) return sqlRestCase("data.export", params, identity); // P2 chunk 11
         if (identity?.kind !== "master") return fail(403, "Only the master key can use data move");
         const { store: name, cursor } = params as { store?: string; cursor?: string | null };
         if (!name || !MOVABLE_STORES.includes(name)) return fail(400, "unknown store");
@@ -3277,6 +3301,7 @@ export const handler: Handler = async (event) => {
         return ok({ store: name, records, next_cursor: done ? null : last, total: keys.length });
       }
       case "data.import": {
+        if (sqlBackend()) return sqlRestCase("data.import", params, identity); // P2 chunk 11
         if (identity?.kind !== "master") return fail(403, "Only the master key can use data move");
         const { store: name, records, overwrite } = params as {
           store?: string;
@@ -3401,6 +3426,7 @@ export const handler: Handler = async (event) => {
 
       // ── ACTIVITY ──────────────────────────────────────────────
       case "activity.log": {
+        if (sqlBackend()) return sqlRestCase("activity.log", params, identity); // P2 chunk 11
         const { agent_id, category, summary, details } = params as Record<string, unknown>;
         if (!summary || !category) return fail(400, "category and summary required");
         await logActivity({
@@ -3412,6 +3438,7 @@ export const handler: Handler = async (event) => {
         return ok({ logged: true });
       }
       case "activity.list": {
+        if (sqlBackend()) return sqlRestCase("activity.list", params, identity); // P2 chunk 11
         const { limit = 100 } = params as Record<string, number>;
         const rows = await listJson<{ created_at: string }>(store(ACTIVITY));
         rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
@@ -4075,6 +4102,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.job.resume": {
+        if (sqlBackend()) return sqlRestCase("outreach.job.resume", params, identity); // P2 chunk 11
         // Continues a job that paused on Gemini's daily limit. Returns what the page must send to the background
         // function. Drafts already made are never made twice (planning skips leads that have a draft).
         const { campaign_id, force } = params as Record<string, unknown>;
@@ -4095,6 +4123,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.job.resume_due": {
+        if (sqlBackend()) return sqlRestCase("outreach.job.resume_due", params, identity); // P2 chunk 11
         // Paused jobs whose reset time has passed (the dashboard calls this when it is opened and resumes them).
         const ss = store(OUTREACH_STATE);
         const { blobs } = await ss.list();
@@ -5885,6 +5914,7 @@ export const handler: Handler = async (event) => {
 
       // ── ANALYTICS ─────────────────────────────────────────────────
       case "outreach.analytics.summary": {
+        if (sqlBackend()) return sqlRestCase("outreach.analytics.summary", params, identity); // P2 chunk 11
         // Derives counters from the emails store instead of the campaign's
         // cached counters — the cache is race-prone when AgentMail fires
         // sent+delivered webhooks within the same millisecond. Reading
@@ -6138,6 +6168,11 @@ export const handler: Handler = async (event) => {
       case "links.build":
         // P2 chunk 10: new actions (A2 forms, A3 links library), SQL only. On Blobs they answer as the default case does today.
         if (sqlBackend()) return sqlFormCase(action, params);
+        return fail(400, `Unknown action: ${action}`);
+
+      case "approval.create":
+        // P2 chunk 11: new action (C1: Lakshmi's say-so for a send plan or for marking drafts ready), SQL only, master key only.
+        if (sqlBackend()) return sqlRestCase(action, params, identity);
         return fail(400, `Unknown action: ${action}`);
 
       case "outreach.leads.add":

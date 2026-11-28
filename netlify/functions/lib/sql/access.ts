@@ -45,6 +45,7 @@ const MASTER = new Set([
   "agent.revoke", "agent.set_scope", "webhook.create", "webhook.create_typed", "webhook.delete", "webhook.set_secret", "outreach.settings.set",
   "outreach.campaign.delete", "outreach.leads.delete", "voice.config.get", "voice.config.set", "voice.config.clear",
   "form.delete", // chunk 10: a form and its personal links go
+  "approval.create", // chunk 11: only her own key can approve a send plan or mark drafts ready
 ]);
 
 export function actionClass(action: string): ActionClass {

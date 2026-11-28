@@ -835,3 +835,68 @@ describe("DATA_BACKEND switch, chunk 10 actions (forms, links and clicks)", { sk
     assert.ok(sockets > 0, "a database socket was refused");
   });
 });
+
+const BASE11 = "8ba205f"; // the last commit before chunk 11 touched command.ts
+describe("DATA_BACKEND switch, chunk 11 actions (activity, jobs, analytics, data moves, approvals)", { skip }, () => {
+  let openOld;
+  before(async () => { ({ openOld } = await import("../equiv/old-path.mjs")); });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+  const STORES11 = ["agent-hq-activity", "agent-hq-outreach-campaign-state", "agent-hq-forms"];
+  const settle = (v) => JSON.parse(JSON.stringify(v)
+    .replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - Date.now()) < 3_600_000 ? "<now>" : t))
+    .replace(/(?<=\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, (s) => (/[0-9]/.test(s) && /[A-Za-z]/.test(s) ? "<id>" : s))
+    .replace(/(?<=\\?"[^"\\]*-)[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>"));
+  async function run11(commit) {
+    const old = await openOld(EXPORT, commit ? { commit } : {});
+    const answers = [];
+    for (const [action, params] of [
+      ["activity.log", { category: "system", summary: "Made-up switch entry", details: { n: 1 } }],
+      ["activity.list", { limit: 5 }],
+      ["outreach.job.resume_due", {}],
+      ["outreach.job.resume", { campaign_id: "no-such-campaign" }],
+      ["outreach.analytics.summary", {}],
+      ["data.counts", {}],
+      ["data.export", { store: "agent-hq-forms" }],
+      ["data.import", { store: "agent-hq-forms", records: [{ key: "switch-11", value: JSON.stringify({ slug: "switch-11", title: "Made-up" }) }] }],
+      ["approval.create", { kind: "send_plan", email_ids: ["x"] }],
+    ]) {
+      const r = await old.call(action, params);
+      answers.push({ action, status: r.status, body: JSON.stringify(r.body).length > 4000 ? { size: JSON.stringify(r.body).length, ok: r.body.ok } : r.body });
+    }
+    const stores = Object.fromEntries(STORES11.map((name) => [name, Object.fromEntries([...storeMap(old.blobs, name)].map(([k, v]) => [settle(k), settle(JSON.parse(v))]))]));
+    return { answers: answers.map(settle), stores };
+  }
+
+  test("unset: the chunk 11 actions answer and write exactly as before chunk 11; approval.create is unknown on Blobs", async () => {
+    const was = await run11(BASE11);
+    const now = await run11(null);
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i]);
+      assert.ok(r.same, `${w.action}\n${describeDiff(r).slice(0, 120)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r).slice(0, 120)}`);
+    }
+    assert.deepEqual(now.answers.at(-1).body, { ok: false, error: "Unknown action: approval.create" });
+    console.log(`switch unset (chunk 11): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 11`);
+  });
+
+  test("sql: the chunk 11 actions go to the database (after the key check), nothing else is reached for", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    for (const [action, params] of [["activity.list", {}], ["outreach.job.resume_due", {}], ["outreach.analytics.summary", {}], ["data.counts", {}], ["approval.create", { kind: "send_plan", email_ids: ["x"] }]]) {
+      const old = await openOld(EXPORT);
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { outcome = JSON.stringify(await old.call(action, params)); } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
+      const tried = blockedCalls.slice(before);
+      if (tried.some((c) => c.what === "connect") || /network access is blocked \(connect\)/.test(outcome)) sockets++;
+      assert.ok(!tried.some((c) => c.what === "fetch"), "no fetch");
+    }
+    assert.ok(sockets > 0, "a database socket was refused");
+  });
+});
