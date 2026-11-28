@@ -277,4 +277,23 @@ Decisions I took (to review): new agent keys default to drafts; "send" also cove
 
 **For P5:** make the master key again (`auth.bootstrap`) and each agent key (`agent.register` with a scope). Decide whether service keys are encrypted at rest (needs a Netlify secret). **For chunk 12 (X2):** Voice has no Gemini key on the SQL path.
 
-**Run D is finished. Next: run E (chunks 10 and 11)**, its own session.
+**Run D is finished.**
+
+## Run E (28 Nov 2026): chunk 10, chunk 11
+
+Testing this run: every database test on InstaBox `shiftforge` (changed files copied with `instabox push`, never committed just to test); `tsc -b` on the Mac; the full suite once at the end on InstaBox. `instabox pull` hangs from this Mac: logs come back as text through `instabox exec` (bundle data URLs cut).
+
+## Chunk 10: Forms, links and clicks (run E)
+
+Plan `p2-reports/chunk10-plan.md`, report `p2-reports/chunk10-report.md`, failing run `p2-reports/chunk10-failing-run.txt`.
+
+| Step | Commit |
+|---|---|
+| 1–4. Tests first; migration **0017** (applied to `dev`); `lib/sql/clicks.ts` (R7), `forms.ts` (A2), `links.ts` (A3); follow_ups refreshed after send / reply / bounce / complaint / form post; `command.ts` 29 added / 0 removed; `form-submit.ts` and `track-click.ts` one guarded line each | `2e5fce7` |
+| 5. README, handoff, report | (this commit) |
+
+Migrations 0001–0017 on `dev`. Shown refused on `dev` through the real handlers: a forged click token and an old token to another site (404, no redirect); a 6th form post in 10 min (429). Chunk 10's tests: 95/95 in 4 min 46 s on InstaBox.
+
+Decisions I took (to review): R7 is a random token kept in `click_links` (no HMAC: the destination never comes from the token); "interested" is `leads.data.interested` and the lead is stopped as `replied`; spam-trap posts look like a success; rate limits 5/10 min per address and form, 20/h per address, 3/day per link; old April forms answer until chunk 12.
+
+**For P3:** the page at `/form/<slug>?l=<token>` (and a `netlify.toml` redirect, with approval). **For chunk 12 (X8):** the old April forms and their one submission.

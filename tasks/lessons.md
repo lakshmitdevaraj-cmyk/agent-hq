@@ -61,3 +61,7 @@
 - `compare()` paths are written without `$` (`body.data`, not `$.body.data`); only the root is `"$"`. A wrong `unordered` path silently does nothing, and a test passes only while the order happens to match. Check an option works by seeing it change a result.
 - Moving the key check into the database changes every SQL-mode handler test: they now reach the database first, so "answers 501 before any database call" stops being true. Tests that run the real handler need a key there: the harness registers a random key per run (never a fixed key in a public repo) and removes it on exit.
 - A failing assertion can print a whole old answer, with real business names, into a saved report. Cut assertion messages to a few characters wherever they quote an answer from the export.
+
+## 28 Nov (P2 run E)
+- The context-mode hook rewrites every Agent call: re-send the hook's version exactly, and it drops `run_in_background`, so a background call only goes through when re-sent without it. Three tries, then do the work in the main session.
+- `jsonb` stores object keys in its own order: compare JSON from Postgres with sorted keys, and never let an equivalence assertion print a real submission or lead.

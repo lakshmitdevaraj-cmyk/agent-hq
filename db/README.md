@@ -156,6 +156,14 @@ Tests: `social-sql`, `followups-sql`, `social-equiv`, `backend-switch` (chunk 8 
 
 Tests: `access-sql` (including the real handler on `dev`: a read-only key sending → 403, revoked → 401, unknown → 401), `settings-sql`, `backend-switch` (chunk 9 part: `ebbd8b0`).
 
+**Chunk 10, `lib/sql/clicks.ts`, `lib/sql/forms.ts`, `lib/sql/links.ts`, migration 0017:** forms, the links library and click links.
+- **R7:** at send each http(s) link gets a `click_links` row (random 22-character token) and becomes `/t/<token>`. `track-click.ts` (one guarded line) reads the destination from `click_links`; a token it does not know, or an old base64 token, gets 404 and no `Location` (no open redirect). No IP is kept on a click.
+- **A2:** `lead_forms` (form builder), `form_links` (one personal link per lead and form: `/form/<slug>?l=<token>`; today the API route `/api/form/<slug>?l=<token>`, the page is P3), `form_submissions`. `form-submit.ts` (one guarded line): 10 KB limit, spam trap `_trap` (stored as spam, answered like a success), rate limit 5 per 10 min per address and form, 20 an hour per address, 3 a day per personal link (the address only as a SHA-256), only the form's own fields kept. A valid personal link marks the lead interested (`data.interested`), stops it (`replied`, "form submission", never over do-not-contact), refreshes its follow-ups and adds an outbox row `crm.form_submitted`. The old April forms (`forms`, `submissions`) still answer and list with `legacy: true` until chunk 12 (X8).
+- **A3:** `link_library` (name, type, link, niche, note, utm); `links.build` adds UTM tags (source alcance, medium email, the campaign's name) and keeps tags already in the link.
+- **follow_ups** is refreshed for the lead after each send, reply, opt-out, bounce report, bounce or complaint event and form post (`refreshForLeads` in `followups.ts`); `followups.list` still rewrites the whole table.
+
+Tests: `clicks-sql` and `forms-sql` (both also through the real handlers on `dev`), `links-sql`, `followups-refresh`, `forms-equiv`, `backend-switch` (chunk 10 part: `59c97d5`).
+
 **Running one area while building:** run that area's files only, e.g. `node --test --test-concurrency=1 scripts/db/test/{webhooks-sql,replies-sql,replies-equiv}.test.mjs`, and the switch proof for one chunk with `--test-name-pattern="chunk 7" scripts/db/test/backend-switch.test.mjs`. The full suite runs once at the end of the run. The equivalence harness has its own pool (8 connections, `EQUIV_POOL` to change) and `pmap` for independent calls side by side.
 
 ## At the P5 switch
@@ -170,7 +178,7 @@ No foreign keys yet, because some rows point to things that no longer exist. Onc
 - `campaign_jobs.campaign_id`, `leads.campaign_id`, `emails.campaign_id` to `campaigns`
 - `emails.lead_id`, `social_messages.lead_id`, `touches.lead_id`, `follow_up_state.lead_id`, `follow_ups.lead_id`, `lead_social_links.lead_id`, `lead_facts.lead_id`, `lead_screenshots.lead_id`, `leads.merged_into` to `leads`
 - `replies.campaign_id`, `replies.lead_id`, `replies.original_email_id`, `clicks.email_id`, `follow_ups.email_id` to `campaigns`, `leads` and `emails`
-- `submissions.form_slug` to `forms`, `webhook_events.webhook_id` to `webhooks`
+- `submissions.form_slug` to `forms`, `webhook_events.webhook_id` to `webhooks`, `form_links.lead_id` and `form_submissions.lead_id` to `leads`, `click_links.email_id` to `emails`
 
 **Still blocked (27 Nov 2026, P2 chunk 1):** the orphans in `p1-reports/orphans-and-clashes.md` are still in `dev`: 10 leads and 12 emails whose campaign is gone, 4 emails whose lead is gone, 16 replies with no campaign and 14 with no lead, and 6 contact entries for a gone campaign. Most are test rows or bounce and system reports. Each needs a decision (delete, keep and null the link, or a placeholder campaign) before the keys can be added.
 
