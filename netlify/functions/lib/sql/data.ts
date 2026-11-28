@@ -1,6 +1,6 @@
 // P2 chunk 11: data.counts / data.export / data.import on Postgres (used when DATA_BACKEND=sql; master key only, as today).
 //   - The old actions copy whole Blobs stores for a site move. On SQL the names are tables, from an allow-list.
-//   - Never exported: service_config (service keys), access_keys (key hashes), config, voice_config (the old key copies),
+//   - Never exported: service_config (service keys), access_keys (key hashes), config, voice_config (the old key copy; the table is gone since chunk 12),
 //     form_links and click_links (link tokens), approvals (her say-so). Webhooks are exported without their signing secret.
 //   - data.export pages by primary key (keyset), at most 500 rows a page, as {key, value} like the old answer.
 //   - data.import is refused (409 use_p5_import): the P5 import runs from scripts/db with a fresh export, never through
@@ -16,7 +16,7 @@ export const DATA_ACTIONS: DataAction[] = ["data.counts", "data.export", "data.i
 const EXPORTABLE: Record<string, string[]> = {
   campaigns: ["id"], campaign_jobs: ["campaign_id", "kind"], leads: ["id"], emails: ["id"], social_messages: ["id"], touches: ["id"],
   follow_up_state: ["lead_id", "channel"], follow_ups: ["lead_id", "channel"], replies: ["id"], clicks: ["id"], contacts: ["blob_key"],
-  lead_social_links: ["lead_id", "kind"], lead_facts: ["id"], activity: ["id"], forms: ["slug"], submissions: ["id"], webhooks: ["id"],
+  lead_social_links: ["lead_id", "kind"], lead_facts: ["id"], activity: ["id"], webhooks: ["id"], // forms / submissions dropped in chunk 12 (X8)
   webhook_events: ["id"], outreach_settings: ["key"], agents: ["id"], lead_forms: ["slug"], form_submissions: ["id"], link_library: ["id"],
 };
 const fail = (status: number, message: string, code: string): never => { throw new CampaignError(status, message, { code }); };

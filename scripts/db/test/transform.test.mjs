@@ -90,6 +90,19 @@ test("secrets marked at export never reach a row; other fields are kept", () => 
   assert.deepEqual(out.tables.webhook_events[0].headers, { "content-type": "application/json" });
 });
 
+test("X1/X2/X3/X8 stores are archived, not imported: no table, only a count, no secret", () => {
+  const out = run({
+    "agent-hq-tasks": [rec("t1", { id: "t1", title: "Made-up task" })],
+    "agent-hq-pages": [rec("p1", { slug: "p1", title: "Made-up page" })],
+    "agent-hq-voice-config": [rec("config", { gemini_key: "[redacted]", updated_at: "2026-11-01T00:00:00Z" })],
+    "agent-hq-forms": [rec("f1", { slug: "f1", title: "Made-up form" })],
+    "agent-hq-submissions": [rec("f1/s1", { id: "s1", form_slug: "f1", received_at: "2026-11-01T00:00:00Z" })],
+  });
+  for (const t of ["tasks", "forms", "submissions", "pages", "voice_config", "voice_sessions", "voice_invitations"]) assert.ok(!(t in out.tables), t);
+  assert.deepEqual(out.report.removed_stores, { tasks: 1, forms: 1, submissions: 1, pages: 1, "voice-config": 1, "voice-sessions": 0, "voice-invitations": 0 });
+  assert.ok(!JSON.stringify(out).includes("[redacted]"));
+});
+
 test("lead basics: keys, source, country, time zone, city, unknown fields kept", () => {
   const out = run({ "agent-hq-outreach-leads": [
     lead("a", { email: "Owner@Example.com", website: "https://www.Acme.com/x", address: "1 Main St, El Paso, TX 79901, United States", raw: { emails: ["owner@example.com"], city: "El Paso" }, weird_field: 7 }),

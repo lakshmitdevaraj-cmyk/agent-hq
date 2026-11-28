@@ -32,12 +32,13 @@ import {
   websiteFacts, type SiteFact, type Page, type Owner,
 } from "./lib/sitecheck";
 import { pickAngle, pickOpeningStyle, leadDetails, detailPhrase, cityOf, checkModelDraft, normalizeFactUsed, subjectRetryHint, callsOnly, copiedFrom, type AngleCode, type ModelDraft, type Fact } from "./lib/angle";
+import { removedAction } from "./lib/removed"; // P2 chunk 12: X1, X2, X3
 import { DRAFT_SYSTEM_PROMPT, OPENING_STYLE_HELP, REVIEW_SYSTEM_PROMPT, EXAMPLE_BODIES, SOCIAL_SYSTEM_PROMPT, SOCIAL_REVIEW_SYSTEM_PROMPT } from "./lib/prompts";
 import { nextPacificMidnight, resumeAtFor, fakeQuotaHit, istText, newStats, type CallStats } from "./lib/gemini-pause";
 import { evidenceFor, codeReview, unbackedFactClaims, factsForReviewer, parseVerdict, type ReviewLead, type ReviewStatus } from "./lib/review";
 import { BROWSER_ACTOR, BROWSER_DEFAULT_CAP, browserInput, estimateBrowserCost, pagesByLead, screenshotsByLead, screenshotErrorsByLead, logTail } from "./lib/browsercheck";
 import { loadContacts, contactBlock, noteSent, noteBounced, type Contacts } from "./lib/contacts";
-import { isListedInbound, listedToMessage, isHealthCheckMessage, isBounceReport, isOwnAddress, isSystemReply, isTestReply, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, replyBodyText, type ListedMessage } from "./lib/replies";
+import { isListedInbound, listedToMessage, isHealthCheckMessage, HEALTH_CHECK_SUBJECT, isBounceReport, isOwnAddress, isSystemReply, isTestReply, flagFor, ownReplyEmailIds, dryRunWebhookPatch, listMessagesQuery, replyBodyText, type ListedMessage } from "./lib/replies";
 import { ingestInboundReply, ownAddressList } from "./lib/inbound";
 import { debugLog } from "./lib/debuglog";
 import { possibleTypoDomain, domainLeadGenFlag, categoryFitFlag } from "./lib/leadflags";
@@ -99,7 +100,7 @@ const OUTREACH_EMAILS = "agent-hq-outreach-emails"; // key: `<campaign_id>/<emai
 const OUTREACH_REPLIES = "agent-hq-outreach-replies"; // inbound replies from AgentMail
 const OUTREACH_SETTINGS = "agent-hq-outreach-settings"; // key: "settings" → { postal_address }
 
-// Service keys we onboard. `gemini` doubles as the voice key — reads through VOICE_CONFIG for back-compat.
+// Service keys we onboard. A Gemini key left in the old Voice store moves to Settings on first read (X2, chunk 12).
 type ServiceKey = "gemini" | "apify" | "agentmail" | "ai2"; // ai2 = the optional second (OpenAI-compatible) AI provider
 const SERVICE_KEYS: ServiceKey[] = ["gemini", "apify", "agentmail", "ai2"];
 
@@ -115,23 +116,25 @@ function maskKey(raw: string): string {
 
 async function readServiceKey(name: ServiceKey): Promise<string | null> {
   if (sqlBackend()) return sqlStore((tx, st) => st.readServiceKey(tx, name)); // P2 chunk 9 (R3): one place, never the Voice copy
-  if (name === "gemini") {
-    // Back-compat: voice wrote the Gemini key to VOICE_CONFIG first.
-    const voice = await readJson<{ gemini_key?: string }>(store(VOICE_CONFIG), "config");
-    if (voice?.gemini_key) return voice.gemini_key;
-  }
   const rec = await readJson<ServiceConfigRecord>(store(SERVICE_CONFIG), name);
-  return rec?.key ?? null;
+  if (rec?.key) return rec.key;
+  if (name === "gemini") return moveVoiceGeminiKey(); // P2 chunk 12 (X2): Voice is gone; its copy of the key moves to Settings once
+  return null;
+}
+
+/** X2: a Gemini key kept only in the old Voice store is moved to Settings (service config), then the Voice copy is deleted. */
+async function moveVoiceGeminiKey(): Promise<string | null> {
+  const voice = await readJson<{ gemini_key?: string; updated_at?: string }>(store(VOICE_CONFIG), "config");
+  if (!voice?.gemini_key) return null;
+  await writeJson<ServiceConfigRecord>(store(SERVICE_CONFIG), "gemini", { key: voice.gemini_key, updated_at: voice.updated_at ?? new Date().toISOString() });
+  await store(VOICE_CONFIG).delete("config");
+  return voice.gemini_key;
 }
 
 async function writeServiceKey(name: ServiceKey, key: string, test?: ServiceConfigRecord["last_test"]): Promise<void> {
   if (sqlBackend()) return sqlStore((tx, st) => st.writeServiceKey(tx, name, key, test)); // P2 chunk 9 (R3): no Voice copy
   const rec: ServiceConfigRecord = { key, updated_at: new Date().toISOString(), last_test: test };
   await writeJson<ServiceConfigRecord>(store(SERVICE_CONFIG), name, rec);
-  // Keep voice store in sync when the gemini key is set, so voice.config.get still works.
-  if (name === "gemini") {
-    await writeJson(store(VOICE_CONFIG), "config", { gemini_key: key, updated_at: rec.updated_at });
-  }
 }
 
 // ── Gemini access: model setting, retries, error classes ───────────────
@@ -613,7 +616,7 @@ async function ensureInboxDisplayName(key: string, inboxId: string, desired: str
 }
 
 // Rewrite every <a href="..."> in the HTML body to route through the
-// ShiftForge HQ click tracker. The tracker function lives at /t/<token> and
+// Alcance click tracker. The tracker function lives at /t/<token> and
 // 302s to the original URL after logging the click.
 function rewriteLinksForTracking(html: string, baseUrl: string, campaignId: string, leadId: string, emailId: string): string {
   return html.replace(/href="([^"]+)"/gi, (full, rawUrl) => {
@@ -807,7 +810,7 @@ async function generateFirstEmail(
     `CITY: ${cityOf(lead.address) || "(unknown)"}`,
     `TRADE: ${trade}`,
     plan.facts.length ? `FACTS YOU MAY USE:\n${plan.facts.map((f) => `${f.n}. ${f.text}`).join("\n")}` : "FACTS YOU MAY USE:\n(none: write without any claim about their business)",
-    detailLine ? `TRUE DETAILS ABOUT THEM (the opening MUST use one of these, and different emails use different ones; this campaign has ${ctx.draftsSoFar} so far, so use this one in the opening, in your own words, for example "${detailPhrase(mustOpen, shortName)}"):\n${detailLine}\nSUBJECT: 2-6 words, written like a person (for example "Weekend calls at Tri City" or "Website enquiries at Absolute Value AC"); name the business or one detail; never the "<name>: <detail>" shape; make it different from the subjects already used` : null,
+    detailLine ? `TRUE DETAILS ABOUT THEM (the opening MUST use one of these, and different emails use different ones; this campaign has ${ctx.draftsSoFar} so far, so use this one in the opening, in your own words, for example "${detailPhrase(mustOpen, shortName)}"):\n${detailLine}\nSUBJECT: 2-6 words, written like a person (for example "Weekend calls at Bramblecrest" or "Website enquiries at Quillfield Comfort AC"); name the business or one detail; never the "<name>: <detail>" shape; make it different from the subjects already used` : null,
     `ANGLE: ${plan.angle.line}`,
     `OPENING STYLE: ${style} - ${OPENING_STYLE_HELP[style]}`,
     `OFFER (background only, rewrite in your own words, tied to the angle, never paste it): "${offer}"`,
@@ -3235,6 +3238,7 @@ export const handler: Handler = async (event) => {
     if (!PUBLIC_ACTIONS.has(action) && !identity) {
       return fail(401, "Invalid or missing X-API-Key");
     }
+    { const gone = removedAction(action); if (gone) return failCode(gone.status, gone.error, gone.code, { feature: gone.feature, scope_id: gone.scope_id }); } // P2 chunk 12: removed on both backends
     // P2 chunk 9 (R6): on DATA_BACKEND=sql a key may only run what its scope covers (read only / drafts / can send; master: all).
     if (sqlBackend()) { const no = (await import("./lib/sql/access.ts")).scopeRefusal(identity as import("./lib/sql/access.ts").Identity, action, (params ?? {}) as Record<string, unknown>); if (no) return failCode(no.status, no.message, no.code); }
 
@@ -3378,52 +3382,6 @@ export const handler: Handler = async (event) => {
         return ok({ id, deleted: true });
       }
 
-      // ── TASKS ──────────────────────────────────────────────
-      case "task.create": {
-        const { title, description, assignee_id, priority = "medium" } = params as Record<string, string>;
-        if (!title) return fail(400, "title required");
-        const id = nanoid(10);
-        const now = new Date().toISOString();
-        const task = {
-          id,
-          title,
-          description: description ?? null,
-          status: "todo",
-          assignee_id: assignee_id ?? null,
-          priority,
-          created_at: now,
-          updated_at: now,
-        };
-        await writeJson(store(TASKS), id, task);
-        await logActivity({ agent_id: assignee_id ?? null, category: "task", summary: `Task created: "${title}"` });
-        return ok(task);
-      }
-      case "task.list": {
-        const tasks = await listJson(store(TASKS));
-        return ok(tasks);
-      }
-      case "task.move": {
-        const { id, status } = params as Record<string, string>;
-        if (!id || !status) return fail(400, "id and status required");
-        const s = store(TASKS);
-        const existing = await readJson<Record<string, unknown>>(s, id);
-        if (!existing) return fail(404, "task not found");
-        const updated = { ...existing, status, updated_at: new Date().toISOString() };
-        await writeJson(s, id, updated);
-        await logActivity({
-          agent_id: (existing.assignee_id as string) ?? null,
-          category: "task",
-          summary: `Task "${existing.title}" → ${status}`,
-        });
-        return ok(updated);
-      }
-      case "task.delete": {
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        await store(TASKS).delete(id);
-        return ok({ id, deleted: true });
-      }
-
       // ── ACTIVITY ──────────────────────────────────────────────
       case "activity.log": {
         if (sqlBackend()) return sqlRestCase("activity.log", params, identity); // P2 chunk 11
@@ -3510,36 +3468,6 @@ export const handler: Handler = async (event) => {
         return ok(await listJson(store(WEBHOOK_EVENTS), `${id}/`));
       }
 
-      // ── VOICE CONFIG ──────────────────────────────────────────────
-      case "voice.config.check": {
-        const cfg = await readJson<{ gemini_key?: string }>(store(VOICE_CONFIG), "config");
-        return ok({ configured: !!cfg?.gemini_key });
-      }
-      case "voice.config.get": {
-        // Requires master-key auth so the Gemini key can reach the browser
-        // WebRTC client that needs it to speak directly to Gemini Live.
-        if (identity?.kind !== "master") {
-          return fail(403, "voice.config.get requires the master API key");
-        }
-        const cfg = await readJson<{ gemini_key?: string }>(store(VOICE_CONFIG), "config");
-        if (!cfg?.gemini_key) return fail(404, "No Gemini key stored yet");
-        return ok({ gemini_key: cfg.gemini_key });
-      }
-      case "voice.config.set": {
-        const { gemini_key } = params as Record<string, string>;
-        if (!gemini_key || !gemini_key.trim()) return fail(400, "gemini_key required");
-        await writeJson(store(VOICE_CONFIG), "config", {
-          gemini_key: gemini_key.trim(),
-          updated_at: new Date().toISOString(),
-        });
-        await logActivity({ agent_id: null, category: "system", summary: "Voice: Gemini key configured" });
-        return ok({ configured: true });
-      }
-      case "voice.config.clear": {
-        await store(VOICE_CONFIG).delete("config");
-        return ok({ cleared: true });
-      }
-
       // ── SERVICE CONFIG (gemini / apify / agentmail) ───────────────
       // Used by the Onboarding wizard and /settings page. Each service
       // is tested against its own auth endpoint before we save, so by
@@ -3615,180 +3543,6 @@ export const handler: Handler = async (event) => {
         await store(SERVICE_CONFIG).delete(service as string);
         if (service === "gemini") await store(VOICE_CONFIG).delete("config");
         return ok({ cleared: true });
-      }
-
-      // ── VOICE SESSIONS (past conversation transcripts) ────────────
-      case "voice.session.save": {
-        const { started_at, ended_at, transcripts, tools, invitation_id } = params as Record<string, unknown>;
-        if (!started_at || !ended_at || !Array.isArray(transcripts)) {
-          return fail(400, "started_at, ended_at, transcripts required");
-        }
-        const id = nanoid(12);
-        const session = {
-          id,
-          started_at,
-          ended_at,
-          transcripts,
-          tools: Array.isArray(tools) ? tools : [],
-          invitation_id: invitation_id ?? null,
-          duration_seconds: Math.round(
-            (new Date(ended_at as string).getTime() - new Date(started_at as string).getTime()) / 1000,
-          ),
-        };
-        await writeJson(store(VOICE_SESSIONS), `${started_at}-${id}`, session);
-        const firstUser = (transcripts as Array<{ role: string; text: string }>).find(
-          (t) => t.role === "user",
-        );
-        await logActivity({
-          agent_id: null,
-          category: "system",
-          summary: `Voice session (${session.duration_seconds}s): ${firstUser?.text?.slice(0, 80) ?? "no user input"}`,
-          details: { session_id: id },
-        });
-        return ok(session);
-      }
-      case "voice.session.list": {
-        const { limit = 50 } = params as Record<string, number>;
-        const all = await listJson<{ started_at: string }>(store(VOICE_SESSIONS));
-        all.sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
-        return ok(all.slice(0, limit));
-      }
-      case "voice.session.get": {
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        const all = await listJson<{ id: string }>(store(VOICE_SESSIONS));
-        const found = all.find((s) => s.id === id);
-        if (!found) return fail(404, "session not found");
-        return ok(found);
-      }
-      case "voice.session.delete": {
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        const s = store(VOICE_SESSIONS);
-        const { blobs } = await s.list();
-        for (const b of blobs) {
-          const record = await readJson<{ id: string }>(s, b.key);
-          if (record?.id === id) {
-            await s.delete(b.key);
-            return ok({ id, deleted: true });
-          }
-        }
-        return fail(404, "session not found");
-      }
-
-      // ── VOICE INVITATIONS (agent → user "ring" requests) ────────────
-      case "voice.invitation.create": {
-        const { agent_name, reason, context } = params as Record<string, string>;
-        if (!reason) return fail(400, "reason required");
-        const id = nanoid(12);
-        const invitation = {
-          id,
-          agent_name: agent_name ?? (identity?.kind === "agent" ? identity.sign_in_name : "Unknown Agent"),
-          agent_id: identity?.kind === "agent" ? identity.agent_id : null,
-          reason,
-          context: context ?? "",
-          status: "pending",
-          created_at: new Date().toISOString(),
-        };
-        await writeJson(store(VOICE_INVITATIONS), id, invitation);
-        await logActivity({
-          agent_id: invitation.agent_id,
-          category: "decision",
-          summary: `${invitation.agent_name} wants to talk: ${reason.slice(0, 80)}`,
-          details: { invitation_id: id },
-        });
-        return ok(invitation);
-      }
-      case "voice.invitation.list": {
-        const all = await listJson<{ created_at: string; status: string }>(store(VOICE_INVITATIONS));
-        const pending = all.filter((i) => i.status === "pending");
-        pending.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        return ok(pending);
-      }
-      case "voice.invitation.get": {
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        const record = await readJson(store(VOICE_INVITATIONS), id);
-        if (!record) return fail(404, "invitation not found");
-        return ok(record);
-      }
-      case "voice.invitation.dismiss": {
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        const s = store(VOICE_INVITATIONS);
-        const record = await readJson<Record<string, unknown>>(s, id);
-        if (!record) return fail(404, "invitation not found");
-        await writeJson(s, id, { ...record, status: "dismissed" });
-        return ok({ id, status: "dismissed" });
-      }
-      case "voice.invitation.accept": {
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        const s = store(VOICE_INVITATIONS);
-        const record = await readJson<Record<string, unknown>>(s, id);
-        if (!record) return fail(404, "invitation not found");
-        await writeJson(s, id, { ...record, status: "accepted", accepted_at: new Date().toISOString() });
-        return ok(record);
-      }
-
-      // ── PAGES (agent-generated landing pages served at /p/:slug) ──────
-      case "page.create": {
-        const { slug, title, html_body, theme = "dark-futuristic", linked_form_slug, accent } =
-          params as Record<string, string>;
-        if (!slug || !title || !html_body) return fail(400, "slug, title, html_body required");
-        const normSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
-        if (!normSlug) return fail(400, "slug resolved to empty after normalization");
-        const page = {
-          slug: normSlug,
-          title,
-          html_body,
-          theme,
-          linked_form_slug: linked_form_slug ?? null,
-          accent: accent ?? null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        await writeJson(store(PAGES), normSlug, page);
-        await logActivity({
-          agent_id: identity?.kind === "agent" ? identity.agent_id : null,
-          category: "content",
-          summary: `Landing page "${title}" published at /p/${normSlug}`,
-          details: { slug: normSlug, linked_form_slug: linked_form_slug ?? null },
-        });
-        return ok(page);
-      }
-      case "page.list": {
-        return ok(await listJson(store(PAGES)));
-      }
-      case "page.get": {
-        const { slug } = params as Record<string, string>;
-        if (!slug) return fail(400, "slug required");
-        const record = await readJson(store(PAGES), slug);
-        if (!record) return fail(404, "page not found");
-        return ok(record);
-      }
-      case "page.update": {
-        const { slug, ...patch } = params as Record<string, string>;
-        if (!slug) return fail(400, "slug required");
-        const s = store(PAGES);
-        const existing = await readJson<Record<string, unknown>>(s, slug);
-        if (!existing) return fail(404, "page not found");
-        const updated = { ...existing, ...patch, slug, updated_at: new Date().toISOString() };
-        await writeJson(s, slug, updated);
-        const changedKeys = Object.keys(patch).filter((k) => k !== "slug");
-        await logActivity({
-          agent_id: identity?.kind === "agent" ? identity.agent_id : null,
-          category: "content",
-          summary: `Landing page "${existing.title ?? slug}" updated (${changedKeys.join(", ") || "no fields"})`,
-          details: { slug, changed: changedKeys },
-        });
-        return ok(updated);
-      }
-      case "page.delete": {
-        const { slug } = params as Record<string, string>;
-        if (!slug) return fail(400, "slug required");
-        await store(PAGES).delete(slug);
-        return ok({ slug, deleted: true });
       }
 
       // ── OUTREACH (ICP → leads → emails → replies) ─────────────────
@@ -5870,48 +5624,6 @@ export const handler: Handler = async (event) => {
         return ok({ sent: true, message_id: resp.message_id ?? null, ...view, thread_id: resp.thread_id ?? view.thread_id });
       }
 
-      case "outreach.replies.convert_to_task": {
-        // Sugar action: read a reply, create a kanban task card with the
-        // quoted body. Ties the outreach loop back to the Tasks board.
-        const { id } = params as Record<string, string>;
-        if (!id) return fail(400, "id required");
-        const s = store(OUTREACH_REPLIES);
-        const { blobs } = await s.list();
-        let reply: Record<string, unknown> | null = null;
-        for (const b of blobs) {
-          const rec = await readJson<Record<string, unknown>>(s, b.key);
-          if ((rec as { id?: string } | null)?.id === id) {
-            reply = rec;
-            break;
-          }
-        }
-        if (!reply) return fail(404, "reply not found");
-        const taskId = nanoid(10);
-        const now = new Date().toISOString();
-        const from = (reply.from as string) ?? "unknown";
-        const preview = ((reply.text as string) ?? "").slice(0, 200);
-        const task = {
-          id: taskId,
-          title: `Reply from ${from}`,
-          description: `${(reply.subject as string) ?? "(no subject)"}\n\n${preview}\n\nCampaign: ${reply.campaign_id ?? "—"}`,
-          status: "needs_input",
-          assignee_id: null,
-          priority: "medium",
-          source: "outreach_reply",
-          reply_id: id,
-          created_at: now,
-          updated_at: now,
-        };
-        await writeJson(store(TASKS), taskId, task);
-        await logActivity({
-          agent_id: identity?.kind === "agent" ? identity.agent_id : null,
-          category: "decision",
-          summary: `Reply from ${from} converted to task`,
-          details: { task_id: taskId, reply_id: id },
-        });
-        return ok(task);
-      }
-
       // ── ANALYTICS ─────────────────────────────────────────────────
       case "outreach.analytics.summary": {
         if (sqlBackend()) return sqlRestCase("outreach.analytics.summary", params, identity); // P2 chunk 11
@@ -6092,7 +5804,7 @@ export const handler: Handler = async (event) => {
             method: "POST",
             body: JSON.stringify({
               to: [address],
-              subject: "ShiftForge HQ webhook health check",
+              subject: HEALTH_CHECK_SUBJECT, // D2: "Alcance webhook health check" (lib/replies.ts)
               text: "This is an automated test from your Alcance dashboard. If you see event counters tick on the Webhooks page, your integration is wired correctly.",
               html: "<p>This is an automated test from your Alcance dashboard.</p><p>If you see event counters tick on the Webhooks page, your integration is wired correctly.</p>",
             }),

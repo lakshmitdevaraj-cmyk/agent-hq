@@ -337,7 +337,7 @@ export function keywordDomain(host: string, city: string): boolean {
   const c = compact(city);
   const vocab = [...TRADE_WORDS, ...FILLER_TOKENS, ...(c.length >= 4 ? [c] : [])].filter((w) => w.length >= 2);
   // Split the name into trade words, filler and the town; digits are free. Whatever cannot be explained is the company name:
-  // up to 3 stray letters are tolerated, a real brand ("mock", "aquatrails") leaves more.
+  // up to 3 stray letters are tolerated, a real brand ("mock", "madeupbrand") leaves more.
   const n = label.length;
   const best: number[] = new Array(n + 1).fill(Infinity);
   best[0] = 0;
@@ -365,19 +365,19 @@ export function leadGenWebsite(pages: Page[], website: string | null | undefined
   let path = "";
   try { path = website ? new URL(website).pathname.replace(/\/+$/, "") : ""; } catch { /* ignore */ }
   const kw = host ? keywordDomain(host, ctx.city ?? "") : false;
-  // A page per city on a keyword domain ("hvac-repair-guys.com/Dickinson").
+  // A page per city on a keyword domain ("hvac-repair-madeup.com/Madeupton").
   if (host && path && /^\/[A-Za-z][A-Za-z-]{2,24}$/.test(path) && TRADE_WORDS.some((w) => compact(host).includes(w))) strong.push(`The address ${host}${path} is one city page on a keyword website (a directory page)`);
   if (host && THROWAWAY_TLD.test(host) && TRADE_WORDS.some((w) => compact(host).includes(w))) strong.push(`The website name "${host}" is a trade keyword on a throwaway domain ending`);
   // A free Google Sites page is a sign on its own (batch 8c); the review count decides hiding, not this.
   if (/(?:^|\.)sites\.google\.com$/i.test(host)) strong.push("The website is a free Google Sites page");
-  // A throwaway domain ending whose name has nothing to do with the business ("Oasis System HVAC" on brooksdaniel.site).
+  // A throwaway domain ending whose name has nothing to do with the business ("Made-up Comfort HVAC" on madeupperson.site).
   if (host && ctx.name && THROWAWAY_TLD.test(host)) {
     const label = compact(host.replace(/\.[a-z]{2,}$/i, ""));
     const words = (ctx.name ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !FILLER_TOKENS.includes(w) && !TRADE_WORDS.some((t) => w.includes(t)) && !["system", "systems", "heating", "cooling", "comfort", "mechanical", "home"].includes(w));
     if (words.length > 0 && !words.some((w) => label.includes(w)) && !TRADE_WORDS.some((t) => label.includes(t))) strong.push(`The website name "${host}" has nothing to do with the business name, on a throwaway domain ending`);
   }
   // An invalid security certificate is never a lead-gen sign (batch 8c), so ctx.tls_problem is deliberately ignored here.
-  // A web address that is only trade words and a town ("plumbingofcypress.com") names no company, however many reviews the listing has.
+  // A web address that is only trade words and a town ("plumbingofmadeupville.com") names no company, however many reviews the listing has.
   if (kw) strong.push(`The website name "${host}" is only trade words and the town, with no company name`);
   // A footer or pages that list many other companies as a network.
   if (host) {

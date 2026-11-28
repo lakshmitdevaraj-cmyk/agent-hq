@@ -48,7 +48,7 @@ export function possibleTypoDomain(email: string | null | undefined): { domain: 
 export type DomainLead = { website?: string | null; name?: string | null; address?: string | null; email?: string | null; phone?: string | null; reviews_count?: number | null; category?: string | null };
 
 /**
- * "plumbingofcypress.com", "911plumbingsugarland.com": an address made only of trade words and the town names no company.
+ * "plumbingofmadeupville.com", "911plumbingmadeuptown.com": an address made only of trade words and the town names no company.
  * Supporting signs are added to the evidence: a service@ address on that domain, a toll-free number, a throwaway ending.
  * A web address that holds a real company name ("mockplumbing.com") is not flagged. Evidence text or null.
  */

@@ -6,7 +6,7 @@
 //     SHA-256), only the form's own fields kept. With a valid personal link the lead is marked interested and stopped
 //     (stop_state replied, "form submission"; never over do-not-contact), its follow-ups are refreshed, and one outbox
 //     row goes to the CRM handoff (R12). The activity row never copies the form text.
-//   - The old April forms (`forms` / `submissions`) still answer and are listed with legacy: true until chunk 12 (X8).
+//   - The old April forms (`forms` / `submissions`) are gone (chunk 12, X8: archived, tables dropped in migration 0019).
 import { createHash } from "node:crypto";
 import { CampaignError } from "./campaigns.ts";
 import type { Q } from "./leads.ts";
@@ -61,10 +61,6 @@ function formRecord(r: Row, count?: number): Row {
     active: r.active !== false, created_at: iso(r.created_at), updated_at: iso(r.updated_at), legacy: false, ...(count !== undefined ? { submissions: count } : {}),
   };
 }
-function legacyRecord(r: Row): Row {
-  const d = (r.data ?? {}) as Row;
-  return { slug: r.slug, title: r.title ?? d.title, description: d.description ?? "", fields: d.fields ?? [], thank_you: "", campaign_id: null, active: true, created_at: iso(r.created_at ?? d.created_at), updated_at: null, legacy: true };
-}
 
 export async function runFormAction(q: Q, action: FormAction, p: Row, deps: FormDeps): Promise<unknown> {
   switch (action) {
@@ -74,7 +70,7 @@ export async function runFormAction(q: Q, action: FormAction, p: Row, deps: Form
       const title = str(p.title, 200, "title");
       if (!title) fail(400, "slug, title, fields required");
       const fields = normaliseFields(p.fields);
-      const [clash] = await q`select 1 as x from lead_forms where slug = ${slug} union all select 1 from forms where slug = ${slug} limit 1`;
+      const [clash] = await q`select 1 as x from lead_forms where slug = ${slug}`;
       if (clash) fail(409, `A form called "${slug}" already exists`, "slug_taken");
       const [r] = await q`insert into lead_forms ${q({
         slug, title, description: str(p.description, 2000, "description"), fields: q.json(fields as never), thank_you: str(p.thank_you, 1000, "thank_you"),
@@ -84,8 +80,7 @@ export async function runFormAction(q: Q, action: FormAction, p: Row, deps: Form
     }
     case "form.list": {
       const mine = await q`select f.*, (select count(*)::int from form_submissions s where s.form_slug = f.slug and not s.spam) as n from lead_forms f order by f.created_at desc, f.slug`;
-      const old = await q`select slug, title, created_at, data from forms where slug not in (select slug from lead_forms) order by created_at desc nulls last, slug`;
-      return [...mine.map((r) => formRecord(r, Number(r.n))), ...old.map(legacyRecord)];
+      return mine.map((r) => formRecord(r, Number(r.n)));
     }
     case "form.update": {
       const slug = String(p.slug ?? "");
@@ -126,8 +121,6 @@ export async function runFormAction(q: Q, action: FormAction, p: Row, deps: Form
       const spam = p.include_spam === true;
       const rows = await q`
         select id, form_slug, lead_id, data, spam, received_at from form_submissions where form_slug = ${slug} and (${spam} or not spam)
-        union all
-        select id, form_slug, null, coalesce(data->'data', data), false, received_at from submissions where form_slug = ${slug}
         order by received_at desc, id limit ${limit}`;
       return rows.map((r) => ({ id: r.id, form_slug: r.form_slug, lead_id: r.lead_id ?? null, data: r.data, spam: r.spam, received_at: iso(r.received_at) }));
     }
@@ -167,9 +160,8 @@ async function limited(q: Q, where: "ip_form" | "ip_all" | "link", key: string, 
 export async function submit(q: Q, req: SubmitRequest, deps: FormDeps): Promise<SubmitResult> {
   const slug = String(req.slug ?? "").trim().toLowerCase();
   const [mine] = SLUG_RE.test(slug) ? await q`select * from lead_forms where slug = ${slug} and active` : [];
-  const [old] = !mine && slug ? await q`select slug, title, created_at, data from forms where slug = ${slug}` : [];
-  if (!mine && !old) return answer(404, { error: "Form not found" });
-  const form = mine ? formRecord(mine) : legacyRecord(old);
+  if (!mine) return answer(404, { error: "Form not found" });
+  const form = formRecord(mine);
   const fields = (Array.isArray(form.fields) ? form.fields : []) as Field[];
 
   if (req.method === "GET") return answer(200, { slug: form.slug, title: form.title, description: form.description, fields, thank_you: form.thank_you });
@@ -209,7 +201,7 @@ export async function submit(q: Q, req: SubmitRequest, deps: FormDeps): Promise<
   const missing = fields.filter((f) => f.required && !kept[f.name]).map((f) => f.name);
   if (missing.length) return answer(400, { error: "Missing required fields", missing });
 
-  const [link] = token && !form.legacy ? await q`select k.lead_id from form_links k join leads l on l.id = k.lead_id and l.merged_into is null where k.token = ${token} and k.form_slug = ${form.slug as string}` : [];
+  const [link] = token ? await q`select k.lead_id from form_links k join leads l on l.id = k.lead_id and l.merged_into is null where k.token = ${token} and k.form_slug = ${form.slug as string}` : [];
   const leadId = (link?.lead_id as string | undefined) ?? null;
   await q`insert into form_submissions ${q({ id, form_slug: form.slug, lead_id: leadId, data: q.json(kept as never), spam: false, ip_hash: ipHash, link_token: token } as never)}`;
 

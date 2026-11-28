@@ -46,8 +46,8 @@ export function isOwnAddress(from: string | null | undefined, extra: string[] = 
   return [...OWN_ADDRESSES, ...extra].some((x) => base(x) === base(a));
 }
 
-export const HEALTH_CHECK_SUBJECT = "ShiftForge HQ webhook health check";
-export const isHealthCheckMessage = (subject: string | null | undefined) => /ShiftForge HQ webhook health check/i.test(subject ?? "");
+export const HEALTH_CHECK_SUBJECT = "Alcance webhook health check"; // D2 (chunk 12); checks sent before still say "ShiftForge HQ"
+export const isHealthCheckMessage = (subject: string | null | undefined) => /(?:Alcance|ShiftForge HQ) webhook health check/i.test(subject ?? "");
 
 /** A message that is not a person answering: our own webhook health check (sent from our own inbox) or a delivery failure report. Decided when read; nothing is rewritten. */
 export function isSystemReply(r: { from?: string | null; subject?: string | null; to?: string[] | null }): boolean {

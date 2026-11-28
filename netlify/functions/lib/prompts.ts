@@ -15,8 +15,8 @@ export const OPENING_STYLE_HELP: Record<string, string> = {
 
 export const DRAFT_EXAMPLES = `EXAMPLE 1
 INPUT
-BUSINESS: Tri City AC & Heat
-GREETING: Hi Jeff
+BUSINESS: Bramblecrest AC & Heat
+GREETING: Hi Dorian
 CITY: Pasadena
 TRADE: HVAC
 TRUE DETAILS ABOUT THEM:
@@ -26,11 +26,11 @@ FACTS YOU MAY USE:
 ANGLE: Calls when the office is closed (they advertise emergency service but the office is closed Sat-Sun)
 OPENING STYLE: saw
 OUTPUT
-{"subject": "Weekend calls at Tri City", "body": "Hi Jeff,\\n\\nI saw that Tri City has been family-owned for 40 years, but your office is closed on weekends even though you offer emergency service. When a homeowner's AC fails on a Saturday, the first company that picks up usually gets the job.\\n\\nAt ShiftForge AI, we set up an AI assistant that answers your calls when the office is closed or the team is out on jobs, takes the customer's details and sends you the lead, so more of those calls become booked jobs without adding staff.\\n\\nWould you be open to a 30-minute free call to see if it would fit Tri City?", "fact_used": 1, "opening_style": "saw"}
+{"subject": "Weekend calls at Bramblecrest", "body": "Hi Dorian,\\n\\nI saw that Bramblecrest has been family-owned for 40 years, but your office is closed on weekends even though you offer emergency service. When a homeowner's AC fails on a Saturday, the first company that picks up usually gets the job.\\n\\nAt ShiftForge AI, we set up an AI assistant that answers your calls when the office is closed or the team is out on jobs, takes the customer's details and sends you the lead, so more of those calls become booked jobs without adding staff.\\n\\nWould you be open to a 30-minute free call to see if it would fit Bramblecrest?", "fact_used": 1, "opening_style": "saw"}
 
 EXAMPLE 2
 INPUT
-BUSINESS: Absolute Value AC
+BUSINESS: Quillfield Comfort AC
 GREETING: Hi there
 CITY: Houston
 TRADE: HVAC
@@ -41,7 +41,7 @@ FACTS YOU MAY USE:
 ANGLE: Website visitors get an instant answer (today the only option is waiting for a call back)
 OPENING STYLE: question
 OUTPUT
-{"subject": "Website enquiries at Absolute Value AC", "body": "Hi there,\\n\\nQuick question: with 112 Google reviews at 4.8 stars, how many of those homeowners would have booked sooner if your website offered more than a call-back request? Many homeowners with a broken AC will call the next company rather than wait.\\n\\nAt ShiftForge AI, we set up an AI assistant that answers website messages and calls straight away, even while your techs are on jobs, takes the details and passes every lead to you, so more enquiries turn into paid jobs without hiring extra staff.\\n\\nWould you be open to a 30-minute free call to see if it would help?", "fact_used": 1, "opening_style": "question"}`;
+{"subject": "Website enquiries at Quillfield Comfort AC", "body": "Hi there,\\n\\nQuick question: with 112 Google reviews at 4.8 stars, how many of those homeowners would have booked sooner if your website offered more than a call-back request? Many homeowners with a broken AC will call the next company rather than wait.\\n\\nAt ShiftForge AI, we set up an AI assistant that answers website messages and calls straight away, even while your techs are on jobs, takes the details and passes every lead to you, so more enquiries turn into paid jobs without hiring extra staff.\\n\\nWould you be open to a 30-minute free call to see if it would help?", "fact_used": 1, "opening_style": "question"}`;
 
 export const DRAFT_SYSTEM_PROMPT = `ROLE: You write a short first cold email from Lakshmi Devaraj (ShiftForge AI) to the owner of a local home-service business in the US. Plain, friendly, specific, like one person writing to another.
 "I" is Lakshmi. "we" or "ShiftForge AI" is the company.
@@ -60,7 +60,7 @@ RULES:
 - Never start with "I noticed". Never write "We build". Never write "following up".
 - Never use the word "capture" or "captures". Write the call to action with the exact words "30-minute free call".
 - No signature, no links, no company line at the end.
-- Subject: 2-6 words, must name the business or one true detail written like a person (for example "Weekend calls at Tri City"), never "<name>: <detail>", never just "<business name> + one word" (like "Acme Air calls"; at most one subject per campaign may look like that), and a different shape in every email (a question, a plain statement, "<detail> at <name>", a year or rating...), no "AI", no "leads", no "capture". Never "Missing calls in <city>" for more than one email: use a different pattern each time.
+- Subject: 2-6 words, must name the business or one true detail written like a person (for example "Weekend calls at Bramblecrest"), never "<name>: <detail>", never just "<business name> + one word" (like "Acme Air calls"; at most one subject per campaign may look like that), and a different shape in every email (a question, a plain statement, "<detail> at <name>", a year or rating...), no "AI", no "leads", no "capture". Never "Missing calls in <city>" for more than one email: use a different pattern each time.
 - Do not start more than about 1 in 4 emails with "Quick question". If you write "Quick question:", it must be followed by a real question ending in a question mark.
 - Never describe things the offer does not do: no texting, SMS, scheduling, dispatching, quotes or payments. The assistant only answers calls and website messages, takes the details and sends them to the owner.
 - Separate the paragraphs with a blank line.

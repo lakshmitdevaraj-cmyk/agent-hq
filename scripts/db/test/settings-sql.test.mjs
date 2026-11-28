@@ -21,21 +21,19 @@ const tests = [];
 const deps = { test: async (service, key, model) => { tests.push({ service, model }); return key === BAD ? { ok: false, message: "made-up: key refused" } : { ok: true, message: "made-up: ok" }; }, services: ["gemini", "apify", "agentmail", "ai2"] };
 const act = (tx, action, params) => st.runConfigAction(tx, action, params, deps);
 async function refused(p, status) { await assert.rejects(p, (e) => { assert.equal(e.status, status, e.message); return true; }); }
-const clean = async (tx) => { await tx`delete from service_config`; await tx`delete from voice_config`; };
+const clean = async (tx) => { await tx`delete from service_config`; }; // voice_config is gone (chunk 12, X2)
 
 describe("chunk 9 settings and service keys on SQL", () => {
   test("module loads", () => need());
 
-  test("R3: the Gemini key is read from service_config only; a Voice copy is ignored and never written", async () => {
+  test("R3: the Gemini key is read from service_config only (the Voice copy and its table are gone, chunk 12 X2)", async () => {
     need();
     await n.callWrite(async (tx) => {
       await clean(tx);
-      await tx`insert into voice_config (key, data) values ('config', ${tx.json({ gemini_key: "AIzaMadeUpVoiceCopy00000000000000000" })})`;
-      assert.equal(await st.readServiceKey(tx, "gemini"), null, "the Voice copy is not read");
+      assert.equal(await st.readServiceKey(tx, "gemini"), null);
       await act(tx, "config.set", { service: "gemini", key: GOOD });
       assert.equal(await st.readServiceKey(tx, "gemini"), GOOD);
-      const [v] = await tx`select data from voice_config where key = 'config'`;
-      assert.equal(v.data.gemini_key, "AIzaMadeUpVoiceCopy00000000000000000", "Voice is not written");
+      assert.equal((await tx`select to_regclass('public.voice_config')::text as r`)[0].r, null, "no Voice table to write to");
     });
   });
 

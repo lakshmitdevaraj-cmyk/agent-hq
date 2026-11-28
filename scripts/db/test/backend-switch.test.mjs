@@ -902,3 +902,72 @@ describe("DATA_BACKEND switch, chunk 11 actions (activity, jobs, analytics, data
     assert.ok(sockets > 0, "a database socket was refused");
   });
 });
+
+const BASE12 = "edde634"; // the last commit before chunk 12 touched command.ts
+describe("DATA_BACKEND switch, chunk 12 (removals X1, X2, X3; X8 and D2)", { skip }, () => {
+  let openOld;
+  before(async () => { ({ openOld } = await import("../equiv/old-path.mjs")); });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+  const STORES12 = ["agent-hq-forms", "agent-hq-submissions", "agent-hq-activity", "agent-hq-tasks", "agent-hq-pages", "agent-hq-voice-sessions", "agent-hq-voice-invitations"];
+  const settle = (v) => JSON.parse(JSON.stringify(v)
+    .replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - Date.now()) < 3_600_000 ? "<now>" : t))
+    .replace(/(?<=\\?"(?:id|submission_id)\\?":\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>")
+    .replace(/(?<=\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, (s) => (/[0-9]/.test(s) && /[A-Za-z]/.test(s) ? "<id>" : s)));
+  const KEPT = [
+    ["form.create", { slug: "switch-12", title: "Made-up switch form", fields: [{ name: "name", label: "Name", type: "text" }] }],
+    ["form.list", {}],
+    ["form.submissions", { slug: "switch-12" }],
+    ["activity.list", { limit: 3 }],
+    ["config.status", {}],
+    ["outreach.replies.list", { limit: 3 }],
+    ["webhook.list", {}],
+  ];
+  const GONE = [["task.list", {}], ["task.create", { title: "Made-up" }], ["voice.session.list", {}], ["voice.invitation.list", {}], ["voice.config.check", {}], ["page.list", {}], ["page.create", { slug: "switch-12-page", title: "x", html_body: "<p>x</p>" }]];
+  async function run12(commit, calls) {
+    const old = await openOld(EXPORT, commit ? { commit } : {});
+    const answers = [];
+    for (const [action, params] of calls) {
+      const r = await old.call(action, params);
+      answers.push({ action, status: r.status, body: JSON.stringify(r.body).length > 4000 ? { size: JSON.stringify(r.body).length, ok: r.body.ok } : r.body });
+    }
+    const stores = Object.fromEntries(STORES12.map((name) => [name, Object.fromEntries([...storeMap(old.blobs, name)].map(([k, v]) => [settle(k), settle(JSON.parse(v))]))]));
+    return { answers: answers.map(settle), stores };
+  }
+
+  test("unset: the kept neighbours answer and write exactly as before chunk 12; the removed ones answered before and are 410 now, writing nothing", async () => {
+    const was = await run12(BASE12, KEPT);
+    const now = await run12(null, KEPT);
+    const MOVED = [{ path: /\.gemini\.updated_at$/, why: "X2: the Gemini key moved from the Voice copy to Settings, so it now has a Settings date" }];
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i], w.action === "config.status" ? { known: MOVED } : {});
+      assert.ok(r.same, `${w.action}\n${describeDiff(r).slice(0, 120)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r).slice(0, 120)}`);
+    }
+    const goneWas = await run12(BASE12, GONE);
+    const goneNow = await run12(null, GONE);
+    for (const [i, w] of goneWas.answers.entries()) {
+      assert.equal(w.status, 200, `${w.action} answered before chunk 12`);
+      assert.equal(goneNow.answers[i].status, 410, `${w.action} is removed now`);
+      assert.equal(goneNow.answers[i].body.code, "removed");
+    }
+    const fresh = await run12(null, []);
+    for (const name of STORES12) assert.deepEqual(goneNow.stores[name], fresh.stores[name], `${name}: a removed action wrote`);
+    assert.ok(Object.keys(goneWas.stores["agent-hq-tasks"]).length > Object.keys(goneNow.stores["agent-hq-tasks"]).length, "before chunk 12, task.create wrote a task");
+    console.log(`switch unset (chunk 12): ${was.answers.length} kept calls and ${Object.keys(was.stores).length} stores the same; ${GONE.length} removed calls 200 before, 410 now`);
+  });
+
+  test("sql: a removed action is 410 on SQL as well (proved through the real handler on dev in removals.test.mjs); a kept one still goes to the database", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    const old = await openOld(EXPORT);
+    process.env.DATA_BACKEND = "sql";
+    process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+    const before = blockedCalls.length;
+    let outcome;
+    try { outcome = JSON.stringify(await old.call("form.list", {})); } catch (e) { outcome = `${e.code} ${e.message}`; }
+    assert.match(outcome, /network access is blocked/, outcome.slice(0, 120));
+    assert.ok(!blockedCalls.slice(before).some((c) => c.what === "fetch"), "no fetch");
+  });
+});

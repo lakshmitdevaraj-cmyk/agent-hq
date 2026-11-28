@@ -350,16 +350,11 @@ export function transform(stores, { rules, today, exportedAt = `${today}T00:00:0
   // ── The other stores ──
   const clicks = simple("outreach-clicks", "id", { campaign_id: ["campaign_id", str], lead_id: ["lead_id", str], email_id: ["email_id", str], url: ["url", str], clicked_at: ["clicked_at", time] });
   const activity = simple("activity", "id", { agent_id: ["agent_id", str], category: ["category", str], summary: ["summary", str], details: ["details", json], created_at: ["created_at", time] });
-  const tasks = simple("tasks", "id", { title: ["title", str], description: ["description", str], status: ["status", str], assignee_id: ["assignee_id", str], priority: ["priority", str], created_at: ["created_at", time], updated_at: ["updated_at", time] });
   const agents = simple("agents", "id", { name: ["name", str], sign_in_name: ["sign_in_name", str], role: ["role", str], status: ["status", str], last_heartbeat: ["last_heartbeat", time], created_at: ["created_at", time] });
-  const forms = simple("forms", "slug", { title: ["title", str], created_at: ["created_at", time] });
-  const submissions = simple("submissions", "id", { form_slug: ["form_slug", str], received_at: ["received_at", time] });
-  const sitePages = simple("pages", "slug", { title: ["title", str], linked_form_slug: ["linked_form_slug", str], created_at: ["created_at", time], updated_at: ["updated_at", time] });
   const webhooks = simple("webhooks", "id", { name: ["name", str], service: ["service", str], event_count: ["event_count", int], created_at: ["created_at", time] });
   const webhookEvents = simple("webhook-events", "id", { webhook_id: ["webhook_id", str], headers: ["headers", json], body: ["body", json], received_at: ["received_at", time] });
-  const voiceSessions = simple("voice-sessions", "id", { started_at: ["started_at", time], ended_at: ["ended_at", time], duration_seconds: ["duration_seconds", num], invitation_id: ["invitation_id", str] });
-  const voiceInvitations = simple("voice-invitations", "id", { status: ["status", str], agent_id: ["agent_id", str], created_at: ["created_at", time] });
-  const voiceConfig = read("voice-config").map(({ key, v }) => ({ key, data: v }));
+  // X1/X2/X3/X8 (P2 chunk 12): archived, not imported.
+  report.removed_stores = Object.fromEntries(["tasks", "forms", "submissions", "pages", "voice-config", "voice-sessions", "voice-invitations"].map((s) => [s, read(s).length]));
   const screenshots = read("lead-screenshots").filter(({ v }) => v.jpeg_base64 || (skip("lead-screenshots", "no image"), false)).map(({ key, v }) => {
     const [campaign_id, lead_id] = key.split("/");
     return { campaign_id, lead_id, jpeg: Buffer.from(v.jpeg_base64, "base64"), bytes: int(v.bytes) ?? null, saved_at: time(v.saved_at) ?? null };
@@ -384,8 +379,8 @@ export function transform(stores, { rules, today, exportedAt = `${today}T00:00:0
     tables: {
       campaigns, campaign_jobs: jobs, leads, social_pages: [...pages.values()], lead_social_links: [...links.values()], lead_screenshots: screenshots,
       emails, social_messages: social, touches, follow_up_state: followState, follow_ups: followUps, replies, clicks, contacts,
-      outreach_settings: settingsRows.map(({ key, v }) => ({ key, data: v })), activity, tasks, agents, forms, submissions, pages: sitePages,
-      webhooks, webhook_events: webhookEvents, voice_config: voiceConfig, voice_sessions: voiceSessions, voice_invitations: voiceInvitations,
+      outreach_settings: settingsRows.map(({ key, v }) => ({ key, data: v })), activity, agents,
+      webhooks, webhook_events: webhookEvents,
     },
     report,
   };

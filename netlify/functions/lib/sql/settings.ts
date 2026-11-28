@@ -1,6 +1,6 @@
 // P2 chunk 9: Settings and service keys on Postgres (used when DATA_BACKEND=sql; the Blobs code stays the default).
 //   - R3: a service key lives in one place, `service_config` (Settings → API keys). The Gemini key is never read from or
-//     written to the Voice copy (`voice_config`), which goes in chunk 12 (X2).
+//     written to the Voice copy (`voice_config`, dropped in chunk 12, X2).
 //   - V7: config.set tests a key before it is saved; a failed test saves nothing. config.status shows masked keys only.
 //     The tests themselves (calls to Gemini, Apify, AgentMail) come in as deps from command.ts; tests pass stubs.
 //   - Settings: command.ts keeps its one copy of the Settings rules; only the storage changes. A write sets only the

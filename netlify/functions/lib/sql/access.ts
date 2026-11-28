@@ -30,8 +30,7 @@ const READ = new Set([
   "outreach.footer.preview", "outreach.inboxes.list", "outreach.lead.facts.list", "outreach.lead.screenshot.get", "outreach.lead.touches",
   "outreach.leads.count", "outreach.leads.list", "outreach.prospects.list", "outreach.replies.get", "outreach.replies.list", "outreach.search",
   "outreach.send.plan", "outreach.send.today", "outreach.settings.get", "outreach.social.batch.status", "outreach.social.list", "outreach.social.plan",
-  "outreach.social.verify", "webhook.events", "outreach.webhook.events", "webhook.list", "page.get", "page.list", "task.list",
-  "voice.config.check", "voice.session.get", "voice.session.list", "voice.invitation.get", "voice.invitation.list",
+  "outreach.social.verify", "webhook.events", "outreach.webhook.events", "webhook.list",
   "links.list", "links.build", // chunk 10
 ]);
 /** Sends email or spends money (lead finding, site and browser checks). */
@@ -43,7 +42,7 @@ const SEND = new Set([
 const MASTER = new Set([
   "auth.rotate", "data.counts", "data.export", "data.import", "config.set", "config.test", "config.clear", "agent.register", "agent.delete",
   "agent.revoke", "agent.set_scope", "webhook.create", "webhook.create_typed", "webhook.delete", "webhook.set_secret", "outreach.settings.set",
-  "outreach.campaign.delete", "outreach.leads.delete", "voice.config.get", "voice.config.set", "voice.config.clear",
+  "outreach.campaign.delete", "outreach.leads.delete",
   "form.delete", // chunk 10: a form and its personal links go
   "approval.create", // chunk 11: only her own key can approve a send plan or mark drafts ready
 ]);

@@ -1,6 +1,6 @@
 // Chunk 10 on Neon dev, every module transaction rolled back: forms (A2, lib/sql/forms.ts).
 // Form builder data, a personal link per lead, a submission that marks the lead interested and stops its follow-ups,
-// the spam trap, the rate limit and the size limit. The old April forms still answer (they go in chunk 12, X8).
+// the spam trap, the rate limit and the size limit. The old April forms are gone (chunk 12, X8).
 // Through the real form-submit.ts handler on dev with made-up rows that are removed afterwards. All data is made up.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -56,17 +56,14 @@ const post = (tx, o = {}) => forms.submit(tx, {
 const linkFor = async (tx, lead_id, slug = "a2-quote") => (await act(tx, "form.link", { slug, lead_id })).token;
 
 describe("A2: form builder data", () => {
-  test("create, list (A2 forms first, old April forms after with legacy: true), update, read straight back (F1); the same slug twice is refused", () => withFx(async (tx) => {
+  test("create, list (A2 forms only; the old April forms went in chunk 12, X8), update, read straight back (F1); the same slug twice is refused", () => withFx(async (tx) => {
     need();
-    await tx`insert into forms (slug, blob_key, title, created_at, data) values ('a2-old-april', 'a2-old-april', 'Made-up old form', now(), ${tx.json({ slug: "a2-old-april", title: "Made-up old form", fields: [{ name: "name", label: "Name", type: "text", required: true }] })})`;
     const list = await act(tx, "form.list", {});
     const mine = list.find((f) => f.slug === "a2-quote");
     assert.ok(mine, "the new form is listed");
     assert.equal(mine.legacy, false);
     assert.deepEqual(mine.fields.map((f) => f.name), ["name", "email", "message"]);
-    const old = list.find((f) => f.slug === "a2-old-april");
-    assert.equal(old.legacy, true);
-    assert.ok(list.indexOf(mine) < list.indexOf(old), "A2 forms come first");
+    assert.ok(list.every((f) => f.legacy === false), "no old April form is listed");
     await refused(act(tx, "form.create", { slug: "a2-quote", title: "again", fields: FIELDS }), 409);
     await refused(act(tx, "form.create", { slug: "Bad Slug!", title: "x", fields: FIELDS }), 400);
     await refused(act(tx, "form.create", { slug: "a2-nofields", title: "x", fields: [] }), 400);
@@ -228,17 +225,12 @@ describe("A2: a submission", () => {
     assert.deepEqual(s.data, { name: "Made-up Person", email: "person@a2.test" });
   }));
 
-  test("an old April form still answers GET and POST on SQL (public links depend on it), with the spam trap; form.submissions lists both old and new rows", () => withFx(async (tx) => {
+  test("an old April form slug no longer answers on SQL (chunk 12, X8): GET and POST are 404, nothing is stored", () => withFx(async (tx) => {
     need();
-    await tx`insert into forms (slug, blob_key, title, created_at, data) values ('a2-old-april', 'a2-old-april', 'Made-up old form', now(), ${tx.json({ slug: "a2-old-april", title: "Made-up old form", fields: [{ name: "name", label: "Name", type: "text", required: true }] })})`;
-    await tx`insert into submissions (id, blob_key, form_slug, received_at, data) values ('a2-old-sub', 'a2-old-april/x', 'a2-old-april', '2026-04-10T00:00:00Z', ${tx.json({ id: "a2-old-sub", form_slug: "a2-old-april", data: { name: "Earlier person" }, received_at: "2026-04-10T00:00:00Z" })})`;
-    assert.equal((await post(tx, { method: "GET", slug: "a2-old-april" })).statusCode, 200);
-    const r = await post(tx, { slug: "a2-old-april", data: { name: "Newer person" } });
-    assert.equal(r.statusCode, 200);
-    const spam = await post(tx, { slug: "a2-old-april", data: { name: "Bot", _trap: "x" }, ip: "203.0.113.70" });
-    assert.equal(spam.statusCode, 200);
-    const list = await act(tx, "form.submissions", { slug: "a2-old-april" });
-    assert.deepEqual(list.map((s) => s.data.name), ["Newer person", "Earlier person"], "newest first, spam left out");
+    assert.equal((await post(tx, { method: "GET", slug: "a2-old-april" })).statusCode, 404);
+    assert.equal((await post(tx, { slug: "a2-old-april", data: { name: "Newer person" } })).statusCode, 404);
+    assert.equal((await tx`select count(*)::int as n from form_submissions where form_slug = 'a2-old-april'`)[0].n, 0);
+    assert.deepEqual(await act(tx, "form.submissions", { slug: "a2-old-april" }), []);
   }));
 });
 
