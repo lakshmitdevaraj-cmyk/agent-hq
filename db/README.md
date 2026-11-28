@@ -140,6 +140,15 @@ Tests: `send-sql`, `send-equiv` (cases in `scripts/db/equiv/cases/send.mjs`), `b
 
 Tests: `webhooks-sql`, `replies-sql`, `replies-equiv`, `backend-switch` (chunk 7 part: `7fcf026`). Ready drafts a fresh F35/F36 check would flag (read only, list written outside the repo): `node scripts/db/recheck-list.mjs <file outside the repo>`.
 
+**Chunk 8, `lib/sql/social.ts`, `lib/sql/followups.ts`, migration 0015:** the social, touch and follow-up actions.
+- A social record is its steps in `social_messages`; a write locks them, rebuilds the old record (`socialRecord`), applies the old rule and writes the steps back in one transaction. No re-check or re-stamp on read (F44 is P4).
+- **F30:** migration 0015's trigger marks every open social step of a lead `skipped` (`data.skipped_reason = 'do_not_contact'`) when it becomes do-not-contact, from any path; verify answers Blocked and mark_sent refuses (409 `do_not_contact`). **F11:** `fb_checked = gone` closes Facebook (verify Blocked, mark_sent 409 `page_gone`, no Facebook follow-up row). `socialStop(lead, channel)` is the one rule, for the P4 writer too.
+- **F15:** `social.record_hand` takes `part`: that open step of a written run is marked sent, and the touch keeps her own text. **F34:** `touch.delete` removes only `source = 'manual'` touches (409 `not_hand_recorded` otherwise). **F41:** `offerText(campaign)` is the email reviewer's offer chain, for the P4 social reviewer.
+- **Follow-ups:** `nextFollowUp` as today; the stop comes from `stop_state` (F8; bounced stops email only, F7). **F10:** worked-out due dates go through `next_working_day(date, known_country(campaign country))` in one statement; a date she moved is kept, and a move onto a non-working day answers `warning: not_working_day` with the next working day. The list and every follow-up write rewrite `follow_ups`. **F3:** `followups.update` merges one step key (`jsonb_set`), optional `if_updated_at` (409 `stale`), never touches the stop. `followups.replied` sets `stop_state = 'replied'` ("replied by hand", old state kept in `data`); Undo restores it.
+- `social.write`, `social.plan` and the batch actions answer 501 (code `moves_to_p4`) without opening a connection: they start the AI writer in `ai-background`, which stays on Blobs until P4.
+
+Tests: `social-sql`, `followups-sql`, `social-equiv`, `backend-switch` (chunk 8 part: `12176f3`).
+
 **Running one area while building:** run that area's files only, e.g. `node --test --test-concurrency=1 scripts/db/test/{webhooks-sql,replies-sql,replies-equiv}.test.mjs`, and the switch proof for one chunk with `--test-name-pattern="chunk 7" scripts/db/test/backend-switch.test.mjs`. The full suite runs once at the end of the run. The equivalence harness has its own pool (8 connections, `EQUIV_POOL` to change) and `pmap` for independent calls side by side.
 
 ## At the P5 switch

@@ -239,3 +239,24 @@ Decisions I took (to review): an AgentMail webhook with no signing secret refuse
 **For P4:** `outreach.reply.draft` on SQL (needs the AI writer). **For chunk 9:** the AgentMail key is still read from the service-config store (`sqlReplyCase`, `sqlReceive`). **Before P5:** save each AgentMail webhook's signing secret; run the F31 real alert test with Lakshmi.
 
 **Next: run D (chunks 8 and 9)**, its own session.
+
+## Run D (28 Nov 2026): chunk 8, chunk 9
+
+Testing this run: quick tests for each chunk's area on the Mac; the full suite once at the end on InstaBox `shiftforge` (push, pull there, run, log copied to `p2-reports/`).
+
+## Chunk 8: Follow-ups, social and touches (run D)
+
+Plan `p2-reports/chunk8-plan.md`, report `p2-reports/chunk8-report.md`, failing run `p2-reports/chunk8-failing-run.txt`.
+
+| Step | Commit |
+|---|---|
+| 1–4. Tests first; migration **0015** (F30 trigger, applied to `dev`: 3 steps skipped); `lib/sql/social.ts`, `lib/sql/followups.ts`; `command.ts` 17 guarded lines + `sqlSocialCase` (32 added, 0 removed) | `78516b7` |
+| 5. README, handoff, report | (this commit) |
+
+Migrations 0001–0015 on `dev`. Equivalence: followups.list 98 rows (40 × F10 roll), social.list 113 records, lead.touches 131 leads, 0 unexpected. `social.write`, `social.plan` and the batch actions answer 501 until P4.
+
+Decisions I took (to review): `followups.list` rewrites `follow_ups` (sends and replies don't refresh it yet); a move onto a non-working day is kept with a warning; `followups.replied` sets `stop_state` (Undo restores); `social.delete` keeps sent steps; clearing do-not-contact doesn't un-skip social steps.
+
+**For P4:** the social writer and planner call `socialStop(lead, channel)` (F30/F11) and `offerText` (F41).
+
+**Next: chunk 9 (settings, keys and access)**, same run.
