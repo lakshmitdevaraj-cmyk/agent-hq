@@ -259,4 +259,22 @@ Decisions I took (to review): `followups.list` rewrites `follow_ups` (sends and 
 
 **For P4:** the social writer and planner call `socialStop(lead, channel)` (F30/F11) and `offerText` (F41).
 
-**Next: chunk 9 (settings, keys and access)**, same run.
+## Chunk 9: Settings, keys and access (run D)
+
+Plan `p2-reports/chunk9-plan.md`, report `p2-reports/chunk9-report.md`, failing run `p2-reports/chunk9-failing-run.txt`.
+
+| Step | Commit |
+|---|---|
+| 1–4. Tests first; migration **0016** `access_keys` (applied to `dev`, keys only as hashes); `lib/sql/access.ts`, `lib/sql/settings.ts`; `command.ts` 46 added / 0 removed (scope check, 10 guarded cases, 2 SQL-only, guarded storage lines); `lib/auth.ts` 9 added / 0 removed; harness: random test key per run | `ad105e1` |
+| 5. README, lessons | `c7e6b0d` |
+| Switch-proof counter fix (test order; found on InstaBox) | `306080e` |
+
+Migrations 0001–0016 on `dev`. Shown refused through the real handler on `dev`: a read-only key sending → 403, revoked → 401, unknown → 401.
+
+Decisions I took (to review): new agent keys default to drafts; "send" also covers spending (lead finding, site and browser checks); master only for Settings, service keys, webhooks, keys, data moves and deleting whole campaigns or leads; an agent heartbeats only itself; on SQL Voice gets no Gemini key (R3; Voice goes in chunk 12).
+
+**Run D full suite (InstaBox `shiftforge`):** 330/330 in 10 min 28 s at `306080e`, nothing skipped, `npx tsc -b` clean. Logs in `p2-reports/run-d-suite/`. The sandbox still holds the clone, `db/local/.env`, the export, the named-cases list and the logs.
+
+**For P5:** make the master key again (`auth.bootstrap`) and each agent key (`agent.register` with a scope). Decide whether service keys are encrypted at rest (needs a Netlify secret). **For chunk 12 (X2):** Voice has no Gemini key on the SQL path.
+
+**Run D is finished. Next: run E (chunks 10 and 11)**, its own session.
