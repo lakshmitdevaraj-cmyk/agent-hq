@@ -4,6 +4,7 @@
 // So the old code can never reach Gemini, AgentMail or Apify.
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,29 @@ import { fakeBlobs } from "./fake-blobs.mjs";
 
 const ENTRY = fileURLToPath(new URL("../../../netlify/functions/command.ts", import.meta.url));
 /** The key the harness signs in with. It exists only in memory, in the fake config store. */
-export const TEST_KEY = "equiv-test-key-not-real";
+// A new random key each run: on the SQL path (chunk 9) it is registered in dev's access_keys as a master key for the
+// run (ensureSqlMaster), so a row left behind is useless to anyone. It is never printed.
+export const TEST_KEY = `equiv-test-${randomBytes(16).toString("hex")}`;
+let sqlMasterFor = null;
+/** On the SQL path against dev, the run's TEST_KEY must be a master key in access_keys (leftovers of old runs removed). */
+async function ensureSqlMaster() {
+  if (process.env.DATA_BACKEND !== "sql" || !process.env.DATABASE_URL) return;
+  const { localVar, connect } = await import("../env.mjs");
+  if (process.env.DATABASE_URL !== localVar("DEV_DATABASE_URL") || sqlMasterFor === process.env.DATABASE_URL) return;
+  const c = connect("dev", { direct: false });
+  try {
+    const [t] = await c`select to_regclass('access_keys') as t`;
+    if (!t.t) return; // before migration 0016
+    await c`delete from access_keys where id like 'equiv-harness-%'`;
+    await c`insert into access_keys (id, key_hash, key_hint, kind, scope) values (${`equiv-harness-${process.pid}`}, ${createHash("sha256").update(TEST_KEY).digest("hex")}, ${TEST_KEY.slice(-4)}, 'master', 'full')`;
+    sqlMasterFor = process.env.DATABASE_URL;
+    // Remove this run's row when the test file ends (the next run also clears any left behind).
+    process.once("beforeExit", async () => {
+      const d = connect("dev", { direct: false });
+      try { await d`delete from access_keys where id = ${`equiv-harness-${process.pid}`}`; } catch { /* the next run clears it */ } finally { await d.end({ timeout: 5 }); }
+    });
+  } finally { await c.end({ timeout: 5 }); }
+}
 
 export class NetworkBlocked extends Error {
   constructor(what) { super(`equivalence harness: network access is blocked (${what})`); this.name = "NetworkBlocked"; this.code = "EQUIV_NETWORK_BLOCKED"; }
@@ -131,6 +154,7 @@ export async function openOld(exportDir, { commit = null, allowDb = false, fetch
     async call(action, params = {}) {
       globalThis.__equivBlobs = blobs; // several old paths can be open at once; each call uses its own stores
       installFetch(fetchRoutes);
+      if (allowDb) await ensureSqlMaster();
       const res = await handler({ httpMethod: "POST", headers: { "x-api-key": TEST_KEY }, body: JSON.stringify({ action, params }) });
       return { status: res.statusCode, body: JSON.parse(res.body) };
     },

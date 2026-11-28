@@ -37,6 +37,7 @@ export type ApiKeyIdentity =
   | null;
 
 export async function identifyApiKey(provided: string | null): Promise<ApiKeyIdentity> {
+  if (process.env.DATA_BACKEND === "sql") return sqlIdentify(provided); // P2 chunk 9: keys checked by their hash in access_keys
   if (!provided) return null;
   const master = await readJson<ApiKeyRecord>(store(CONFIG_STORE), API_KEY_KEY);
   if (master && master.key === provided) return { kind: "master" };
@@ -68,4 +69,12 @@ export async function rotateApiKey(): Promise<string> {
   const key = `ahq_${nanoid(32)}`;
   await writeJson<ApiKeyRecord>(store(CONFIG_STORE), API_KEY_KEY, { key, created_at: new Date().toISOString() });
   return key;
+}
+
+// P2 chunk 9 (R6): on DATA_BACKEND=sql the key is looked up by its SHA-256 hash in access_keys; a revoked or unknown key is
+// null (the handler answers 401). The identity also carries the key's scope, which command.ts checks for every action.
+async function sqlIdentify(provided: string | null): Promise<ApiKeyIdentity> {
+  if (!provided) return null;
+  const [{ withTx }, access] = await Promise.all([import("./db/client.ts"), import("./sql/access.ts")]);
+  return (await withTx((tx) => access.identify(tx, provided))) as ApiKeyIdentity;
 }

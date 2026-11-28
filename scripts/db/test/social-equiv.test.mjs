@@ -85,7 +85,7 @@ describe("chunk 8 follow-ups, social and touches: old vs new", { skip }, () => {
     let records = 0;
     for (const [cid, a, b] of await pmap(campaigns, 6, async (cid) => [cid, await old.call("outreach.social.list", { campaign_id: cid }), await sqlSocial("outreach.social.list", { campaign_id: cid })])) {
       records += a.body.data.length;
-      const r = compare(a, b, { unordered: ["$.body.data"], known: [
+      const r = compare(a, b, { unordered: ["body.data"], known: [
         { path: /\.(rules_version)$/, why: "no re-stamp on read (F44 → P4)" },
         { path: /\.(review_status|review_reasons(\[\d+\])?|review_reasons\.length)$/, why: "no re-check on read (F44 → P4)" },
         { path: /\.(created_at|updated_at|sent_at|reviewed_at)$/, when: sameInstant, why: "same instant, as Postgres gives it back" },

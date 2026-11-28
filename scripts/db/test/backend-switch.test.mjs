@@ -382,7 +382,7 @@ describe("DATA_BACKEND switch, chunk 5 actions", { skip }, () => {
     console.log(`switch unset (chunk 5): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 5`);
   });
 
-  test("sql: the chunk 5 actions go to the SQL module; generate_one / generate answer 501 before any database call", async () => {
+  test("sql: the chunk 5 actions go to the SQL module; generate_one / generate answer 501 (since chunk 9: after the key check on dev, and nothing else is reached for)", async () => {
     const { blockedCalls } = await import("../equiv/old-path.mjs");
     let sockets = 0;
     for (const [action, params] of calls().slice(0, 7)) {
@@ -397,9 +397,9 @@ describe("DATA_BACKEND switch, chunk 5 actions", { skip }, () => {
     }
     assert.ok(sockets > 0, "a database socket was refused");
     for (const [action, params] of calls().slice(7, 9)) {
-      const old = await openOld(EXPORT);
+      const old = await openOld(EXPORT, { allowDb: true }); // chunk 9: the key is checked in the database first
       process.env.DATA_BACKEND = "sql";
-      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      process.env.DATABASE_URL = (await import("../env.mjs")).localVar("DEV_DATABASE_URL");
       const before = blockedCalls.length;
       const r = await old.call(action, params);
       assert.equal(r.status, 501, action);
@@ -670,10 +670,88 @@ describe("DATA_BACKEND switch, chunk 8 actions (follow-ups, social and touches)"
     }
     assert.ok(sockets > 0, "a database socket was refused");
     for (const action of ["outreach.social.write", "outreach.social.plan", "outreach.social.batch.start", "outreach.social.batch.status", "outreach.social.batch.resume"]) {
-      const old = await openOld(EXPORT);
+      const old = await openOld(EXPORT, { allowDb: true }); // chunk 9: the key is checked in the database first
       sqlOn();
+      process.env.DATABASE_URL = (await import("../env.mjs")).localVar("DEV_DATABASE_URL");
       const r = await old.call(action, { campaign_id: "x", leads: [{ campaign_id: "x", lead_id: "y" }] });
       assert.equal(r.status, 501, `${action}: ${JSON.stringify(r.body)}`);
     }
+  });
+});
+
+const BASE9 = "ebbd8b0"; // the last commit before chunk 9 touched command.ts and lib/auth.ts
+
+describe("DATA_BACKEND switch, chunk 9 actions (settings, keys and access)", { skip }, () => {
+  let openOld;
+  before(async () => { ({ openOld } = await import("../equiv/old-path.mjs")); });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+  const STORES9 = ["agent-hq-config", "agent-hq-agents", "agent-hq-agent-keys", "agent-hq-service-config", "agent-hq-outreach-settings", "agent-hq-voice-config"];
+  /** Keys, ids and clock times made during the run are swapped for fixed names, so two runs compare. */
+  const settle = (value, made) => {
+    let text = JSON.stringify(value);
+    if (made) text = text.split(made).join("<new agent>");
+    text = text.replace(/(sign_in_name\\?":\\?"[a-z0-9-]*-)[A-Za-z0-9_-]{4}(?=\\?")/g, "$1<4>");
+    text = text.replace(/akey_[A-Za-z0-9_-]{28}/g, "<agent key>").replace(/ahq_[A-Za-z0-9_-]{32}/g, "<master key>").replace(/equiv-test-[0-9a-f]{32}/g, "<test key>");
+    const now = Date.now();
+    text = text.replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - now) < 3_600_000 ? "<now>" : t));
+    return JSON.parse(text);
+  };
+  async function run9(commit) {
+    const old = await openOld(EXPORT, commit ? { commit } : {});
+    const calls = [
+      ["agent.register", { name: "Switch test helper", role: "Tester" }],
+      ["agent.list", {}],
+      ["agent.heartbeat", { agent_id: "no-such-agent" }],
+      ["agent.delete", { id: "no-such-agent" }],
+      ["auth.bootstrap", {}],
+      ["auth.rotate", {}],
+      ["config.status", {}],
+      ["config.set", { service: "nope", key: "x" }],
+      ["config.set", { service: "agentmail", key: "am_switch_madeup_key", skip_test: true }],
+      ["config.status", {}],
+      ["config.test", { service: "apify" }],
+      ["config.clear", { service: "agentmail" }],
+      ["outreach.settings.get", {}],
+      ["outreach.settings.set", { postal_address: "1 Switch Test Street", daily_send_limit: 25 }],
+      ["outreach.settings.set", { daily_send_limit: 0 }],
+      ["outreach.settings.get", {}],
+    ];
+    const answers = [];
+    for (const [action, params] of calls) answers.push({ action, ...(await old.call(action, params)) });
+    const stores = Object.fromEntries(STORES9.map((name) => [name, Object.fromEntries([...(storeMap(old.blobs, name))].map(([k, v]) => [k, (() => { try { return JSON.parse(v); } catch { return v; } })()]))]));
+    return settle({ answers, stores }, answers[0].body.data?.id);
+  }
+
+  test("unset: the chunk 9 actions answer and write exactly as before chunk 9", async () => {
+    const was = await run9(BASE9);
+    const now = await run9(null);
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i], { unordered: ["body.data"] });
+      assert.ok(r.same, `${w.action}\n${describeDiff(r).slice(0, 600)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r).slice(0, 600)}`);
+    }
+    assert.ok(JSON.stringify(was.answers[1]).includes("<agent key>"), "the old agent.list still returns the key (fixed on the SQL path only)");
+    console.log(`switch unset (chunk 9): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 9`);
+  });
+
+  test("sql: the key check and the chunk 9 actions go to the database (a socket is reached for, never the network)", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    for (const [action, params] of [["agent.list", {}], ["config.status", {}], ["outreach.settings.get", {}], ["auth.bootstrap", {}]]) {
+      const old = await openOld(EXPORT);
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { outcome = JSON.stringify(await old.call(action, params)); } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
+      const tried = blockedCalls.slice(before);
+      if (tried.some((c) => c.what === "connect")) sockets++;
+      assert.ok(tried.every((c) => c.what === "connect"), `${action}: only the database was reached for`);
+    }
+    assert.ok(sockets > 0, "a database socket was refused (each call above was refused at the network)");
   });
 });

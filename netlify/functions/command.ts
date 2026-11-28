@@ -114,6 +114,7 @@ function maskKey(raw: string): string {
 }
 
 async function readServiceKey(name: ServiceKey): Promise<string | null> {
+  if (sqlBackend()) return sqlStore((tx, st) => st.readServiceKey(tx, name)); // P2 chunk 9 (R3): one place, never the Voice copy
   if (name === "gemini") {
     // Back-compat: voice wrote the Gemini key to VOICE_CONFIG first.
     const voice = await readJson<{ gemini_key?: string }>(store(VOICE_CONFIG), "config");
@@ -124,6 +125,7 @@ async function readServiceKey(name: ServiceKey): Promise<string | null> {
 }
 
 async function writeServiceKey(name: ServiceKey, key: string, test?: ServiceConfigRecord["last_test"]): Promise<void> {
+  if (sqlBackend()) return sqlStore((tx, st) => st.writeServiceKey(tx, name, key, test)); // P2 chunk 9 (R3): no Voice copy
   const rec: ServiceConfigRecord = { key, updated_at: new Date().toISOString(), last_test: test };
   await writeJson<ServiceConfigRecord>(store(SERVICE_CONFIG), name, rec);
   // Keep voice store in sync when the gemini key is set, so voice.config.get still works.
@@ -169,6 +171,7 @@ type OutreachSettings = {
 };
 
 async function readOutreachSettings(): Promise<OutreachSettings> {
+  if (sqlBackend()) return sqlStore((tx, st) => st.readSettings(tx)) as Promise<OutreachSettings>; // P2 chunk 9
   return (await readJson<OutreachSettings>(store(OUTREACH_SETTINGS), "settings")) ?? {};
 }
 
@@ -1940,6 +1943,31 @@ async function sqlSocialCase(action: string, params: unknown) {
   }
 }
 
+// P2 chunk 9: keys, Settings and service keys on Postgres (only when DATA_BACKEND=sql). Keys are kept only as hashes; the
+// key tests (real calls to each service) come in from testServiceKey here.
+async function sqlAccessCase(action: string, params: unknown, identity: Awaited<ReturnType<typeof identifyApiKey>>) {
+  const [{ withTx }, { CampaignError }, access] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/access.ts")]);
+  try {
+    return ok(await withTx((tx) => access.runAccessAction(tx, action as import("./lib/sql/access.ts").AccessAction, (params ?? {}) as Record<string, unknown>, identity as import("./lib/sql/access.ts").Identity, { newId: () => nanoid(10) })));
+  } catch (e) {
+    if (e instanceof CampaignError) return e.code ? failCode(e.status, e.message, e.code) : fail(e.status, e.message);
+    throw e;
+  }
+}
+async function sqlConfigCase(action: string, params: unknown) {
+  const [{ withTx }, { CampaignError }, st] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/settings.ts")]);
+  try {
+    return ok(await withTx((tx) => st.runConfigAction(tx, action as import("./lib/sql/settings.ts").ConfigAction, (params ?? {}) as Record<string, unknown>, { services: SERVICE_KEYS, test: (name, key, model) => testServiceKey(name as ServiceKey, key, model) }), { timeoutMs: 30_000 }));
+  } catch (e) {
+    if (e instanceof CampaignError) return fail(e.status, e.message);
+    throw e;
+  }
+}
+async function sqlStore<T>(fn: (tx: import("./lib/db/client.ts").Tx, st: typeof import("./lib/sql/settings.ts")) => Promise<T>): Promise<T> {
+  const [{ withTx }, st] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/settings.ts")]);
+  return withTx((tx) => fn(tx, st));
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3171,10 +3199,13 @@ export const handler: Handler = async (event) => {
     if (!PUBLIC_ACTIONS.has(action) && !identity) {
       return fail(401, "Invalid or missing X-API-Key");
     }
+    // P2 chunk 9 (R6): on DATA_BACKEND=sql a key may only run what its scope covers (read only / drafts / can send; master: all).
+    if (sqlBackend()) { const no = (await import("./lib/sql/access.ts")).scopeRefusal(identity as import("./lib/sql/access.ts").Identity, action, (params ?? {}) as Record<string, unknown>); if (no) return failCode(no.status, no.message, no.code); }
 
     switch (action) {
       // ── AUTH ──────────────────────────────────────────────
       case "auth.bootstrap": {
+        if (sqlBackend()) return sqlAccessCase("auth.bootstrap", params, identity);
         // First-run only. It hands out the master key ONLY while none exists
         // (the very first visit claims it). After that it is closed: it used to
         // return the master key to anyone who asked. Existing browsers keep
@@ -3186,6 +3217,7 @@ export const handler: Handler = async (event) => {
         return ok({ api_key: apiKey });
       }
       case "auth.rotate": {
+        if (sqlBackend()) return sqlAccessCase("auth.rotate", params, identity);
         // Issues a brand-new master key; the old one stops working immediately.
         // Master key only, and the caller must pass confirm: true.
         if (identity?.kind !== "master") return fail(403, "Only the master key can rotate the key");
@@ -3258,6 +3290,7 @@ export const handler: Handler = async (event) => {
 
       // ── AGENTS ──────────────────────────────────────────────
       case "agent.register": {
+        if (sqlBackend()) return sqlAccessCase("agent.register", params, identity);
         const { name, role, emoji = "🤖", color = "#00BFFF", sign_in_name: requested } =
           params as Record<string, string>;
         if (!name) return fail(400, "name required");
@@ -3282,10 +3315,12 @@ export const handler: Handler = async (event) => {
         return ok(agent);
       }
       case "agent.list": {
+        if (sqlBackend()) return sqlAccessCase("agent.list", params, identity);
         const agents = await listJson(store(AGENTS));
         return ok(agents);
       }
       case "agent.heartbeat": {
+        if (sqlBackend()) return sqlAccessCase("agent.heartbeat", params, identity);
         const { agent_id } = params as Record<string, string>;
         if (!agent_id) return fail(400, "agent_id required");
         const s = store(AGENTS);
@@ -3296,6 +3331,7 @@ export const handler: Handler = async (event) => {
         return ok(updated);
       }
       case "agent.delete": {
+        if (sqlBackend()) return sqlAccessCase("agent.delete", params, identity);
         const { id } = params as Record<string, string>;
         if (!id) return fail(400, "id required");
         await store(AGENTS).delete(id);
@@ -3465,6 +3501,7 @@ export const handler: Handler = async (event) => {
       // is tested against its own auth endpoint before we save, so by
       // the time the wizard dismisses all three keys are known-good.
       case "config.status": {
+        if (sqlBackend()) return sqlConfigCase("config.status", params);
         // Returns which keys are set + a masked preview. Never returns raw keys.
         const out: Record<string, { configured: boolean; masked: string | null; updated_at?: string; last_test?: ServiceConfigRecord["last_test"] }> = {};
         for (const name of SERVICE_KEYS) {
@@ -3480,6 +3517,7 @@ export const handler: Handler = async (event) => {
         return ok(out);
       }
       case "config.set": {
+        if (sqlBackend()) return sqlConfigCase("config.set", params);
         const { service, key, skip_test = false, model } = params as Record<string, unknown>;
         if (!service || !SERVICE_KEYS.includes(service as ServiceKey)) {
           return fail(400, `service must be one of: ${SERVICE_KEYS.join(", ")}`);
@@ -3507,6 +3545,7 @@ export const handler: Handler = async (event) => {
         return ok({ configured: true, test });
       }
       case "config.test": {
+        if (sqlBackend()) return sqlConfigCase("config.test", params);
         // Re-run the validity test for an already-stored key.
         const { service, model } = params as Record<string, unknown>;
         if (!service || !SERVICE_KEYS.includes(service as ServiceKey)) {
@@ -3524,6 +3563,7 @@ export const handler: Handler = async (event) => {
         return ok(rec.last_test);
       }
       case "config.clear": {
+        if (sqlBackend()) return sqlConfigCase("config.clear", params);
         const { service } = params as Record<string, unknown>;
         if (!service || !SERVICE_KEYS.includes(service as ServiceKey)) {
           return fail(400, `service must be one of: ${SERVICE_KEYS.join(", ")}`);
@@ -5289,6 +5329,7 @@ export const handler: Handler = async (event) => {
           if (t.field === "draft_model") next.gemini_model = t.v; // keep the legacy field in step
         });
         next.updated_at = new Date().toISOString();
+        if (sqlBackend()) { await sqlStore((tx, st) => st.writeSettings(tx, current as Record<string, unknown>, next as Record<string, unknown>)); return ok({ ...(await settingsView(next)), model_errors: modelErrors }); } // P2 chunk 9: only the changed fields
         await writeJson(store(OUTREACH_SETTINGS), "settings", next);
         return ok({ ...(await settingsView(next)), model_errors: modelErrors });
       }
@@ -6063,6 +6104,11 @@ export const handler: Handler = async (event) => {
       case "webhook.set_secret":
         // P2 chunk 7: new action (R4, the AgentMail signing secret), SQL only. On Blobs it answers exactly as the default case does today.
         if (sqlBackend()) return sqlReplyCase("webhook.set_secret", params, identity, "");
+        return fail(400, `Unknown action: ${action}`);
+      case "agent.revoke":
+      case "agent.set_scope":
+        // P2 chunk 9: new actions (R6: revoke a key, change what it may do), SQL only. On Blobs they answer as the default case does today.
+        if (sqlBackend()) return sqlAccessCase(action, params, identity);
         return fail(400, `Unknown action: ${action}`);
 
       case "outreach.leads.add":
