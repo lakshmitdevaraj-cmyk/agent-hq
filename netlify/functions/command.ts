@@ -1925,6 +1925,21 @@ async function sqlReplyCase(action: string, params: unknown, identity: Awaited<R
   }
 }
 
+// P2 chunk 8: follow-ups, social messages and touches on Postgres (only when DATA_BACKEND=sql). The AI writer stays in
+// ai-background on Blobs until P4, so the actions that start or follow it answer 501 before any connection is opened.
+async function sqlSocialCase(action: string, params: unknown) {
+  const [{ withTx }, { CampaignError }, social, follow] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/social.ts"), import("./lib/sql/followups.ts")]);
+  const p = (params ?? {}) as Record<string, unknown>;
+  if ((social.AI_ACTIONS as string[]).includes(action)) return failCode(501, social.AI_501, "moves_to_p4");
+  try {
+    if ((follow.FOLLOWUP_ACTIONS as string[]).includes(action)) return ok(await withTx((tx) => follow.runFollowupAction(tx, action as import("./lib/sql/followups.ts").FollowupAction, p, {})));
+    return ok(await withTx((tx) => social.runSocialAction(tx, action as import("./lib/sql/social.ts").SocialAction, p, { newId: () => nanoid(10) })));
+  } catch (e) {
+    if (e instanceof CampaignError) return e.code ? failCode(e.status, e.message, e.code) : fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3734,6 +3749,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.write": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.write", params);
         // Records a "social" job for the given leads (or every lead with no usable email but a Facebook, Instagram or LinkedIn page);
         // the page then POSTs { task: "social", params } to the ai-background function. Same skip rules as emails.
         const { campaign_id, lead_ids, lead_id, channels, regenerate, type, manual_start } = params as Record<string, unknown>;
@@ -3759,6 +3775,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.list": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.list", params);
         const { campaign_id, lead_id } = params as Record<string, string>;
         if (!campaign_id) return fail(400, "campaign_id required");
         const rows = (await listJson<SocialRecord>(store(OUTREACH_SOCIAL), lead_id ? `${campaign_id}/${lead_id}/` : `${campaign_id}/`));
@@ -3768,6 +3785,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.update": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.update", params);
         // The user edited a message: saved as written, code-checked, never re-reviewed by the AI automatically.
         const { campaign_id, lead_id, channel, parts } = params as { campaign_id?: string; lead_id?: string; channel?: string; parts?: Record<string, string> };
         if (!campaign_id || !lead_id || !channel || !parts) return fail(400, "campaign_id, lead_id, channel and parts required");
@@ -3804,6 +3822,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.verify": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.verify", params);
         // Runs the free code checks again on one saved message right before it is copied or marked as sent. Blocked = do not copy.
         const { campaign_id, lead_id, channel, part } = params as { campaign_id?: string; lead_id?: string; channel?: string; part?: string };
         if (!campaign_id || !lead_id || !channel) return fail(400, "campaign_id, lead_id and channel required");
@@ -3815,6 +3834,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.mark_sent": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.mark_sent", params);
         // "I sent this by hand" (sent_on = the day it was sent, earlier days allowed) or Undo (sent:false). The message becomes a touch of its
         // own and the draft slot is cleared, so the next message on that channel can be written as a follow-up. The app never sends anything.
         const { campaign_id, lead_id, channel, sent, sent_on, touch_id, part } = params as { campaign_id?: string; lead_id?: string; channel?: string; sent?: boolean; sent_on?: string; touch_id?: string; part?: string };
@@ -3882,6 +3902,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.record_hand": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.record_hand", params);
         // A message sent by hand that HQ never wrote (or an old one): recorded as a touch with its date and text.
         const { campaign_id, lead_id, channel, text, sent_on, kind } = params as { campaign_id?: string; lead_id?: string; channel?: string; text?: string; sent_on?: string; kind?: string };
         if (!campaign_id || !lead_id || !channel) return fail(400, "campaign_id, lead_id and channel required");
@@ -3901,6 +3922,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.touch.delete": {
+        if (sqlBackend()) return sqlSocialCase("outreach.touch.delete", params);
         // Removes a touch that was recorded by hand (HQ's own emails and derived touches are history and stay).
         const { lead_id, touch_id } = params as { lead_id?: string; touch_id?: string };
         if (!lead_id || !touch_id) return fail(400, "lead_id and touch_id required");
@@ -3911,6 +3933,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.lead.touches": {
+        if (sqlBackend()) return sqlSocialCase("outreach.lead.touches", params);
         const { campaign_id, lead_id } = params as { campaign_id?: string; lead_id?: string };
         if (!campaign_id || !lead_id) return fail(400, "campaign_id and lead_id required");
         return ok(await leadTouchState(campaign_id, lead_id));
@@ -3930,6 +3953,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.plan": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.plan", params);
         // What a bulk "Write social messages" run would do, for the confirm box. Writes nothing and calls no AI.
         const { leads, channels, regenerate, type } = params as { leads?: Array<{ campaign_id?: string; lead_id?: string }>; channels?: string[]; regenerate?: boolean; type?: string };
         const groups = groupByCampaign(leads);
@@ -3944,6 +3968,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.batch.start": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.batch.start", params);
         const { leads, channels, regenerate, type } = params as { leads?: Array<{ campaign_id?: string; lead_id?: string }>; channels?: string[]; regenerate?: boolean; type?: string };
         if (!(await aiAvailable())) return fail(400, "No AI provider is set up. Add the Gemini key in Settings.");
         const groups = groupByCampaign(leads);
@@ -3967,6 +3992,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.batch.status": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.batch.status", params);
         const rec = await readJson<Record<string, unknown>>(store(OUTREACH_STATE), SOCIAL_BATCH_KEY);
         if (!rec) return ok({ status: "none" });
         const last = Date.parse(String(rec.progress_at ?? rec.started_at ?? ""));
@@ -3975,6 +4001,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.batch.resume": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.batch.resume", params);
         const rec = await readJson<Record<string, unknown> & { groups?: Array<{ campaign_id: string; lead_ids: string[] }>; params?: Record<string, unknown> }>(store(OUTREACH_STATE), SOCIAL_BATCH_KEY);
         if (!rec || !["paused", "stopped"].includes(String(rec.status))) return failCode(409, "There is no paused run to continue.", "not_paused");
         const now = new Date().toISOString();
@@ -3983,6 +4010,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "outreach.social.delete": {
+        if (sqlBackend()) return sqlSocialCase("outreach.social.delete", params);
         const { campaign_id, lead_id, channel } = params as { campaign_id?: string; lead_id?: string; channel?: string };
         if (!campaign_id || !lead_id || !channel) return fail(400, "campaign_id, lead_id and channel required");
         await store(OUTREACH_SOCIAL).delete(socialKey(campaign_id, lead_id, channel));
@@ -5557,6 +5585,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "followups.list": {
+        if (sqlBackend()) return sqlSocialCase("followups.list", params);
         const t0 = Date.now();
         const settings = await readOutreachSettings();
         const tzName = (settings.time_zone ?? "").trim();
@@ -5611,6 +5640,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "followups.update": {
+        if (sqlBackend()) return sqlSocialCase("followups.update", params);
         // One small note per lead, channel and step: skip, move the date, note. Only this store changes.
         const { lead_id, channel, step_key, op, value } = params as { lead_id?: string; channel?: string; step_key?: string; op?: string; value?: unknown };
         if (!lead_id || !channel || !step_key || !op) return fail(400, "lead_id, channel, step_key and op required");
@@ -5634,6 +5664,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "followups.replied": {
+        if (sqlBackend()) return sqlSocialCase("followups.replied", params);
         // "They replied" by hand (a reply that came on Facebook, LinkedIn and so on): stops every channel for this lead. undo:true clears it.
         const { lead_id, undo } = params as { lead_id?: string; undo?: boolean };
         if (!lead_id) return fail(400, "lead_id required");
@@ -5644,6 +5675,7 @@ export const handler: Handler = async (event) => {
       }
 
       case "followups.linkedin": {
+        if (sqlBackend()) return sqlSocialCase("followups.linkedin", params);
         const { lead_id, op } = params as { lead_id?: string; op?: string };
         if (!lead_id || !op) return fail(400, "lead_id and op required");
         const fs2 = store(OUTREACH_FOLLOWUPS);

@@ -215,7 +215,7 @@ describe("DATA_BACKEND switch, chunk 3 actions", { skip }, () => {
       let outcome;
       try { const r = await old.call(action, { ...ids, email: "x@alcance-test.invalid", excluded: true, result: "real", q: "switch", fact: "x" }); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
       // The Blobs path never touches the network, so this answer alone means the call took the SQL route.
-      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       if (blockedCalls.slice(before).some((c) => c.what === "connect")) sockets++;
     }
     // The bundled client is shared between calls, so a later call can fail on the socket an earlier one was refused.
@@ -299,7 +299,7 @@ describe("DATA_BACKEND switch, chunk 4 actions", { skip }, () => {
       const before = blockedCalls.length;
       let outcome;
       try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
-      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       if (blockedCalls.slice(before).some((c) => c.what === "connect")) sockets++;
     }
     assert.ok(sockets > 0, "a database socket was refused");
@@ -392,7 +392,7 @@ describe("DATA_BACKEND switch, chunk 5 actions", { skip }, () => {
       const before = blockedCalls.length;
       let outcome;
       try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
-      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       if (blockedCalls.slice(before).some((c) => c.what === "connect")) sockets++;
     }
     assert.ok(sockets > 0, "a database socket was refused");
@@ -478,7 +478,7 @@ describe("DATA_BACKEND switch, chunk 6 actions (sending and the plan)", { skip }
       const before = blockedCalls.length;
       let outcome;
       try { const r = await old.call(action, params); outcome = `${r.status} ${r.body.error}`; } catch (e) { outcome = `${e.code} ${e.message}`; }
-      assert.match(outcome, /network access is blocked/, `${action}: ${outcome}`);
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
       const tried = blockedCalls.slice(before);
       if (tried.some((c) => c.what === "connect")) sockets++;
       assert.ok(!tried.some((c) => /agentmail/i.test(JSON.stringify(c))), `${action}: AgentMail was never called`);
@@ -579,5 +579,101 @@ describe("DATA_BACKEND switch, chunk 7 actions (replies and webhooks)", { skip }
     const recv = await openOld(EXPORT, { fn: "webhook-receive" });
     await tryOne(() => recv.raw({ httpMethod: "POST", path: "/.netlify/functions/webhook-receive/x", headers: {}, body: "{}" }));
     assert.ok(sockets > 0, "a database socket was refused");
+  });
+});
+
+const BASE8 = "12176f3"; // the last commit before chunk 8 touched command.ts
+
+describe("DATA_BACKEND switch, chunk 8 actions (follow-ups, social and touches)", { skip }, () => {
+  let openOld;
+  before(async () => { ({ openOld } = await import("../equiv/old-path.mjs")); });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+  const STORES8 = ["agent-hq-outreach-social", "agent-hq-outreach-touches", "agent-hq-outreach-followups", "agent-hq-outreach-campaign-state"];
+
+  /** Clock times made during the run and the touch ids nanoid made are swapped for fixed names, so two runs compare. */
+  const settle = (value) => {
+    let text = JSON.stringify(value);
+    const ids = [...new Set([...text.matchAll(/\\?"touch_id\\?":\\?"([A-Za-z0-9_-]{10})\\?"/g)].map((m) => m[1]))];
+    ids.forEach((id, i) => { text = text.split(id).join(`<touch ${i}>`); });
+    const now = Date.now();
+    text = text.replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - now) < 3_600_000 ? "<now>" : t));
+    return JSON.parse(text);
+  };
+
+  /** The chunk 8 calls on one lead that has a social message, in order. */
+  async function run8(commit) {
+    const old = await openOld(EXPORT, commit ? { commit } : {});
+    let rec = null;
+    for (const c of (await old.call("outreach.campaign.list")).body.data) {
+      const list = (await old.call("outreach.social.list", { campaign_id: c.id })).body.data ?? [];
+      rec = list.find((r) => r.type === "sequence" && r.parts.some((p) => !p.sent_at)) ?? null;
+      if (rec) break;
+    }
+    assert.ok(rec, "the export has a written social run");
+    const { campaign_id, lead_id, channel } = rec;
+    const open = rec.parts.find((p) => !p.sent_at).key;
+    const calls = [
+      ["followups.list", {}],
+      ["followups.update", { lead_id, channel, step_key: open, op: "note", value: "switch note" }],
+      ["followups.update", { lead_id, channel, step_key: open, op: "move", value: "2026-12-02" }],
+      ["followups.update", { lead_id, channel: "fax", step_key: open, op: "skip" }],
+      ["followups.linkedin", { lead_id, op: "accepted" }],
+      ["followups.replied", { lead_id, undo: true }],
+      ["outreach.social.list", { campaign_id, lead_id }],
+      ["outreach.social.verify", { campaign_id, lead_id, channel }],
+      ["outreach.social.update", { campaign_id, lead_id, channel, parts: { [rec.parts.at(-1).key]: "Switch test edit." } }],
+      ["outreach.social.record_hand", { campaign_id, lead_id, channel: "linkedin", text: "Switch test note sent by hand.", sent_on: "2026-11-20" }],
+      ["outreach.social.mark_sent", { campaign_id, lead_id, channel, part: open, sent_on: "2026-11-21" }],
+      ["outreach.lead.touches", { campaign_id, lead_id }],
+      ["outreach.touch.delete", { lead_id, touch_id: "no-such-touch" }],
+      ["outreach.social.plan", { leads: [{ campaign_id, lead_id }] }],
+      ["outreach.social.delete", { campaign_id, lead_id, channel }],
+      ["outreach.social.list", { campaign_id, lead_id }],
+    ];
+    const answers = [];
+    for (const [action, params] of calls) answers.push({ action, ...(await old.call(action, params)) });
+    const stores = Object.fromEntries(STORES8.map((name) => [name, Object.fromEntries([...(storeMap(old.blobs, name))].map(([k, v]) => [k, JSON.parse(v)]))]));
+    return settle({ answers, stores });
+  }
+
+  test("unset: the chunk 8 actions answer and write exactly as before chunk 8", async () => {
+    const was = await run8(BASE8);
+    const now = await run8(null);
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i], { ignoreKeys: ["ms"] });
+      assert.ok(r.same, `${w.action}\n${describeDiff(r)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r)}`);
+    }
+    console.log(`switch unset (chunk 8): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 8`);
+  });
+
+  test("sql: the chunk 8 actions go to the SQL modules (a database socket is reached for, never the network); the AI actions answer 501", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    const sqlOn = () => { process.env.DATA_BACKEND = "sql"; process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none"; };
+    for (const [action, params] of [["followups.list", {}], ["followups.update", { lead_id: "x", channel: "email", step_key: "2", op: "skip" }], ["followups.replied", { lead_id: "x" }], ["followups.linkedin", { lead_id: "x", op: "accepted" }],
+      ["outreach.social.list", { campaign_id: "x" }], ["outreach.social.verify", { campaign_id: "x", lead_id: "y", channel: "facebook" }], ["outreach.social.mark_sent", { campaign_id: "x", lead_id: "y", channel: "facebook" }],
+      ["outreach.social.record_hand", { campaign_id: "x", lead_id: "y", channel: "facebook", text: "t" }], ["outreach.social.delete", { campaign_id: "x", lead_id: "y", channel: "facebook" }],
+      ["outreach.social.update", { campaign_id: "x", lead_id: "y", channel: "facebook", parts: {} }], ["outreach.touch.delete", { lead_id: "y", touch_id: "z" }], ["outreach.lead.touches", { campaign_id: "x", lead_id: "y" }]]) {
+      const old = await openOld(EXPORT);
+      sqlOn();
+      const before = blockedCalls.length;
+      let outcome;
+      try { outcome = JSON.stringify(await old.call(action, params)); } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, `${action}: ${outcome.slice(0, 120)}`);
+      const tried = blockedCalls.slice(before);
+      if (tried.some((c) => c.what === "connect")) sockets++;
+      assert.ok(tried.every((c) => c.what === "connect"), `${action}: only the database was reached for`);
+    }
+    assert.ok(sockets > 0, "a database socket was refused");
+    for (const action of ["outreach.social.write", "outreach.social.plan", "outreach.social.batch.start", "outreach.social.batch.status", "outreach.social.batch.resume"]) {
+      const old = await openOld(EXPORT);
+      sqlOn();
+      const r = await old.call(action, { campaign_id: "x", leads: [{ campaign_id: "x", lead_id: "y" }] });
+      assert.equal(r.status, 501, `${action}: ${JSON.stringify(r.body)}`);
+    }
   });
 });
