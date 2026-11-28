@@ -151,6 +151,12 @@ export async function openOld(exportDir, { commit = null, allowDb = false, fetch
       let body = res.body; try { body = JSON.parse(res.body); } catch { /* plain text */ }
       return { status: res.statusCode, body };
     },
+    /** Like raw, but returns the handler's whole answer (status, headers, body as sent), e.g. to check a redirect. */
+    async rawFull(event) {
+      globalThis.__equivBlobs = blobs;
+      installFetch(fetchRoutes);
+      return handler(event);
+    },
     async call(action, params = {}) {
       globalThis.__equivBlobs = blobs; // several old paths can be open at once; each call uses its own stores
       installFetch(fetchRoutes);

@@ -26,6 +26,7 @@ export const handler: Handler = async (event) => {
   if (forward) {
     return { statusCode: 302, headers: { Location: `${forward}/t/${token}`, "Cache-Control": "no-store" }, body: "" };
   }
+  if (process.env.DATA_BACKEND === "sql") return sqlClick(token, event); // P2 chunk 10 (R7): signed links, no open redirect, below
 
   // Decode the token. Base64url → JSON → payload.
   let payload: ClickPayload | null = null;
@@ -114,3 +115,10 @@ export const handler: Handler = async (event) => {
     body: "",
   };
 };
+
+// P2 chunk 10: the click on Postgres (only when DATA_BACKEND=sql): lib/sql/clicks.ts reads the destination from click_links
+// by the token; a token it does not know gets a 404 and no redirect.
+async function sqlClick(token: string, event: Parameters<Handler>[0]) {
+  const [{ withTx }, clicks] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/clicks.ts")]);
+  return withTx((tx) => clicks.click(tx, token, { userAgent: event.headers?.["user-agent"] ?? null }, { newId: () => nanoid(12) }));
+}

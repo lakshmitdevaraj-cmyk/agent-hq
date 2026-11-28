@@ -1968,6 +1968,20 @@ async function sqlStore<T>(fn: (tx: import("./lib/db/client.ts").Tx, st: typeof 
   return withTx((tx) => fn(tx, st));
 }
 
+// P2 chunk 10: forms (A2) and the links library (A3) on Postgres (only when DATA_BACKEND=sql). The public form and click
+// endpoints (form-submit.ts, track-click.ts) have their own guarded lines; nothing here calls the network.
+async function sqlFormCase(action: string, params: unknown) {
+  const [{ withTx }, { CampaignError }, forms, links] = await Promise.all([import("./lib/db/client.ts"), import("./lib/sql/campaigns.ts"), import("./lib/sql/forms.ts"), import("./lib/sql/links.ts")]);
+  const p = (params ?? {}) as Record<string, unknown>;
+  try {
+    if ((links.LINK_ACTIONS as string[]).includes(action)) return ok(await withTx((tx) => links.runLinkAction(tx, action as import("./lib/sql/links.ts").LinkAction, p, { newId: () => nanoid(12) })));
+    return ok(await withTx((tx) => forms.runFormAction(tx, action as import("./lib/sql/forms.ts").FormAction, p, { newId: () => nanoid(12), baseUrl: (process.env.URL ?? "").replace(/\/+$/, "") })));
+  } catch (e) {
+    if (e instanceof CampaignError) return e.code ? failCode(e.status, e.message, e.code) : fail(e.status, e.message);
+    throw e;
+  }
+}
+
 /** Find one lead of a campaign by id (leads are keyed by creation time, so this scans the campaign's prefix). */
 async function findLeadRow(campaign_id: string, lead_id: string): Promise<{ key: string; lead: Record<string, unknown> } | null> {
   const ls = store(OUTREACH_LEADS);
@@ -3406,6 +3420,7 @@ export const handler: Handler = async (event) => {
 
       // ── FORMS ──────────────────────────────────────────────
       case "form.create": {
+        if (sqlBackend()) return sqlFormCase("form.create", params); // P2 chunk 10 (A2)
         const { slug, title, description = "", fields } = params as Record<string, unknown>;
         if (!slug || !title || !Array.isArray(fields)) return fail(400, "slug, title, fields required");
         const ALLOWED_TYPES = ["text", "email", "textarea", "tel", "url", "number", "date"];
@@ -3437,9 +3452,11 @@ export const handler: Handler = async (event) => {
         return ok(config);
       }
       case "form.list": {
+        if (sqlBackend()) return sqlFormCase("form.list", params); // P2 chunk 10 (A2)
         return ok(await listJson(store(FORMS)));
       }
       case "form.submissions": {
+        if (sqlBackend()) return sqlFormCase("form.submissions", params); // P2 chunk 10 (A2)
         const { slug } = params as Record<string, string>;
         if (!slug) return fail(400, "slug required");
         return ok(await listJson(store(SUBMISSIONS), `${slug}/`));
@@ -6109,6 +6126,18 @@ export const handler: Handler = async (event) => {
       case "agent.set_scope":
         // P2 chunk 9: new actions (R6: revoke a key, change what it may do), SQL only. On Blobs they answer as the default case does today.
         if (sqlBackend()) return sqlAccessCase(action, params, identity);
+        return fail(400, `Unknown action: ${action}`);
+
+      case "form.update":
+      case "form.delete":
+      case "form.link":
+      case "links.list":
+      case "links.create":
+      case "links.update":
+      case "links.delete":
+      case "links.build":
+        // P2 chunk 10: new actions (A2 forms, A3 links library), SQL only. On Blobs they answer as the default case does today.
+        if (sqlBackend()) return sqlFormCase(action, params);
         return fail(400, `Unknown action: ${action}`);
 
       case "outreach.leads.add":

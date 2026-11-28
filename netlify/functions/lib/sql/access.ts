@@ -32,6 +32,7 @@ const READ = new Set([
   "outreach.send.plan", "outreach.send.today", "outreach.settings.get", "outreach.social.batch.status", "outreach.social.list", "outreach.social.plan",
   "outreach.social.verify", "webhook.events", "outreach.webhook.events", "webhook.list", "page.get", "page.list", "task.list",
   "voice.config.check", "voice.session.get", "voice.session.list", "voice.invitation.get", "voice.invitation.list",
+  "links.list", "links.build", // chunk 10
 ]);
 /** Sends email or spends money (lead finding, site and browser checks). */
 const SEND = new Set([
@@ -43,6 +44,7 @@ const MASTER = new Set([
   "auth.rotate", "data.counts", "data.export", "data.import", "config.set", "config.test", "config.clear", "agent.register", "agent.delete",
   "agent.revoke", "agent.set_scope", "webhook.create", "webhook.create_typed", "webhook.delete", "webhook.set_secret", "outreach.settings.set",
   "outreach.campaign.delete", "outreach.leads.delete", "voice.config.get", "voice.config.set", "voice.config.clear",
+  "form.delete", // chunk 10: a form and its personal links go
 ]);
 
 export function actionClass(action: string): ActionClass {

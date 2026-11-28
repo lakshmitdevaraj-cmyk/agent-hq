@@ -29,6 +29,8 @@ export function openNew(branch = "dev", { max = Number(process.env.EQUIV_POOL) |
     call: (version, params = {}) => run(version, params, true),
     /** The same for a write: `version` may change rows, and every change is rolled back. */
     callWrite: (version, params = {}) => run(version, params, false),
+    /** A transaction that COMMITS (for tests that go through a real handler; the test removes its own rows afterwards). */
+    commit: (fn) => db().begin(fn),
     close: async () => { const p = pool; pool = null; if (p) await p.end({ timeout: 5 }); await closeDb(); }, // the app's own pool too, if a test used it
   };
 }

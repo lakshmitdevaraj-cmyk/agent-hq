@@ -755,3 +755,83 @@ describe("DATA_BACKEND switch, chunk 9 actions (settings, keys and access)", { s
     assert.ok(sockets > 0, "a database socket was refused (each call above was refused at the network)");
   });
 });
+
+const BASE10 = "59c97d5"; // the last commit before chunk 10 touched command.ts, form-submit.ts and track-click.ts
+describe("DATA_BACKEND switch, chunk 10 actions (forms, links and clicks)", { skip }, () => {
+  let openOld;
+  before(async () => { ({ openOld } = await import("../equiv/old-path.mjs")); });
+  afterEach(() => { delete process.env.DATA_BACKEND; delete process.env.DATABASE_URL; });
+  const STORES10 = ["agent-hq-forms", "agent-hq-submissions", "agent-hq-activity", "agent-hq-outreach-clicks"];
+  const settle = (v) => JSON.parse(JSON.stringify(v)
+    .replace(/20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (t) => (Math.abs(Date.parse(t) - Date.now()) < 3_600_000 ? "<now>" : t))
+    .replace(/(?<=\\?")[A-Za-z0-9_-]{12}(?=\\?")/g, (s) => (/[0-9]/.test(s) && /[A-Za-z]/.test(s) ? "<id>" : s))
+    .replace(/(?<=\\?"[^"\\]*-)[A-Za-z0-9_-]{12}(?=\\?")/g, "<id>"));
+  const oldTok = Buffer.from(JSON.stringify({ c: "switch-c", l: "switch-l", e: "switch-e", u: "https://madeup-link.test/x" })).toString("base64url");
+
+  async function run10(commit) {
+    const o = (fn) => openOld(EXPORT, { ...(commit ? { commit } : {}), ...(fn ? { fn } : {}) });
+    const old = await o();
+    const formFn = await o("form-submit");
+    const clickFn = await o("track-click");
+    const answers = [];
+    for (const [action, params] of [
+      ["form.create", { slug: "switch-form", title: "Made-up switch form", fields: [{ name: "Name", label: "Name", type: "text", required: true }] }],
+      ["form.list", {}], ["form.submissions", { slug: "switch-form" }], ["form.submissions", {}],
+      ["form.update", { slug: "switch-form" }], ["form.delete", { slug: "switch-form" }], ["form.link", { slug: "switch-form", lead_id: "x" }],
+      ["links.list", {}], ["links.create", { name: "x", url: "https://madeup-link.test" }], ["links.build", { url: "https://madeup-link.test" }],
+    ]) answers.push({ action, ...(await old.call(action, params)) });
+    formFn.blobs.getStore("agent-hq-forms"); formFn.blobs.stores.get("agent-hq-forms").set("switch-form", JSON.stringify({ slug: "switch-form", title: "Made-up", fields: [] }));
+    answers.push({ action: "form GET", ...(await formFn.raw({ httpMethod: "GET", path: "/.netlify/functions/form-submit/switch-form", headers: {} })) });
+    answers.push({ action: "form POST", ...(await formFn.raw({ httpMethod: "POST", path: "/.netlify/functions/form-submit/switch-form", headers: {}, body: JSON.stringify({ name: "Made-up" }) })) });
+    const click = await clickFn.rawFull({ httpMethod: "GET", path: `/.netlify/functions/track-click/${oldTok}`, headers: {} });
+    answers.push({ action: "track-click", status: click.statusCode, location: click.headers?.Location });
+    const stores = {};
+    for (const name of STORES10) for (const [src, b] of [["cmd", old.blobs], ["form", formFn.blobs], ["click", clickFn.blobs]]) {
+      stores[`${src}:${name}`] = Object.fromEntries([...storeMap(b, name)].map(([k, v]) => [settle(k), settle(JSON.parse(v))]));
+    }
+    return { answers: answers.map(settle), stores };
+  }
+
+  test("unset: the form actions, form-submit.ts and track-click.ts answer and write exactly as before chunk 10; the new actions are unknown on Blobs", async () => {
+    const was = await run10(BASE10);
+    const now = await run10(null);
+    for (const [i, w] of was.answers.entries()) {
+      const r = compare(w, now.answers[i]);
+      assert.ok(r.same, `${w.action}\n${describeDiff(r).slice(0, 120)}`);
+    }
+    for (const name of Object.keys(was.stores)) {
+      const r = compare(was.stores[name], now.stores[name], { unordered: ["$"] });
+      assert.ok(r.same, `${name}\n${describeDiff(r).slice(0, 120)}`);
+    }
+    for (const a of ["form.update", "form.delete", "form.link", "links.list", "links.create", "links.build"]) {
+      assert.deepEqual(now.answers.find((x) => x.action === a).body, { ok: false, error: `Unknown action: ${a}` });
+    }
+    assert.equal(now.answers.at(-1).status, 302, "on Blobs the old click still redirects (fixed on SQL only)");
+    console.log(`switch unset (chunk 10): ${was.answers.length} calls and ${Object.keys(was.stores).length} stores are the same before and after chunk 10`);
+  });
+
+  test("sql: the chunk 10 actions, form-submit.ts and track-click.ts go to the database (after the key check), nothing else is reached for", async () => {
+    const { blockedCalls } = await import("../equiv/old-path.mjs");
+    let sockets = 0;
+    const tryOne = async (fn) => {
+      process.env.DATA_BACKEND = "sql";
+      process.env.DATABASE_URL = "postgres://switch-test:not-a-password@db.invalid:5432/none";
+      const before = blockedCalls.length;
+      let outcome;
+      try { outcome = JSON.stringify(await fn()); } catch (e) { outcome = `${e.code} ${e.message}`; }
+      assert.match(outcome, /network access is blocked/, outcome.slice(0, 120));
+      const tried = blockedCalls.slice(before);
+      if (tried.some((c) => c.what === "connect") || /network access is blocked \(connect\)/.test(outcome)) sockets++;
+      assert.ok(!tried.some((c) => c.what === "fetch"), "no fetch");
+    };
+    for (const [action, params] of [["form.list", {}], ["form.link", { slug: "x", lead_id: "y" }], ["links.list", {}]]) {
+      const old = await openOld(EXPORT);
+      await tryOne(() => old.call(action, params));
+    }
+    const formFn = await openOld(EXPORT, { fn: "form-submit" });
+    await tryOne(() => formFn.raw({ httpMethod: "POST", path: "/.netlify/functions/form-submit/x", headers: {}, body: "{}" }));
+    const clickFn = await openOld(EXPORT, { fn: "track-click" });
+    await tryOne(() => clickFn.raw({ httpMethod: "GET", path: "/.netlify/functions/track-click/BBBBBBBBBBBBBBBBBBBBBB", headers: {} }));
+    assert.ok(sockets > 0, "a database socket was refused");
+  });
+});

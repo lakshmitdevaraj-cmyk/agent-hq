@@ -9,6 +9,7 @@
 //     the same transaction (lib/sql/outbox.ts); they are sent after commit.
 //   - `outreach.reply.draft` answers 501 until P4 (it needs the AI writer, as generate_one does since chunk 5).
 // AgentMail comes in only through `deps.agentmail`; tests pass a stub and the harness refuses every real network call.
+import { refreshForLeads } from "./followups.ts";
 import type { Sql, Tx } from "../db/client.ts";
 import { CampaignError } from "./campaigns.ts";
 import { enqueue } from "./outbox.ts";
@@ -168,6 +169,8 @@ export async function ingest(q: Q, o: { eventType: string; message: InboundMessa
   await q`insert into activity (id, blob_key, agent_id, category, summary, details, created_at, data) values (
             ${deps.newId()}, null, null, 'email', ${`${reply.flag ? `[${reply.flag}] ` : ""}Reply from ${message.from ?? "unknown"}: ${(message.subject ?? "(no subject)").slice(0, 80)}`},
             ${q.json({ reply_id: replyId, campaign_id: reply.campaign_id, flag: reply.flag } as never)}, ${reply.received_at}::timestamptz, '{}')`;
+  // run E: follow_ups current after a reply, an opt-out or a bounce report (the lead and every lead on the stopped address)
+  await refreshForLeads(q, { leadIds: [match?.lead_id as string | undefined, reply.lead_id], emailKeys: [optOut ? fromKey : null, kind === "bounce_report" ? (match?.to_key as string | undefined) : null] });
   return { stored: true, duplicate: false, reply, opt_out: optOut, dnc_marked: dnc };
 }
 

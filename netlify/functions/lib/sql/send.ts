@@ -11,6 +11,8 @@
 //     touched here). Bounced = a real bounce or complaint of that address; a failed send is not a bounce.
 // AgentMail only comes in through `deps.agentmail` (command.ts wraps its own helpers); tests pass a stub, and the
 // test harness refuses every real network call.
+import { refreshForLeads } from "./followups.ts";
+import { trackLinks } from "./clicks.ts";
 import type { Sql, Tx } from "../db/client.ts";
 import { CampaignError } from "./campaigns.ts";
 import { codeCheckDraft, readSettings } from "./emailchecks.ts";
@@ -79,16 +81,6 @@ async function sendPlan(q: Q, params: Row, deps: SendDeps) {
 type NotSent = { email_id: string; to_email?: string; step?: number; reason: string; code: string };
 type Draft = Row & { id: string; lead_id: string; to_email: string; step: number; status: string; review_status: string | null; created_at: unknown };
 
-/** copy of rewriteLinksForTracking in command.ts */
-export function rewriteLinksForTracking(html: string, baseUrl: string, campaignId: string, leadId: string, emailId: string): string {
-  return html.replace(/href="([^"]+)"/gi, (full, rawUrl) => {
-    if (!rawUrl || typeof rawUrl !== "string") return full;
-    if (/^(#|mailto:|tel:|sms:)/i.test(rawUrl)) return full;
-    if (rawUrl.startsWith(`${baseUrl}/t/`)) return full;
-    const token = Buffer.from(JSON.stringify({ c: campaignId, l: leadId, e: emailId, u: rawUrl })).toString("base64url");
-    return `href="${baseUrl}/t/${token}"`;
-  });
-}
 
 const STOP_REASON: Record<string, string> = {
   do_not_contact: "Do not contact: this lead or address asked not to be emailed",
@@ -244,7 +236,8 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
     const senderName = String(campaign.default_sender_name ?? "");
     if (senderName) { try { await am.setDisplayName(inbox.inbox_id, senderName, inbox.display_name); } catch { /* non-fatal, as today */ } }
     for (const em of toSend) {
-      const tracked = rewriteLinksForTracking(String(em.body_html || textToHtml(String(em.body_text || ""))), deps.baseUrl, cid, em.lead_id, em.id);
+      // R7 (chunk 10): each http(s) link gets a click_links row; the click reads the link from there, never from the token.
+      const tracked = await run((q) => trackLinks(q, String(em.body_html || textToHtml(String(em.body_text || ""))), { baseUrl: deps.baseUrl, campaignId: cid, leadId: em.lead_id, emailId: em.id }, { newId: deps.newId }));
       const withFooter = appendFooter(String(em.body_text || ""), tracked, postal, String(em.sender_name || senderName));
       let path = `/inboxes/${inbox.inbox_id}/messages/send`;
       let usedInbox = inbox.inbox_id; // F47: the inbox the email really goes out from is the one stored
@@ -288,6 +281,7 @@ async function send(run: Runner, params: Row, deps: SendDeps) {
     // The campaign never stays "sending", whatever happened above.
     await run(async (q) => {
       if (sentLeadIds.size) await q`update leads set contacted_at = coalesce(contacted_at, now()) where id = any(${[...sentLeadIds]}::text[])`;
+      if (sentLeadIds.size) await refreshForLeads(q, { leadIds: [...sentLeadIds] }); // run E: follow_ups current after a send
       const [{ n }] = await q`select count(*)::int as n from emails e join leads l on l.id = e.lead_id
                               where e.campaign_id = ${cid} and e.status = 'drafted' and not e.is_duplicate and e.review_status = 'ready'
                                 and not l.excluded and not l.do_not_contact and l.stop_state = 'none' and l.merged_into is null`;

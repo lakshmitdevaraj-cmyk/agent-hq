@@ -109,6 +109,19 @@ export async function refreshFollowUps(q: Q, leadIds?: string[], now: Date = new
   return ins.length;
 }
 
+/**
+ * Run E (chunk 8 open point): refreshes `follow_ups` for the leads a send, reply, bounce, complaint or form post just
+ * changed, so the campaign list's follow-up filter is current without opening the follow-ups list. `emailKeys` adds
+ * every lead whose current address is one of them (a bounce or opt-out stops the address, not only one lead).
+ */
+export async function refreshForLeads(q: Q, o: { leadIds?: Array<string | null | undefined>; emailKeys?: Array<string | null | undefined> }, now: Date = new Date()): Promise<number> {
+  const ids = new Set((o.leadIds ?? []).filter((x): x is string => typeof x === "string" && x !== ""));
+  const keys = [...new Set((o.emailKeys ?? []).filter((x): x is string => typeof x === "string" && x !== "").map((x) => x.trim().toLowerCase()))];
+  if (keys.length) for (const r of await q`select id from leads where email_key = any(${keys})`) ids.add(String(r.id));
+  if (!ids.size) return 0;
+  return refreshFollowUps(q, [...ids], now);
+}
+
 async function list(q: Q, now: Date): Promise<Row> {
   const t0 = Date.now();
   const { today, rows, settings } = await workOut(q, now);

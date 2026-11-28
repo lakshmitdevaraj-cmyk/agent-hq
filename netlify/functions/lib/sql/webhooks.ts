@@ -12,6 +12,7 @@
 //     rejection is a failed send with its reason, never a bounce (26 Nov rule). F31: an FYI alert for a bounce or complaint.
 //   - V8: webhook.list gives each webhook's status: signed, last event, events in the last 30 days, refusals.
 //   - The secret is stored on the webhook row and is never returned by any read.
+import { refreshForLeads } from "./followups.ts";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Sql, Tx } from "../db/client.ts";
 import { CampaignError } from "./campaigns.ts";
@@ -204,6 +205,7 @@ async function applyOutbound(q: Q, ev: AgentMailEvent, type: string): Promise<st
     }
     const [s] = await q`select data from outreach_settings where key = 'settings'`;
     const [camp] = await q`select name from campaigns where id = ${email.campaign_id}`;
+    await refreshForLeads(q, { leadIds: [email.lead_id as string | undefined], emailKeys: [address] }); // run E: follow_ups current after a bounce or complaint
     await queueFyi(q, (s?.data as Row) ?? {}, { what: next === "bounced" ? "bounced" : "complained", business: String(email.to_name || address || "A lead"), campaignName: String(camp?.name ?? "campaign"), fromAddr: null, inbox: email.agentmail_inbox_id as string, lead_id: (email.lead_id as string) ?? null, campaign_id: (email.campaign_id as string) ?? null, email_id: String(email.id) });
   }
   return how;
