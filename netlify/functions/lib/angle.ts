@@ -239,7 +239,9 @@ const QUICK_Q = /quick question\s*:\s*([^.!?\n]*)([.!?]?)/i;
 const UNOFFERED: Array<[RegExp, string]> = [
   [/\b(?:texts?|texting|sms)\b/i, "texting"],
   // Only when the assistant (or "we"/"it") is said to schedule, book, dispatch, quote, invoice or take payments; "busy schedule" is fine.
-  [/\b(?:assistant|shiftforge(?: ai)?|we|it|our \w+)\b[^.!?\n]{0,50}?\b(?<!\b(?:busy|hectic|packed|full|tight|service|work|crew|team|job|daily|weekly)\s)(?:schedul(?:es|ing)|books?|booking|dispatch(?:es|ing)?|quot(?:es|ing)|invoic(?:es|ing)|takes? payments?|collects? payments?|sends? (?:them |you |customers? )?(?:a )?quotes?)\b(?!\s+(?:an?\s+|the\s+|your\s+)?(?:30|free|quick|short|brief|call|chat|time)\b)/i, "scheduling, dispatch, quotes or payments"],
+  // The "busy/team/crew..." exception is for THEIR schedule only: it does not apply when "our"/"we" (plus at most one word) comes
+  // right before it, so "our team books jobs" and "we're a crew booking jobs" are still caught.
+  [/\b(?:assistant|shiftforge(?: ai)?|we|it|our \w+)\b[^.!?\n]{0,50}?\b(?<!(?<!\b(?:our|we(?:'re| are)?)\s(?:\w+\s)?)\b(?:busy|hectic|packed|full|tight|service|work|crew|team|job|daily|weekly)\s)(?:schedul(?:es|ing)|books?|booking|dispatch(?:es|ing)?|quot(?:es|ing)|invoic(?:es|ing)|takes? payments?|collects? payments?|sends? (?:them |you |customers? )?(?:a )?quotes?)\b(?!\s+(?:an?\s+|the\s+|your\s+)?(?:30|free|quick|short|brief|call|chat|time)\b)/i, "scheduling, dispatch, quotes or payments"],
 ];
 
 /** Hours facts (weekend closure, 24/7, after hours) are saved in the site check but are not in the details list. */

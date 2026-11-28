@@ -65,4 +65,20 @@ describe("F39: sameness ignores the offer sentence, still catches real copying",
     assert.equal(unoffered("The assistant also handles your scheduling and quotes."), true);
     assert.equal(unoffered("It books the appointment straight away."), true);
   });
+
+  test("\"scheduling\": the busy/team/crew exception is their schedule only, never ours", () => {
+    const check = (body) => ag.checkModelDraft({ subject: "made-up plumbing calls", body, fact_used: null }, 0, {});
+    const unoffered = (body) => check(body).some((f) => /scheduling, dispatch, quotes or payments/.test(f));
+    // Hits: "our team" / "we" is the one booking.
+    assert.equal(unoffered("Our team books jobs fast."), true);
+    assert.equal(unoffered("Our busy team books jobs while you work."), true);
+    assert.equal(unoffered("Our crew schedules every visit for you."), true);
+    assert.equal(unoffered("We're a team booking jobs around the clock."), true);
+    assert.equal(unoffered("We are a crew dispatching techs for you."), true);
+    // Near misses: their team, their crew, their schedule.
+    assert.equal(unoffered("We answer calls so your team books more jobs."), false);
+    assert.equal(unoffered("We pick up while your crew schedules the next visit."), false);
+    assert.equal(unoffered("We know your busy service schedules fill up fast."), false);
+    assert.equal(unoffered("It answers while your team schedules jobs."), false);
+  });
 });
