@@ -56,3 +56,8 @@
 ## 28 Nov (P2 run C, chunk 7 start)
 - Tests first is a rule in every chunk, not only when there is time: write the tests, run them, and save the failing run to `p2-reports/chunkN-failing-run.txt` before any code. It was skipped in chunks 5b and 6.
 - A slow suite is a bug to fix, not a cost to report: the full suite took 41 min because equivalence tests made one Neon call after another (about 225 ms a round trip from India) on a pool of 2. Run independent calls side by side (the harness's own pool and `pmap`), and while building run only the area's files and that chunk's switch-proof block; the whole suite once at the end of the run.
+
+## 28 Nov (P2 run D, chunks 8 and 9)
+- `compare()` paths are written without `$` (`body.data`, not `$.body.data`); only the root is `"$"`. A wrong `unordered` path silently does nothing, and a test passes only while the order happens to match. Check an option works by seeing it change a result.
+- Moving the key check into the database changes every SQL-mode handler test: they now reach the database first, so "answers 501 before any database call" stops being true. Tests that run the real handler need a key there: the harness registers a random key per run (never a fixed key in a public repo) and removes it on exit.
+- A failing assertion can print a whole old answer, with real business names, into a saved report. Cut assertion messages to a few characters wherever they quote an answer from the export.

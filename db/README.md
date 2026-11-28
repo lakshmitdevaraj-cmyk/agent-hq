@@ -149,6 +149,13 @@ Tests: `webhooks-sql`, `replies-sql`, `replies-equiv`, `backend-switch` (chunk 7
 
 Tests: `social-sql`, `followups-sql`, `social-equiv`, `backend-switch` (chunk 8 part: `12176f3`).
 
+**Chunk 9, `lib/sql/access.ts`, `lib/sql/settings.ts`, migration 0016:** keys, Settings and service keys.
+- **R6 / V8:** `access_keys` keeps each key only as its SHA-256 hash (`key_hint` = last 4 characters); a key is shown once, when made. `identifyApiKey` (`lib/auth.ts`, one guarded line) looks the hash up on SQL; revoked or unknown → 401. A guarded line after the 401 check refuses what the key's scope doesn't cover (403, code `scope`): master = all; agent `read`, `drafts` (default) or `send`. The class of every action is in `access.ts` (`actionClass`; a test checks every action in `command.ts` has one and no "read" one writes). `agent.list` never returns a key; `agent.delete` revokes; new SQL-only `agent.revoke`, `agent.set_scope`; `agent.register` is master only; an agent heartbeats only itself.
+- **R3 / V7:** on SQL, service keys live only in `service_config.data.key` (never the Voice copy); `config.set` tests first and saves nothing on a failed test; `config.status` shows masked keys only. Settings: `readOutreachSettings` and the `settings.set` write are guarded storage lines, so the Settings rules keep one copy; a write sets only the changed fields.
+- **Tests and the key:** on SQL every handler call checks its key in the database first. The old-path harness makes a random `TEST_KEY` per run and, for SQL runs on `dev`, registers it as a master key (`equiv-harness-<pid>`), removed when the file ends.
+
+Tests: `access-sql` (including the real handler on `dev`: a read-only key sending → 403, revoked → 401, unknown → 401), `settings-sql`, `backend-switch` (chunk 9 part: `ebbd8b0`).
+
 **Running one area while building:** run that area's files only, e.g. `node --test --test-concurrency=1 scripts/db/test/{webhooks-sql,replies-sql,replies-equiv}.test.mjs`, and the switch proof for one chunk with `--test-name-pattern="chunk 7" scripts/db/test/backend-switch.test.mjs`. The full suite runs once at the end of the run. The equivalence harness has its own pool (8 connections, `EQUIV_POOL` to change) and `pmap` for independent calls side by side.
 
 ## At the P5 switch
