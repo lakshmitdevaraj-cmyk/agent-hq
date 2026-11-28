@@ -228,7 +228,9 @@ Plan `p2-reports/chunk7-plan.md`, report `p2-reports/chunk7-report.md`, failing 
 |---|---|
 | 1. Tests first (webhooks-sql, replies-sql, replies-equiv, switch proof chunk 7), harness bundles `webhook-receive.ts`, `recheck-list.mjs` | `0ba79aa` |
 | 2–3. `lib/sql/webhooks.ts`, `replies.ts`, `outbox.ts`; `send.ts` F47 inbox; `command.ts` 13 guarded lines + `sqlReplyCase` (39 lines); `webhook-receive.ts` one guarded line + `sqlReceive` | `d0fb582` |
-| 4. Suite speed-up (harness pool of 8, `pmap` for independent calls), README, handoff, report | (this commit) |
+| 4. Suite speed-up (harness pool of 8, `pmap` for independent calls), README, handoff, lessons | `4c55116` |
+
+**Suite:** 288 tests pass (two Neon connection resets passed on re-run), `npx tsc -b` clean. Same 28 files 41.1 → 30.1 min; whole suite now 34.6 min (`p2-reports/chunk7-timing/comparison.md`).
 
 No migration (0001–0014 on `dev`). Nothing on `production`, no netlify command, no dependency, no file deleted, no real email or AgentMail call.
 
